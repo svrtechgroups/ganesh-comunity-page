@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { 
   Plus, 
   Trash2, 
@@ -14,10 +14,15 @@ import {
   Calendar, 
   Eye, 
   Filter, 
-  Sparkles,
-  ExternalLink,
-  Film,
-  Search
+  Sparkles, 
+  ExternalLink, 
+  Film, 
+  Search,
+  GripVertical,
+  ChevronLeft,
+  ChevronRight,
+  ArrowUpDown,
+  Check
 } from 'lucide-react';
 import { isYouTubeUrl, getYouTubeThumbnailUrl } from '@/lib/youtube';
 
@@ -83,6 +88,12 @@ export default function AdminMediaPage() {
   const [selectedEventFilter, setSelectedEventFilter] = useState<string>('all');
   const [selectedTypeFilter, setSelectedTypeFilter] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState<string>('');
+
+  // Drag-and-Drop & Reorder State
+  const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
+  const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
+  const [reorderNotice, setReorderNotice] = useState<string | null>(null);
+  const [isSavingOrder, setIsSavingOrder] = useState<boolean>(false);
 
   // Modal & Edit State
   const [modalOpen, setModalOpen] = useState(false);
@@ -241,27 +252,163 @@ export default function AdminMediaPage() {
     }
   };
 
-  // Filtered Media
-  const filteredItems = mediaItems.filter((item) => {
-    if (selectedEventFilter !== 'all') {
-      if (selectedEventFilter === 'unassigned') {
-        if (item.eventId) return false;
-      } else if (item.eventId !== selectedEventFilter) {
-        return false;
+  // Filtered & Sorted Media
+  const filteredItems = useMemo(() => {
+    return mediaItems
+      .filter((item) => {
+        if (selectedEventFilter !== 'all') {
+          if (selectedEventFilter === 'unassigned') {
+            if (item.eventId) return false;
+          } else if (item.eventId !== selectedEventFilter) {
+            return false;
+          }
+        }
+        if (selectedTypeFilter !== 'all' && item.type !== selectedTypeFilter) {
+          return false;
+        }
+        if (searchQuery.trim()) {
+          const q = searchQuery.toLowerCase();
+          const matchesTitle = item.title?.toLowerCase().includes(q);
+          const matchesDesc = item.description?.toLowerCase().includes(q);
+          const matchesEvent = item.event?.title?.toLowerCase().includes(q);
+          if (!matchesTitle && !matchesDesc && !matchesEvent) return false;
+        }
+        return true;
+      })
+      .sort((a, b) => {
+        if (a.displayOrder !== b.displayOrder) {
+          return a.displayOrder - b.displayOrder;
+        }
+        if (a.isFeatured !== b.isFeatured) {
+          return a.isFeatured ? -1 : 1;
+        }
+        return new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime();
+      });
+  }, [mediaItems, selectedEventFilter, selectedTypeFilter, searchQuery]);
+
+  // Batch persist reordered items to DB
+  const persistOrder = async (updatedList: MediaItem[]) => {
+    setIsSavingOrder(true);
+    setReorderNotice('Saving updated media order...');
+    try {
+      const payload = updatedList.map((item, idx) => ({
+        id: item.id,
+        displayOrder: idx + 1,
+      }));
+
+      const res = await fetch('/api/admin/media/reorder', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ items: payload }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setReorderNotice('✓ Media order updated and saved in database!');
+        setTimeout(() => setReorderNotice(null), 3000);
+      } else {
+        setReorderNotice('Failed to save order in database.');
+        setTimeout(() => setReorderNotice(null), 3000);
       }
+    } catch (err) {
+      console.error('Error saving reorder:', err);
+      setReorderNotice('Network error saving order.');
+      setTimeout(() => setReorderNotice(null), 3000);
+    } finally {
+      setIsSavingOrder(false);
     }
-    if (selectedTypeFilter !== 'all' && item.type !== selectedTypeFilter) {
-      return false;
+  };
+
+  // Move front (earlier / left) or back (later / right)
+  const handleMove = (filteredIdx: number, direction: 'prev' | 'next') => {
+    const targetIdx = direction === 'prev' ? filteredIdx - 1 : filteredIdx + 1;
+    if (targetIdx < 0 || targetIdx >= filteredItems.length) return;
+
+    const newFiltered = [...filteredItems];
+    const [moved] = newFiltered.splice(filteredIdx, 1);
+    newFiltered.splice(targetIdx, 0, moved);
+
+    const updatedFiltered = newFiltered.map((item, idx) => ({
+      ...item,
+      displayOrder: idx + 1,
+    }));
+
+    const updatedMap = new Map(updatedFiltered.map((m) => [m.id, m]));
+    const updatedAll = mediaItems.map((m) => updatedMap.get(m.id) || m);
+
+    setMediaItems(updatedAll);
+    persistOrder(updatedFiltered);
+  };
+
+  // Drag and Drop handlers
+  const handleDragStart = (e: React.DragEvent, index: number) => {
+    setDraggedIndex(index);
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', String(index));
+  };
+
+  const handleDragOver = (e: React.DragEvent, index: number) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    if (dragOverIndex !== index) {
+      setDragOverIndex(index);
     }
-    if (searchQuery.trim()) {
-      const q = searchQuery.toLowerCase();
-      const matchesTitle = item.title?.toLowerCase().includes(q);
-      const matchesDesc = item.description?.toLowerCase().includes(q);
-      const matchesEvent = item.event?.title?.toLowerCase().includes(q);
-      if (!matchesTitle && !matchesDesc && !matchesEvent) return false;
+  };
+
+  const handleDragLeave = () => {
+    setDragOverIndex(null);
+  };
+
+  const handleDrop = (e: React.DragEvent, dropIndex: number) => {
+    e.preventDefault();
+    if (draggedIndex === null || draggedIndex === dropIndex) {
+      setDraggedIndex(null);
+      setDragOverIndex(null);
+      return;
     }
-    return true;
-  });
+
+    const newFiltered = [...filteredItems];
+    const [moved] = newFiltered.splice(draggedIndex, 1);
+    newFiltered.splice(dropIndex, 0, moved);
+
+    const updatedFiltered = newFiltered.map((item, idx) => ({
+      ...item,
+      displayOrder: idx + 1,
+    }));
+
+    const updatedMap = new Map(updatedFiltered.map((m) => [m.id, m]));
+    const updatedAll = mediaItems.map((m) => updatedMap.get(m.id) || m);
+
+    setMediaItems(updatedAll);
+    setDraggedIndex(null);
+    setDragOverIndex(null);
+    persistOrder(updatedFiltered);
+  };
+
+  const handleDragEnd = () => {
+    setDraggedIndex(null);
+    setDragOverIndex(null);
+  };
+
+  // Inline order input direct edit
+  const handleInlineOrderChange = async (id: string, newOrder: number) => {
+    const updatedAll = mediaItems.map((item) =>
+      item.id === id ? { ...item, displayOrder: newOrder } : item
+    );
+    updatedAll.sort((a, b) => a.displayOrder - b.displayOrder);
+    setMediaItems(updatedAll);
+
+    try {
+      await fetch('/api/admin/media/reorder', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ items: [{ id, displayOrder: newOrder }] }),
+      });
+      setReorderNotice(`✓ Order updated to ${newOrder}!`);
+      setTimeout(() => setReorderNotice(null), 2500);
+    } catch {
+      // Ignore
+    }
+  };
 
   return (
     <div className="space-y-8 max-w-7xl mx-auto pb-16">
@@ -412,120 +559,190 @@ export default function AdminMediaPage() {
           </button>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {filteredItems.map((item) => (
-            <div
-              key={item.id}
-              className="bg-slate-950 border border-slate-800 rounded-3xl overflow-hidden group hover:border-slate-700 transition-all flex flex-col"
-            >
-              {/* Thumbnail / Media Preview */}
-              <div className="relative aspect-video bg-slate-900 overflow-hidden shrink-0">
-                <img
-                  src={item.coverImage || (isYouTubeUrl(item.url) ? getYouTubeThumbnailUrl(item.url, 'hq') : null) || item.url || '/assets/poster.jpg'}
-                  alt={item.title}
-                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                  onError={(e) => {
-                    const ytThumb = isYouTubeUrl(item.url) ? getYouTubeThumbnailUrl(item.url, 'hq') : null;
-                    if (ytThumb && (e.target as HTMLImageElement).src !== ytThumb) {
-                      (e.target as HTMLImageElement).src = ytThumb;
-                    } else {
-                      (e.target as HTMLImageElement).src = '/assets/poster.jpg';
-                    }
-                  }}
-                />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent pointer-events-none" />
+        <div className="space-y-4">
+          {/* Reordering Tip Bar */}
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 bg-slate-950/80 border border-slate-800/80 px-4 py-2.5 rounded-2xl text-xs text-slate-400">
+            <div className="flex items-center gap-2">
+              <ArrowUpDown className="w-4 h-4 text-mitra-gold shrink-0" />
+              <span>
+                <strong className="text-slate-200">Reordering:</strong> Drag cards or click <strong className="text-mitra-gold">◀ / ▶</strong> to move items front or back. Click number to type order directly.
+              </span>
+            </div>
+            {isSavingOrder && (
+              <div className="flex items-center gap-1.5 text-mitra-gold text-xs font-bold animate-pulse shrink-0">
+                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                <span>Saving to DB...</span>
+              </div>
+            )}
+          </div>
 
-                {/* Badges */}
-                <div className="absolute top-3 left-3 flex items-center gap-1.5">
-                  <span
-                    className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider backdrop-blur-md shadow ${
-                      item.type === 'VIDEO'
-                        ? 'bg-amber-500/90 text-slate-950'
-                        : 'bg-emerald-600/90 text-white'
-                    }`}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {filteredItems.map((item, idx) => (
+              <div
+                key={item.id}
+                draggable
+                onDragStart={(e) => handleDragStart(e, idx)}
+                onDragOver={(e) => handleDragOver(e, idx)}
+                onDragLeave={handleDragLeave}
+                onDrop={(e) => handleDrop(e, idx)}
+                onDragEnd={handleDragEnd}
+                className={`bg-slate-950 border rounded-3xl overflow-hidden group transition-all flex flex-col relative select-none ${
+                  dragOverIndex === idx
+                    ? 'border-mitra-gold ring-2 ring-mitra-gold scale-[1.02] shadow-2xl bg-mitra-gold/10'
+                    : draggedIndex === idx
+                    ? 'opacity-40 border-dashed border-mitra-gold'
+                    : 'border-slate-800 hover:border-slate-700'
+                }`}
+              >
+                {/* Thumbnail / Media Preview */}
+                <div className="relative aspect-video bg-slate-900 overflow-hidden shrink-0 cursor-grab active:cursor-grabbing">
+                  <img
+                    src={item.coverImage || (isYouTubeUrl(item.url) ? getYouTubeThumbnailUrl(item.url, 'hq') : null) || item.url || '/assets/poster.jpg'}
+                    alt={item.title}
+                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 pointer-events-none"
+                    onError={(e) => {
+                      const ytThumb = isYouTubeUrl(item.url) ? getYouTubeThumbnailUrl(item.url, 'hq') : null;
+                      if (ytThumb && (e.target as HTMLImageElement).src !== ytThumb) {
+                        (e.target as HTMLImageElement).src = ytThumb;
+                      } else {
+                        (e.target as HTMLImageElement).src = '/assets/poster.jpg';
+                      }
+                    }}
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent pointer-events-none" />
+
+                  {/* Drag Handle Indicator */}
+                  <div 
+                    className="absolute top-3 right-3 z-10 flex items-center gap-1 bg-slate-950/80 backdrop-blur-md border border-white/20 text-slate-300 hover:text-white px-2 py-1 rounded-xl shadow cursor-grab active:cursor-grabbing text-[10px] font-bold transition-transform group-hover:scale-105"
+                    title="Drag card to move front or back"
                   >
-                    {item.type === 'VIDEO' ? (
-                      <>
-                        <Video className="w-3 h-3" />
-                        <span>Video</span>
-                      </>
-                    ) : (
-                      <>
-                        <ImageIcon className="w-3 h-3" />
-                        <span>Photo</span>
-                      </>
-                    )}
-                  </span>
+                    <GripVertical className="w-3.5 h-3.5 text-mitra-gold" />
+                    <span>Drag</span>
+                  </div>
 
-                  {item.isFeatured && (
-                    <span className="inline-flex items-center gap-1 bg-mitra-gold text-mitra-navy text-[10px] font-black px-2 py-0.5 rounded-full shadow">
-                      <Sparkles className="w-2.5 h-2.5" />
-                      <span>Featured</span>
+                  {/* Badges */}
+                  <div className="absolute top-3 left-3 flex items-center gap-1.5">
+                    <span
+                      className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider backdrop-blur-md shadow ${
+                        item.type === 'VIDEO'
+                          ? 'bg-amber-500/90 text-slate-950'
+                          : 'bg-emerald-600/90 text-white'
+                      }`}
+                    >
+                      {item.type === 'VIDEO' ? (
+                        <>
+                          <Video className="w-3 h-3" />
+                          <span>Video</span>
+                        </>
+                      ) : (
+                        <>
+                          <ImageIcon className="w-3 h-3" />
+                          <span>Photo</span>
+                        </>
+                      )}
                     </span>
+
+                    {item.isFeatured && (
+                      <span className="inline-flex items-center gap-1 bg-mitra-gold text-mitra-navy text-[10px] font-black px-2 py-0.5 rounded-full shadow">
+                        <Sparkles className="w-2.5 h-2.5" />
+                        <span>Featured</span>
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Video Play Overlay if video */}
+                  {item.type === 'VIDEO' && (
+                    <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                      <div className="w-10 h-10 rounded-full bg-mitra-red/90 text-white flex items-center justify-center shadow-xl">
+                        <Film className="w-5 h-5 ml-0.5" />
+                      </div>
+                    </div>
                   )}
+
+                  {/* Event Name Overlay at bottom */}
+                  <div className="absolute bottom-2 left-3 right-3 text-white pointer-events-none">
+                    <span className="text-[10px] font-bold text-mitra-gold flex items-center gap-1">
+                      <Calendar className="w-3 h-3" />
+                      <span className="truncate">{item.event?.title || 'General / Unassigned'}</span>
+                    </span>
+                  </div>
                 </div>
 
-                {/* Video Play Overlay if video */}
-                {item.type === 'VIDEO' && (
-                  <div className="absolute inset-0 flex items-center justify-center">
-                    <div className="w-10 h-10 rounded-full bg-mitra-red/90 text-white flex items-center justify-center shadow-xl">
-                      <Film className="w-5 h-5 ml-0.5" />
+                {/* Card Details */}
+                <div className="p-4 flex-1 flex flex-col justify-between space-y-3">
+                  <div className="space-y-1">
+                    <h3 className="text-sm font-bold text-white line-clamp-1 group-hover:text-mitra-gold transition-colors">
+                      {item.title}
+                    </h3>
+                    {item.description ? (
+                      <p className="text-xs text-slate-400 line-clamp-2">{item.description}</p>
+                    ) : (
+                      <p className="text-xs text-slate-600 italic">No description provided</p>
+                    )}
+                  </div>
+
+                  {/* URL preview & Interactive Order Control */}
+                  <div className="pt-2 border-t border-slate-900 flex items-center justify-between gap-2 text-[11px] text-slate-400">
+                    <span className="truncate max-w-[130px] font-mono text-[10px] text-slate-400" title={item.url}>
+                      {item.url.startsWith('https://media.mitrauk.com') ? 'FTP: ' + item.url.split('/').pop() : item.url}
+                    </span>
+
+                    {/* Interactive Reorder Bar */}
+                    <div className="flex items-center gap-1.5 bg-slate-900 border border-slate-800 rounded-xl px-2 py-1 shadow-inner shrink-0">
+                      <label className="text-[10px] text-slate-400 font-bold uppercase tracking-wider select-none">
+                        Order:
+                      </label>
+                      <input
+                        type="number"
+                        value={item.displayOrder}
+                        onChange={(e) => handleInlineOrderChange(item.id, Number(e.target.value))}
+                        className="w-11 bg-slate-950 text-mitra-gold font-bold text-center text-xs rounded-lg border border-slate-700 py-0.5 focus:border-mitra-gold focus:outline-none"
+                        title="Type order number directly"
+                      />
+                      <div className="flex items-center gap-0.5 border-l border-slate-800 pl-1">
+                        <button
+                          type="button"
+                          disabled={idx === 0 || isSavingOrder}
+                          onClick={() => handleMove(idx, 'prev')}
+                          className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 active:scale-90 disabled:opacity-25 disabled:cursor-not-allowed transition-all"
+                          title="Move Front (Earlier in gallery)"
+                        >
+                          <ChevronLeft className="w-3.5 h-3.5" />
+                        </button>
+                        <button
+                          type="button"
+                          disabled={idx === filteredItems.length - 1 || isSavingOrder}
+                          onClick={() => handleMove(idx, 'next')}
+                          className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 active:scale-90 disabled:opacity-25 disabled:cursor-not-allowed transition-all"
+                          title="Move Back (Later in gallery)"
+                        >
+                          <ChevronRight className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
                     </div>
                   </div>
-                )}
 
-                {/* Event Name Overlay at bottom */}
-                <div className="absolute bottom-2 left-3 right-3 text-white">
-                  <span className="text-[10px] font-bold text-mitra-gold flex items-center gap-1">
-                    <Calendar className="w-3 h-3" />
-                    <span className="truncate">{item.event?.title || 'General / Unassigned'}</span>
-                  </span>
+                  {/* Action Buttons */}
+                  <div className="flex items-center gap-2 pt-2">
+                    <button
+                      onClick={() => openEditModal(item)}
+                      className="flex-1 flex items-center justify-center gap-1.5 bg-slate-900 hover:bg-slate-800 border border-slate-700 text-slate-200 hover:text-white py-2 rounded-xl text-xs font-bold transition-colors"
+                    >
+                      <Edit3 className="w-3.5 h-3.5 text-mitra-gold" />
+                      <span>Edit</span>
+                    </button>
+                    <button
+                      onClick={() => handleDelete(item.id, item.title)}
+                      className="p-2 rounded-xl bg-slate-900 hover:bg-rose-950/40 border border-slate-800 hover:border-rose-800 text-slate-400 hover:text-rose-400 transition-colors"
+                      title="Delete media"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
                 </div>
               </div>
-
-              {/* Card Details */}
-              <div className="p-4 flex-1 flex flex-col justify-between space-y-3">
-                <div className="space-y-1">
-                  <h3 className="text-sm font-bold text-white line-clamp-1 group-hover:text-mitra-gold transition-colors">
-                    {item.title}
-                  </h3>
-                  {item.description ? (
-                    <p className="text-xs text-slate-400 line-clamp-2">{item.description}</p>
-                  ) : (
-                    <p className="text-xs text-slate-600 italic">No description provided</p>
-                  )}
-                </div>
-
-                {/* URL preview & order */}
-                <div className="pt-2 border-t border-slate-900 flex items-center justify-between text-[11px] text-slate-400">
-                  <span className="truncate max-w-[170px] font-mono text-[10px] text-slate-400" title={item.url}>
-                    {item.url.startsWith('https://media.mitrauk.com') ? 'FTP: ' + item.url.split('/').pop() : item.url}
-                  </span>
-                  <span className="text-[10px] bg-slate-900 px-2 py-0.5 rounded border border-slate-800">
-                    Order: {item.displayOrder}
-                  </span>
-                </div>
-
-                {/* Action Buttons */}
-                <div className="flex items-center gap-2 pt-2">
-                  <button
-                    onClick={() => openEditModal(item)}
-                    className="flex-1 flex items-center justify-center gap-1.5 bg-slate-900 hover:bg-slate-800 border border-slate-700 text-slate-200 hover:text-white py-2 rounded-xl text-xs font-bold transition-colors"
-                  >
-                    <Edit3 className="w-3.5 h-3.5 text-mitra-gold" />
-                    <span>Edit</span>
-                  </button>
-                  <button
-                    onClick={() => handleDelete(item.id, item.title)}
-                    className="p-2 rounded-xl bg-slate-900 hover:bg-rose-950/40 border border-slate-800 hover:border-rose-800 text-slate-400 hover:text-rose-400 transition-colors"
-                    title="Delete media"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
-                </div>
-              </div>
-            </div>
-          ))}
+            ))}
+          </div>
         </div>
       )}
 
@@ -841,6 +1058,18 @@ export default function AdminMediaPage() {
 
             </form>
           </div>
+        </div>
+      )}
+
+      {/* Floating Reorder Toast Notification */}
+      {reorderNotice && (
+        <div className="fixed bottom-6 right-6 z-50 bg-slate-900 border border-mitra-gold text-white px-4 py-3 rounded-2xl shadow-2xl flex items-center gap-2.5 text-xs font-bold animate-fadeIn backdrop-blur-md">
+          {isSavingOrder ? (
+            <Loader2 className="w-4 h-4 text-mitra-gold animate-spin" />
+          ) : (
+            <Check className="w-4 h-4 text-emerald-400" />
+          )}
+          <span>{reorderNotice}</span>
         </div>
       )}
 

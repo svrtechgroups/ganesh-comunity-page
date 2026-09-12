@@ -34,8 +34,8 @@ export async function GET(request: Request) {
           },
         },
         orderBy: [
-          { isFeatured: 'desc' },
           { displayOrder: 'asc' },
+          { isFeatured: 'desc' },
           { createdAt: 'desc' },
         ],
       }),
