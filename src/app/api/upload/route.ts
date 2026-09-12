@@ -18,20 +18,23 @@ export async function POST(request: Request) {
       );
     }
 
-    // Check mime type (allow images)
-    const allowedTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'image/svg+xml', 'image/jpg'];
-    if (!allowedTypes.includes(file.type) && !file.name.match(/\.(jpg|jpeg|png|webp|gif|svg)$/i)) {
+    // Check mime type (allow images and videos)
+    const allowedTypes = [
+      'image/jpeg', 'image/png', 'image/webp', 'image/gif', 'image/svg+xml', 'image/jpg',
+      'video/mp4', 'video/webm', 'video/quicktime'
+    ];
+    if (!allowedTypes.includes(file.type) && !file.name.match(/\.(jpg|jpeg|png|webp|gif|svg|mp4|webm|mov)$/i)) {
       return NextResponse.json(
-        { success: false, error: 'Invalid file type. Only image files (JPG, PNG, WebP, GIF, SVG) are supported.' },
+        { success: false, error: 'Invalid file type. Only image files (JPG, PNG, WebP, GIF, SVG) and video files (MP4, WebM, MOV) are supported.' },
         { status: 400 }
       );
     }
 
-    // Max 10MB
-    const maxSizeBytes = 10 * 1024 * 1024;
+    // Max 25MB
+    const maxSizeBytes = 25 * 1024 * 1024;
     if (file.size > maxSizeBytes) {
       return NextResponse.json(
-        { success: false, error: 'File size exceeds 10MB limit.' },
+        { success: false, error: 'File size exceeds 25MB limit.' },
         { status: 400 }
       );
     }

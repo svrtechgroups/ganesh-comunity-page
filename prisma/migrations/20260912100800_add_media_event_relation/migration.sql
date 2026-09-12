@@ -1,0 +1,25 @@
+-- AlterTable
+ALTER TABLE "MediaItem" ADD COLUMN IF NOT EXISTS "displayOrder" INTEGER NOT NULL DEFAULT 0,
+ADD COLUMN IF NOT EXISTS "eventId" TEXT,
+ADD COLUMN IF NOT EXISTS "isFeatured" BOOLEAN NOT NULL DEFAULT false,
+ADD COLUMN IF NOT EXISTS "type" TEXT NOT NULL DEFAULT 'IMAGE',
+ADD COLUMN IF NOT EXISTS "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+ALTER COLUMN "coverImage" DROP NOT NULL,
+ALTER COLUMN "url" SET NOT NULL,
+ALTER COLUMN "url" SET DEFAULT '';
+
+-- CreateIndex
+CREATE INDEX IF NOT EXISTS "MediaItem_eventId_idx" ON "MediaItem"("eventId");
+
+-- CreateIndex
+CREATE INDEX IF NOT EXISTS "MediaItem_type_idx" ON "MediaItem"("type");
+
+-- AddForeignKey
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint WHERE conname = 'MediaItem_eventId_fkey'
+    ) THEN
+        ALTER TABLE "MediaItem" ADD CONSTRAINT "MediaItem_eventId_fkey" FOREIGN KEY ("eventId") REFERENCES "Event"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+    END IF;
+END $$;

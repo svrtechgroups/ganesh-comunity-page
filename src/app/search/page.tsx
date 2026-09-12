@@ -2,14 +2,13 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { EVENTS_DATA } from '@/data/events';
 import { NEWS_DATA } from '@/data/news';
 import { EventItem, LeadershipMember, BlogPost } from '@/lib/types';
 import { Search, Calendar, Users, FileText } from 'lucide-react';
 
 export default function GlobalSearchPage() {
   const [query, setQuery] = useState('');
-  const [events, setEvents] = useState<EventItem[]>(EVENTS_DATA);
+  const [events, setEvents] = useState<EventItem[]>([]);
   const [leadership, setLeadership] = useState<LeadershipMember[]>([]);
   const [news, setNews] = useState<BlogPost[]>(NEWS_DATA);
 

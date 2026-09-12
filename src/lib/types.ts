@@ -44,6 +44,30 @@ export interface MediaAlbum {
   description?: string;
 }
 
+export interface MediaItemData {
+  id: string;
+  title: string;
+  type: 'IMAGE' | 'VIDEO';
+  category?: string;
+  coverImage?: string | null;
+  url: string;
+  description?: string | null;
+  eventId?: string | null;
+  event?: EventItem | null;
+  isFeatured: boolean;
+  displayOrder: number;
+  createdAt: string;
+  updatedAt?: string;
+}
+
+export interface EventWithMedia extends EventItem {
+  mediaItems?: MediaItemData[];
+  photosCount?: number;
+  videosCount?: number;
+  totalMediaCount?: number;
+  featuredMediaUrl?: string;
+}
+
 export interface CharityCase {
   id: string; // MITRA-HELP-XXXX
   name: string;

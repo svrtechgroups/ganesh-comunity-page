@@ -1,6 +1,5 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { EVENTS_DATA } from '@/data/events';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -20,15 +19,10 @@ export async function GET() {
         },
       }
     );
-  } catch {
-    return NextResponse.json(
-      { success: true, source: 'static', data: EVENTS_DATA },
-      {
-        headers: {
-          'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0',
-        },
-      }
-    );
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : 'Database error fetching admin events';
+    console.error('[API ADMIN EVENTS GET ERROR]:', error);
+    return NextResponse.json({ success: false, error: message, data: [] }, { status: 500 });
   }
 }
 
@@ -37,44 +31,25 @@ export async function POST(request: Request) {
     const body = await request.json();
     const { title, category, date, time, venue, address, ticketPrice, status, description, bannerUrl } = body;
 
-    try {
-      const newEvent = await prisma.event.create({
-        data: {
-          title,
-          category,
-          date,
-          time: time || '09:00 AM',
-          venue,
-          address: address || 'Langley, Slough, United Kingdom',
-          ticketPrice: Number(ticketPrice) || 0,
-          status: status || 'Upcoming',
-          description,
-          bannerUrl: bannerUrl || '/assets/poster.jpg',
-        },
-      });
-      return NextResponse.json({ success: true, source: 'prisma', data: newEvent });
-    } catch {
-      const fallbackEvent = {
-        id: `evt-${Date.now()}`,
+    const newEvent = await prisma.event.create({
+      data: {
         title,
         category: category || 'Cultural Events',
-        date: date || new Date().toISOString().split('T')[0],
+        date,
         time: time || '09:00 AM',
-        venue: venue || 'London',
+        venue,
         address: address || 'Langley, Slough, United Kingdom',
         ticketPrice: Number(ticketPrice) || 0,
         status: status || 'Upcoming',
-        description: description || '',
+        description,
         bannerUrl: bannerUrl || '/assets/poster.jpg',
-        capacity: 300,
-        rsvpCount: 0,
-        featured: true,
-      };
-      return NextResponse.json({ success: true, source: 'static', data: fallbackEvent });
-    }
+      },
+    });
+    return NextResponse.json({ success: true, source: 'prisma', data: newEvent });
   } catch (err: unknown) {
-    const errorMessage = err instanceof Error ? err.message : 'Invalid request payload';
-    return NextResponse.json({ success: false, error: errorMessage }, { status: 400 });
+    const errorMessage = err instanceof Error ? err.message : 'Failed to create event in database';
+    console.error('[API ADMIN EVENTS POST ERROR]:', err);
+    return NextResponse.json({ success: false, error: errorMessage }, { status: 500 });
   }
 }
 

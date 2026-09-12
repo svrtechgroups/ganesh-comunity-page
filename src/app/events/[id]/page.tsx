@@ -4,7 +4,6 @@ import { useState, useEffect } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
-import { EVENTS_DATA } from '@/data/events';
 import { EventItem } from '@/lib/types';
 import { trackRSVP } from '@/lib/analytics';
 import { generateEventJsonLd } from '@/lib/seo-config';
@@ -16,6 +15,7 @@ import {
   CheckCircle2, 
   Download, 
   ArrowLeft,
+  Loader2,
 } from 'lucide-react';
 import Ganesha3DHero from '@/components/Ganesha3DHero';
 import RitualCountdown from '@/components/RitualCountdown';
@@ -28,28 +28,44 @@ import DonationModal from '@/components/DonationModal';
 export default function EventDetailPage() {
   const params = useParams();
   const id = params?.id as string;
-  const [event, setEvent] = useState<EventItem | null>(() => {
-    return EVENTS_DATA.find(e => e.id === id || e.title.toLowerCase().includes('ganesh')) || null;
-  });
+  const [event, setEvent] = useState<EventItem | null>(null);
+  const [loading, setLoading] = useState(true);
   const [rsvped, setRsvped] = useState(false);
-  const [rsvpCount, setRsvpCount] = useState(() => event?.rsvpCount || 1420);
+  const [rsvpCount, setRsvpCount] = useState(1420);
   const [notifyModalOpen, setNotifyModalOpen] = useState(false);
   const [donateModalOpen, setDonateModalOpen] = useState(false);
 
   useEffect(() => {
+    setLoading(true);
     fetch('/api/events')
       .then((res) => res.json())
       .then((resData) => {
         if (resData.success && Array.isArray(resData.data)) {
-          const found = resData.data.find((e: EventItem) => e.id === id || e.title.toLowerCase().includes('ganesh'));
+          const found = resData.data.find((e: EventItem) => e.id === id) ||
+            resData.data.find((e: EventItem) => (id === 'evt-ganesh-chaturthi' || id === 'evt-101') && e.title.toLowerCase().includes('ganesh'));
           if (found) {
             setEvent(found);
-            setRsvpCount(found.rsvpCount);
+            setRsvpCount(found.rsvpCount || 0);
+          } else {
+            setEvent(null);
           }
         }
       })
-      .catch(() => {});
+      .catch((err) => {
+        console.error('Failed to load event detail from DB:', err);
+        setEvent(null);
+      })
+      .finally(() => setLoading(false));
   }, [id]);
+
+  if (loading) {
+    return (
+      <div className="max-w-4xl mx-auto px-4 py-28 text-center space-y-3">
+        <Loader2 className="w-8 h-8 text-mitra-gold animate-spin mx-auto" />
+        <p className="text-xs text-slate-400">Loading festival details from database...</p>
+      </div>
+    );
+  }
 
   if (!event) {
     return (

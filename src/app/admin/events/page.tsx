@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { EVENTS_DATA } from '@/data/events';
 import { EventItem } from '@/lib/types';
 import { 
   Plus, 
@@ -79,7 +78,7 @@ interface PaginationMeta {
 
 export default function AdminEventsPage() {
   const [activeTab, setActiveTab] = useState<'events' | 'analytics' | 'rsvps'>('events');
-  const [events, setEvents] = useState<EventItem[]>(EVENTS_DATA);
+  const [events, setEvents] = useState<EventItem[]>([]);
   const [rsvps, setRsvps] = useState<RSVPRecord[]>([]);
   const [dayAnalytics, setDayAnalytics] = useState<DayAnalyticsItem[]>([]);
   const [stats, setStats] = useState<RSVPStats>({
@@ -138,7 +137,7 @@ export default function AdminEventsPage() {
     fetch('/api/admin/events')
       .then((res) => res.json())
       .then((data) => {
-        if (data.success && Array.isArray(data.data) && data.data.length > 0) {
+        if (data.success && Array.isArray(data.data)) {
           setEvents(data.data);
         }
       })

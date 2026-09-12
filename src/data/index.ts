@@ -1,4 +1,3 @@
-export * from './events';
 export * from './leadership';
 export * from './media';
 export * from './news';
