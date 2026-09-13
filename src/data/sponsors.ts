@@ -12,6 +12,17 @@ export interface SponsorItem {
 }
 
 export const SPONSORS_DATA: SponsorItem[] = [
+    {
+    id: 'sp-1',
+    name: 'RR furnitures',
+    tier: 'Brought to u by',
+    logoUrl: '/assets/sponsers/rr_furnitures.png',
+    websiteUrl: '#',
+    order: 1,
+    active: true,
+    accent: 'from-[#E65C00] to-[#FF7A00]',
+    gradient: 'linear-gradient(135deg, #E65C00 0%, #FF7A00 100%)',
+  },
   {
     id: 'sp-1',
     name: 'Biryanis',
