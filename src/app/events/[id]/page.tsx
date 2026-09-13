@@ -151,7 +151,10 @@ END:VCALENDAR`;
         <IdolSpecsCard />
 
         {/* 5. MEDIA & TEASER GALLERY */}
-        <MediaTeaserSection />
+        <MediaTeaserSection 
+          eventId={event.id} 
+          sectionTitle="TEASER REEL & EVENT POSTERS" 
+        />
 
         {/* MODAL FORMS */}
         <NotifyMeModal isOpen={notifyModalOpen} onClose={() => setNotifyModalOpen(false)} />

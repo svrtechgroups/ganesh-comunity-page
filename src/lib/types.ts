@@ -56,6 +56,10 @@ export interface MediaItemData {
   event?: EventItem | null;
   isFeatured: boolean;
   displayOrder: number;
+  isHomeFeatured?: boolean;
+  homeDisplayOrder?: number;
+  isEventFeatured?: boolean;
+  eventDisplayOrder?: number;
   createdAt: string;
   updatedAt?: string;
 }

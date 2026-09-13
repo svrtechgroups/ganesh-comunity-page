@@ -74,3 +74,58 @@ export async function DELETE(request: Request) {
     return NextResponse.json({ success: false, error: errorMessage }, { status: 500 });
   }
 }
+
+export async function PUT(request: Request) {
+  try {
+    const body = await request.json();
+    const {
+      id,
+      title,
+      category,
+      date,
+      time,
+      venue,
+      address,
+      ticketPrice,
+      status,
+      description,
+      bannerUrl,
+      capacity,
+    } = body;
+
+    if (!id) {
+      return NextResponse.json(
+        { success: false, error: 'Event ID is required for update.' },
+        { status: 400 }
+      );
+    }
+
+    const updatedEvent = await prisma.event.update({
+      where: { id },
+      data: {
+        title: title ? title.trim() : undefined,
+        category: category !== undefined ? category : undefined,
+        date: date !== undefined ? date : undefined,
+        time: time !== undefined ? time : undefined,
+        venue: venue !== undefined ? venue : undefined,
+        address: address !== undefined ? address : undefined,
+        ticketPrice: ticketPrice !== undefined ? Number(ticketPrice) : undefined,
+        status: status !== undefined ? status : undefined,
+        description: description !== undefined ? description : undefined,
+        bannerUrl: bannerUrl !== undefined ? bannerUrl : undefined,
+        capacity: capacity !== undefined ? Number(capacity) : undefined,
+      },
+    });
+
+    return NextResponse.json({
+      success: true,
+      data: updatedEvent,
+      message: 'Event updated successfully.',
+    });
+  } catch (err: unknown) {
+    const errorMessage = err instanceof Error ? err.message : 'Failed to update event in database';
+    console.error('[API ADMIN EVENTS PUT ERROR]:', err);
+    return NextResponse.json({ success: false, error: errorMessage }, { status: 500 });
+  }
+}
+

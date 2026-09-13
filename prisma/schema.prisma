@@ -106,13 +106,19 @@ model MediaItem {
   description  String?
   eventId      String?
   event        Event?    @relation(fields: [eventId], references: [id], onDelete: Cascade)
-  isFeatured   Boolean   @default(false)
-  displayOrder Int       @default(0)
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @default(now()) @updatedAt
+  isFeatured        Boolean   @default(false)
+  displayOrder      Int       @default(0)
+  isHomeFeatured    Boolean   @default(false)
+  homeDisplayOrder  Int       @default(0)
+  isEventFeatured   Boolean   @default(false)
+  eventDisplayOrder Int       @default(0)
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @default(now()) @updatedAt
 
   @@index([eventId])
   @@index([type])
+  @@index([isHomeFeatured])
+  @@index([isEventFeatured])
 }
 
 model BlogPost {

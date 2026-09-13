@@ -11,6 +11,10 @@ export async function GET(request: Request) {
     const type = searchParams.get('type');
     const category = searchParams.get('category');
 
+    const featured = searchParams.get('featured'); // 'home' | 'event'
+    const isHomeFeatured = searchParams.get('isHomeFeatured');
+    const isEventFeatured = searchParams.get('isEventFeatured');
+
     // 1. Build where clause
     const where: any = {};
     if (eventId && eventId !== 'all') {
@@ -23,8 +27,35 @@ export async function GET(request: Request) {
       where.category = category;
     }
 
+    // Featured filters
+    if (featured === 'home' || isHomeFeatured === 'true') {
+      where.isHomeFeatured = true;
+    }
+    if (featured === 'event' || isEventFeatured === 'true') {
+      where.isEventFeatured = true;
+    }
+
+    // Determine sorting
+    let orderBy: any[] = [
+      { displayOrder: 'asc' },
+      { isFeatured: 'desc' },
+      { createdAt: 'desc' },
+    ];
+
+    if (featured === 'home' || isHomeFeatured === 'true') {
+      orderBy = [
+        { homeDisplayOrder: 'asc' },
+        { createdAt: 'desc' },
+      ];
+    } else if (featured === 'event' || isEventFeatured === 'true') {
+      orderBy = [
+        { eventDisplayOrder: 'asc' },
+        { createdAt: 'desc' },
+      ];
+    }
+
     // 2. Fetch media items with tagged event
-    const mediaItems = await prisma.mediaItem.findMany({
+    let mediaItems = await prisma.mediaItem.findMany({
       where,
       include: {
         event: {
@@ -41,12 +72,36 @@ export async function GET(request: Request) {
           },
         },
       },
-      orderBy: [
-        { displayOrder: 'asc' },
-        { isFeatured: 'desc' },
-        { createdAt: 'desc' },
-      ],
+      orderBy,
     });
+
+    // Fallback for featured=home if none have been set yet in the database
+    if ((featured === 'home' || isHomeFeatured === 'true') && mediaItems.length === 0) {
+      mediaItems = await prisma.mediaItem.findMany({
+        where: { type: 'IMAGE' },
+        take: 4,
+        include: {
+          event: {
+            select: {
+              id: true,
+              title: true,
+              category: true,
+              date: true,
+              time: true,
+              venue: true,
+              address: true,
+              bannerUrl: true,
+              status: true,
+            },
+          },
+        },
+        orderBy: [
+          { isFeatured: 'desc' },
+          { displayOrder: 'asc' },
+          { createdAt: 'desc' },
+        ],
+      });
+    }
 
     // 3. Fetch all events with media counts
     const allEvents = await prisma.event.findMany({

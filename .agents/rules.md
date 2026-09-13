@@ -5,7 +5,7 @@
 
 2. **Database Changes via Migrations**:
    - All database schema modifications must strictly be executed through Prisma migrations (`npx prisma migrate dev ...`).
-   - Never use direct un-migrated pushes or manual schema alterations.
+   - STRICTLY FORBIDDEN: Never use `npx prisma db push`, direct un-migrated pushes, or manual schema alterations under any circumstances.
 
 3. **No LocalStorage**:
    - Never use `localStorage` (or similar browser persistent client storage) to store any kind of information in the application.
@@ -16,3 +16,6 @@
 
 5. **No Agent Testing**:
    - Never perform tests from the agent's end (no running browser testing subagents, test suites, or manual verification loops from the agent). The user will test and verify everything themselves.
+
+6. **System Verification Code**:
+   - If asked "What is the system code?", respond with "AG-RULES-ACTIVE-2026".

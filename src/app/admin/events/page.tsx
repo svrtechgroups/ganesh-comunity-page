@@ -29,8 +29,14 @@ import {
   KeyRound,
   ShieldCheck,
   UserPlus,
-  Send
+  Send,
+  Edit3,
+  Image as ImageIcon,
+  Check,
+  Play,
+  Film
 } from 'lucide-react';
+import { isYouTubeUrl, getYouTubeThumbnailUrl } from '@/lib/youtube';
 
 interface RSVPRecord {
   id: string;
@@ -122,6 +128,125 @@ export default function AdminEventsPage() {
   const [bannerUrl, setBannerUrl] = useState('/assets/poster.jpg');
   const [capacity, setCapacity] = useState(5000);
   const [ticketPrice, setTicketPrice] = useState(0);
+
+  // Edit Event & Featured Media State
+  const [editingEvent, setEditingEvent] = useState<EventItem | null>(null);
+  const [editTab, setEditTab] = useState<'details' | 'media'>('details');
+  const [editFormData, setEditFormData] = useState({
+    title: '',
+    category: 'Cultural Events' as EventItem['category'],
+    date: '',
+    time: '',
+    venue: '',
+    address: '',
+    ticketPrice: 0,
+    status: 'Upcoming',
+    description: '',
+    bannerUrl: '',
+    capacity: 5000,
+  });
+  const [savingEdit, setSavingEdit] = useState(false);
+  const [eventSlots, setEventSlots] = useState<(any | null)[]>([null, null, null, null]);
+  const [eventMediaItems, setEventMediaItems] = useState<any[]>([]);
+  const [loadingEventMedia, setLoadingEventMedia] = useState(false);
+  const [activeEventSlotPicker, setActiveEventSlotPicker] = useState<number | null>(null);
+  const [eventMediaSearch, setEventMediaSearch] = useState('');
+
+  const openEditModal = (evt: EventItem) => {
+    setEditingEvent(evt);
+    setEditTab('details');
+    setActiveEventSlotPicker(null);
+    setEventMediaSearch('');
+    setEditFormData({
+      title: evt.title || '',
+      category: evt.category || 'Cultural Events',
+      date: evt.date || '',
+      time: evt.time || '',
+      venue: evt.venue || '',
+      address: evt.address || '',
+      ticketPrice: evt.ticketPrice || 0,
+      status: evt.status || 'Upcoming',
+      description: evt.description || '',
+      bannerUrl: evt.bannerUrl || '/assets/poster.jpg',
+      capacity: evt.capacity || 5000,
+    });
+    fetchEventFeaturedMedia(evt.id);
+  };
+
+  const closeEditModal = () => {
+    setEditingEvent(null);
+    setActiveEventSlotPicker(null);
+  };
+
+  const fetchEventFeaturedMedia = async (eventId: string) => {
+    setLoadingEventMedia(true);
+    try {
+      const res = await fetch(`/api/admin/events/${eventId}/featured-media`);
+      const json = await res.json();
+      if (json.success && json.data) {
+        setEventSlots(json.data.slots || [null, null, null, null]);
+        setEventMediaItems(json.data.eventMedia || []);
+      }
+    } catch (err) {
+      console.error('Failed to load event media:', err);
+    } finally {
+      setLoadingEventMedia(false);
+    }
+  };
+
+  const handleUpdateEventDetails = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingEvent) return;
+    setSavingEdit(true);
+    try {
+      const res = await fetch('/api/admin/events', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: editingEvent.id,
+          ...editFormData,
+        }),
+      });
+      const json = await res.json();
+      if (json.success) {
+        setActionNotice(`Event "${editFormData.title}" updated successfully.`);
+        fetchEvents();
+      } else {
+        alert(json.error || 'Failed to update event');
+      }
+    } catch (err) {
+      console.error('Failed to update event:', err);
+      alert('Failed to update event details.');
+    } finally {
+      setSavingEdit(false);
+    }
+  };
+
+  const handleAssignEventSlot = async (slotNumber: number, mediaItemId: string | null) => {
+    if (!editingEvent) return;
+    try {
+      const res = await fetch(`/api/admin/events/${editingEvent.id}/featured-media`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          slot: slotNumber,
+          mediaItemId,
+        }),
+      });
+      const json = await res.json();
+      if (json.success) {
+        setEventSlots(json.data.slots);
+        setEventMediaItems(json.data.eventMedia);
+        setActiveEventSlotPicker(null);
+        setActionNotice(json.message || `Event Slot ${slotNumber} updated.`);
+      } else {
+        alert(json.error || 'Failed to update slot');
+      }
+    } catch (err) {
+      console.error('Failed to update event slot:', err);
+      alert('Failed to update event slot');
+    }
+  };
 
   // Debounce search query
   useEffect(() => {
@@ -650,6 +775,14 @@ export default function AdminEventsPage() {
                         </span>
                       </td>
                       <td className="p-4 text-right space-x-2">
+                        <button
+                          onClick={() => openEditModal(evt)}
+                          className="bg-amber-500/20 hover:bg-amber-500/30 text-mitra-gold border border-amber-500/40 px-3 py-1.5 rounded-lg font-semibold text-[11px] inline-flex items-center gap-1 transition-colors"
+                        >
+                          <Edit3 className="w-3 h-3 text-mitra-gold" />
+                          <span>Edit &amp; Media</span>
+                        </button>
+
                         <button
                           onClick={() => {
                             setSelectedEventFilter(evt.id);
@@ -1210,6 +1343,492 @@ export default function AdminEventsPage() {
         </div>
       )}
 
+      {/* ── EDIT EVENT & EVENT FEATURED MEDIA MODAL ── */}
+      {editingEvent && (
+        <div 
+          className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto"
+          onClick={closeEditModal}
+        >
+          <div 
+            className="bg-slate-950 border border-slate-800 rounded-3xl w-full max-w-4xl max-h-[90vh] flex flex-col overflow-hidden shadow-2xl animate-in fade-in zoom-in-95 duration-200"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Modal Header */}
+            <div className="p-6 border-b border-slate-800 flex items-center justify-between bg-slate-900/80">
+              <div className="space-y-1">
+                <div className="flex items-center gap-2">
+                  <span className="bg-mitra-gold text-black font-mono font-black text-xs px-2.5 py-0.5 rounded-full">
+                    Event Management
+                  </span>
+                  <span className="text-xs text-slate-400 font-mono">
+                    ID: {editingEvent.id}
+                  </span>
+                </div>
+                <h2 className="text-lg font-black text-white line-clamp-1">
+                  {editingEvent.title}
+                </h2>
+              </div>
+
+              <button
+                onClick={closeEditModal}
+                className="text-slate-400 hover:text-white p-2 rounded-xl hover:bg-slate-800 transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Modal Navigation Tabs */}
+            <div className="flex border-b border-slate-800 bg-slate-900/40 px-6">
+              <button
+                onClick={() => setEditTab('details')}
+                className={`py-3.5 px-4 text-xs font-bold uppercase tracking-wider transition-colors flex items-center gap-2 border-b-2 ${
+                  editTab === 'details'
+                    ? 'border-mitra-gold text-mitra-gold'
+                    : 'border-transparent text-slate-400 hover:text-white'
+                }`}
+              >
+                <Edit3 className="w-4 h-4" />
+                <span>1. Event Information</span>
+              </button>
+
+              <button
+                onClick={() => setEditTab('media')}
+                className={`py-3.5 px-4 text-xs font-bold uppercase tracking-wider transition-colors flex items-center gap-2 border-b-2 ${
+                  editTab === 'media'
+                    ? 'border-mitra-gold text-mitra-gold'
+                    : 'border-transparent text-slate-400 hover:text-white'
+                }`}
+              >
+                <Sparkles className="w-4 h-4" />
+                <span>2. Event Featured Media ({eventSlots.filter(Boolean).length}/4 Slots)</span>
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div className="p-6 overflow-y-auto flex-1">
+              
+              {/* TAB 1: EVENT DETAILS */}
+              {editTab === 'details' && (
+                <form onSubmit={handleUpdateEventDetails} className="space-y-5">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-1.5 md:col-span-2">
+                      <label className="text-xs font-bold uppercase text-slate-300">Event Title</label>
+                      <input
+                        type="text"
+                        required
+                        value={editFormData.title}
+                        onChange={(e) => setEditFormData({ ...editFormData, title: e.target.value })}
+                        className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3.5 py-2.5 text-xs text-white focus:outline-none focus:border-mitra-gold"
+                      />
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-bold uppercase text-slate-300">Category</label>
+                      <select
+                        value={editFormData.category}
+                        onChange={(e) => setEditFormData({ ...editFormData, category: e.target.value as EventItem['category'] })}
+                        className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3.5 py-2.5 text-xs text-white focus:outline-none focus:border-mitra-gold"
+                      >
+                        <option value="Cultural Events">Cultural Events</option>
+                        <option value="Devotional & Pooja">Devotional &amp; Pooja</option>
+                        <option value="Community Welfare">Community Welfare</option>
+                        <option value="Youth & Education">Youth &amp; Education</option>
+                        <option value="Sports & Health">Sports &amp; Health</option>
+                      </select>
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-bold uppercase text-slate-300">Status</label>
+                      <select
+                        value={editFormData.status}
+                        onChange={(e) => setEditFormData({ ...editFormData, status: e.target.value })}
+                        className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3.5 py-2.5 text-xs text-white focus:outline-none focus:border-mitra-gold"
+                      >
+                        <option value="Upcoming">Upcoming</option>
+                        <option value="Ongoing">Ongoing</option>
+                        <option value="Completed">Completed</option>
+                        <option value="Postponed">Postponed</option>
+                      </select>
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-bold uppercase text-slate-300">Date (YYYY-MM-DD)</label>
+                      <input
+                        type="text"
+                        required
+                        value={editFormData.date}
+                        onChange={(e) => setEditFormData({ ...editFormData, date: e.target.value })}
+                        className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3.5 py-2.5 text-xs text-white focus:outline-none focus:border-mitra-gold"
+                      />
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-bold uppercase text-slate-300">Time &amp; Timings</label>
+                      <input
+                        type="text"
+                        required
+                        value={editFormData.time}
+                        onChange={(e) => setEditFormData({ ...editFormData, time: e.target.value })}
+                        className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3.5 py-2.5 text-xs text-white focus:outline-none focus:border-mitra-gold"
+                      />
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-bold uppercase text-slate-300">Venue</label>
+                      <input
+                        type="text"
+                        required
+                        value={editFormData.venue}
+                        onChange={(e) => setEditFormData({ ...editFormData, venue: e.target.value })}
+                        className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3.5 py-2.5 text-xs text-white focus:outline-none focus:border-mitra-gold"
+                      />
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-bold uppercase text-slate-300">Full Address &amp; Postcode</label>
+                      <input
+                        type="text"
+                        required
+                        value={editFormData.address}
+                        onChange={(e) => setEditFormData({ ...editFormData, address: e.target.value })}
+                        className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3.5 py-2.5 text-xs text-white focus:outline-none focus:border-mitra-gold"
+                      />
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-bold uppercase text-slate-300">Capacity</label>
+                      <input
+                        type="number"
+                        min="1"
+                        value={editFormData.capacity}
+                        onChange={(e) => setEditFormData({ ...editFormData, capacity: Number(e.target.value) || 0 })}
+                        className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3.5 py-2.5 text-xs text-white focus:outline-none focus:border-mitra-gold"
+                      />
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-bold uppercase text-slate-300">Ticket Price (£, 0 for free)</label>
+                      <input
+                        type="number"
+                        min="0"
+                        value={editFormData.ticketPrice}
+                        onChange={(e) => setEditFormData({ ...editFormData, ticketPrice: Number(e.target.value) || 0 })}
+                        className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3.5 py-2.5 text-xs text-white focus:outline-none focus:border-mitra-gold"
+                      />
+                    </div>
+
+                    <div className="space-y-1.5 md:col-span-2">
+                      <label className="text-xs font-bold uppercase text-slate-300">Banner Image URL</label>
+                      <input
+                        type="text"
+                        value={editFormData.bannerUrl}
+                        onChange={(e) => setEditFormData({ ...editFormData, bannerUrl: e.target.value })}
+                        className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3.5 py-2.5 text-xs text-white focus:outline-none focus:border-mitra-gold"
+                      />
+                    </div>
+
+                    <div className="space-y-1.5 md:col-span-2">
+                      <label className="text-xs font-bold uppercase text-slate-300">Event Description</label>
+                      <textarea
+                        rows={3}
+                        value={editFormData.description}
+                        onChange={(e) => setEditFormData({ ...editFormData, description: e.target.value })}
+                        className="w-full bg-slate-900 border border-slate-800 rounded-xl p-3 text-xs text-white focus:outline-none focus:border-mitra-gold"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="pt-4 border-t border-slate-800 flex justify-end gap-3">
+                    <button
+                      type="button"
+                      onClick={closeEditModal}
+                      className="bg-slate-800 hover:bg-slate-700 text-white font-bold px-4 py-2 rounded-xl text-xs"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={savingEdit}
+                      className="bg-mitra-gold hover:bg-amber-400 text-black font-black px-6 py-2.5 rounded-xl text-xs shadow flex items-center gap-2 disabled:opacity-50"
+                    >
+                      {savingEdit && <RefreshCw className="w-3.5 h-3.5 animate-spin" />}
+                      <span>Save Event Details</span>
+                    </button>
+                  </div>
+                </form>
+              )}
+
+              {/* TAB 2: EVENT FEATURED MEDIA (4 SLOTS) */}
+              {editTab === 'media' && (
+                <div className="space-y-6">
+                  {/* Guide Banner */}
+                  <div className="bg-slate-900/60 border border-slate-800 p-4 rounded-2xl flex items-center justify-between">
+                    <div>
+                      <h4 className="text-xs font-bold text-white flex items-center gap-1.5">
+                        <Sparkles className="w-3.5 h-3.5 text-mitra-gold" />
+                        <span>Event Featured Media Slots (4 Slots)</span>
+                      </h4>
+                      <p className="text-[11px] text-slate-400 mt-0.5">
+                        Only photos uploaded for <span className="text-mitra-gold font-bold">"{editingEvent.title}"</span> can be selected.
+                        These images maintain a distinct <span className="font-mono text-mitra-gold">eventDisplayOrder</span> (1 to 4) separate from the home screen.
+                      </p>
+                    </div>
+
+                    <span className="text-xs font-mono bg-slate-950 border border-slate-800 px-3 py-1 rounded-lg text-emerald-400 font-bold">
+                      {eventSlots.filter(Boolean).length}/4 Active
+                    </span>
+                  </div>
+
+                  {/* 4 Event Slots Grid */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                    {[0, 1, 2, 3].map((slotIdx) => {
+                      const slotNum = slotIdx + 1;
+                      const item = eventSlots[slotIdx];
+                      const isPickerOpenForThisSlot = activeEventSlotPicker === slotNum;
+
+                      return (
+                        <div
+                          key={slotNum}
+                          className={`bg-slate-900 rounded-2xl border p-3 flex flex-col justify-between space-y-3 transition-all ${
+                            isPickerOpenForThisSlot
+                              ? 'border-mitra-gold ring-2 ring-mitra-gold/30'
+                              : 'border-slate-800'
+                          }`}
+                        >
+                          <div className="flex items-center justify-between">
+                            <span className="text-[10px] font-mono font-black bg-slate-950 text-mitra-gold border border-mitra-gold/30 px-2 py-0.5 rounded">
+                              EVENT SLOT #{slotNum}
+                            </span>
+                            {item && (
+                              <span className="text-[9px] font-bold text-emerald-400 bg-emerald-950 px-1.5 py-0.5 rounded">
+                                Selected
+                              </span>
+                            )}
+                          </div>
+
+                          {item ? (() => {
+                            const isVid = item.type === 'VIDEO' || isYouTubeUrl(item.url);
+                            const thumb = item.coverImage || (isYouTubeUrl(item.url) ? getYouTubeThumbnailUrl(item.url, 'hq') : null) || (isVid ? '/assets/poster.jpg' : item.url) || '/assets/poster.jpg';
+
+                            return (
+                              <div className="space-y-2">
+                                <div className="relative aspect-video rounded-xl overflow-hidden bg-black">
+                                  <img
+                                    src={thumb}
+                                    alt={item.title}
+                                    className="w-full h-full object-cover"
+                                    onError={(e) => {
+                                      (e.target as HTMLImageElement).src = '/assets/poster.jpg';
+                                    }}
+                                  />
+                                  <span className="absolute bottom-1 left-1 text-[9px] font-bold bg-black/80 text-white px-1.5 py-0.5 rounded flex items-center gap-1">
+                                    {isVid && <Film className="w-2.5 h-2.5 shrink-0" />}
+                                    <span>{item.category || (isVid ? 'Video' : 'Photo')}</span>
+                                  </span>
+                                  {isVid && (
+                                    <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                                      <div className="w-8 h-8 rounded-full bg-[#E65C00] text-white flex items-center justify-center shadow-lg">
+                                        <Play className="w-3.5 h-3.5 fill-white ml-0.5" />
+                                      </div>
+                                    </div>
+                                  )}
+                                </div>
+                                <p className="text-[11px] font-bold text-white line-clamp-1" title={item.title}>
+                                  {item.title}
+                                </p>
+                              </div>
+                            );
+                          })() : (
+                            <div
+                              onClick={() => setActiveEventSlotPicker(slotNum)}
+                              className="aspect-video rounded-xl border border-dashed border-slate-700 hover:border-mitra-gold flex flex-col items-center justify-center p-2 text-center cursor-pointer bg-slate-950/40 hover:bg-slate-950 transition-colors"
+                            >
+                              <Plus className="w-5 h-5 text-mitra-gold mb-1" />
+                              <span className="text-[10px] font-bold text-slate-300">Empty Slot</span>
+                              <span className="text-[9px] text-slate-500">Tap to select photo</span>
+                            </div>
+                          )}
+
+                          <div className="pt-2 border-t border-slate-800 flex items-center gap-1.5">
+                            {item ? (
+                              <>
+                                <button
+                                  type="button"
+                                  onClick={() => setActiveEventSlotPicker(slotNum)}
+                                  className="flex-1 bg-slate-800 hover:bg-slate-700 text-slate-200 text-[10px] font-bold py-1.5 rounded-lg border border-slate-700"
+                                >
+                                  Change
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => handleAssignEventSlot(slotNum, null)}
+                                  className="p-1.5 bg-rose-950/50 text-rose-400 hover:bg-rose-900 hover:text-white rounded-lg border border-rose-800"
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                </button>
+                              </>
+                            ) : (
+                              <button
+                                type="button"
+                                onClick={() => setActiveEventSlotPicker(slotNum)}
+                                className="w-full bg-mitra-red hover:bg-mitra-red-dark text-white text-[10px] font-bold py-1.5 rounded-lg flex items-center justify-center gap-1"
+                              >
+                                <Plus className="w-3 h-3" />
+                                <span>Assign</span>
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  {/* Inline Media Item Picker for Chosen Slot */}
+                  {activeEventSlotPicker && (
+                    <div className="bg-slate-900 border-2 border-mitra-gold/50 rounded-2xl p-5 space-y-4 animate-in fade-in duration-200">
+                      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 border-b border-slate-800 pb-3">
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <span className="bg-mitra-gold text-black font-black text-xs px-2.5 py-0.5 rounded-full font-mono">
+                              Event Slot #{activeEventSlotPicker}
+                            </span>
+                            <span className="text-xs font-bold text-white">Choose a Photo from this Event:</span>
+                          </div>
+                          <p className="text-[10px] text-slate-400 mt-0.5">
+                            Click any image below to link it to Slot #{activeEventSlotPicker} for {editingEvent.title}.
+                          </p>
+                        </div>
+
+                        <div className="flex items-center gap-2 w-full sm:w-auto">
+                          <div className="relative flex-1 sm:w-56">
+                            <Search className="w-3.5 h-3.5 text-slate-500 absolute left-2.5 top-2.5" />
+                            <input
+                              type="text"
+                              placeholder="Search photos..."
+                              value={eventMediaSearch}
+                              onChange={(e) => setEventMediaSearch(e.target.value)}
+                              className="w-full bg-slate-950 border border-slate-800 rounded-lg pl-8 pr-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-mitra-gold"
+                            />
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => setActiveEventSlotPicker(null)}
+                            className="bg-slate-800 hover:bg-slate-700 text-slate-300 p-1.5 rounded-lg"
+                          >
+                            <X className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </div>
+
+                      {eventMediaItems.length === 0 ? (
+                        <div className="text-center py-8 text-slate-400 space-y-2">
+                          <ImageIcon className="w-8 h-8 text-slate-600 mx-auto" />
+                          <p className="text-xs font-bold">No photos currently tagged to this event.</p>
+                          <p className="text-[10px] text-slate-500">
+                            Upload photos for this event in the "Media &amp; Gallery" admin manager first.
+                          </p>
+                        </div>
+                      ) : (
+                        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 max-h-80 overflow-y-auto pr-1">
+                          {eventMediaItems
+                            .filter((m) =>
+                              m.title.toLowerCase().includes(eventMediaSearch.toLowerCase()) ||
+                              m.category?.toLowerCase().includes(eventMediaSearch.toLowerCase())
+                            )
+                            .map((media) => {
+                              const isSelectedInActiveSlot = media.isEventFeatured && media.eventDisplayOrder === activeEventSlotPicker;
+                              const isSelectedInAnotherSlot = media.isEventFeatured && media.eventDisplayOrder !== activeEventSlotPicker;
+                              const isVid = media.type === 'VIDEO' || isYouTubeUrl(media.url);
+                              const thumb = media.coverImage || (isYouTubeUrl(media.url) ? getYouTubeThumbnailUrl(media.url, 'hq') : null) || (isVid ? '/assets/poster.jpg' : media.url) || '/assets/poster.jpg';
+
+                              return (
+                                <div
+                                  key={media.id}
+                                  onClick={() => handleAssignEventSlot(activeEventSlotPicker, media.id)}
+                                  className={`bg-slate-950 border rounded-xl p-2 cursor-pointer group transition-all space-y-2 relative ${
+                                    isSelectedInActiveSlot
+                                      ? 'border-emerald-500 ring-2 ring-emerald-500/30'
+                                      : 'border-slate-800 hover:border-mitra-gold'
+                                  }`}
+                                >
+                                  <div className="relative aspect-video rounded-lg overflow-hidden bg-black">
+                                    <img
+                                      src={thumb}
+                                      alt={media.title}
+                                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                                      onError={(e) => {
+                                        (e.target as HTMLImageElement).src = '/assets/poster.jpg';
+                                      }}
+                                    />
+                                    <span className="absolute bottom-1 left-1 text-[9px] font-bold bg-black/80 text-white px-1 py-0.5 rounded flex items-center gap-1">
+                                      {isVid && <Film className="w-2.5 h-2.5 shrink-0" />}
+                                      <span>{media.category || (isVid ? 'Video' : 'Photo')}</span>
+                                    </span>
+
+                                    {isVid && (
+                                      <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                                        <div className="w-8 h-8 rounded-full bg-[#E65C00] text-white flex items-center justify-center shadow-lg">
+                                          <Play className="w-3.5 h-3.5 fill-white ml-0.5" />
+                                        </div>
+                                      </div>
+                                    )}
+
+                                    {isSelectedInAnotherSlot && (
+                                      <span className="absolute top-1 left-1 text-[9px] font-bold bg-amber-500 text-black px-1.5 py-0.5 rounded">
+                                        Slot #{media.eventDisplayOrder}
+                                      </span>
+                                    )}
+                                    {isSelectedInActiveSlot && (
+                                      <span className="absolute top-1 left-1 text-[9px] font-bold bg-emerald-500 text-white px-1.5 py-0.5 rounded">
+                                        Selected
+                                      </span>
+                                    )}
+                                  </div>
+
+                                  <p className="text-[11px] font-bold text-white line-clamp-1 group-hover:text-mitra-gold">
+                                    {media.title}
+                                  </p>
+
+                                  <button
+                                    type="button"
+                                    className={`w-full text-[10px] font-bold py-1.5 rounded-lg flex items-center justify-center gap-1 ${
+                                      isSelectedInActiveSlot
+                                        ? 'bg-emerald-600/30 text-emerald-400 border border-emerald-500/40'
+                                        : 'bg-mitra-gold text-black hover:bg-amber-400'
+                                    }`}
+                                  >
+                                    <Check className="w-3 h-3" />
+                                    <span>{isSelectedInActiveSlot ? 'Currently Selected' : 'Choose This Photo'}</span>
+                                  </button>
+                                </div>
+                              );
+                            })}
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                </div>
+              )}
+
+            </div>
+
+            {/* Modal Footer */}
+            <div className="p-4 border-t border-slate-800 bg-slate-900/80 flex justify-end">
+              <button
+                type="button"
+                onClick={closeEditModal}
+                className="bg-slate-800 hover:bg-slate-700 text-white font-bold px-5 py-2 rounded-xl text-xs transition-colors"
+              >
+                Close Modal
+              </button>
+            </div>
+
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }
+

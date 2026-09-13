@@ -41,6 +41,7 @@ function AdminLayoutContent({ children }: { children: React.ReactNode }) {
   const navItems = [
     { label: 'Dashboard & Stats', href: '/admin/dashboard', icon: LayoutDashboard, roleAccess: ['Super Admin', 'Media Secretary', 'Events Coordinator', 'Membership Officer', 'Charity Officer'] },
     { label: 'Media & Gallery', href: '/admin/media', icon: ImageIcon, roleAccess: ['Super Admin', 'Media Secretary', 'Events Coordinator'] },
+    { label: 'Featured Media (Home)', href: '/admin/featured-media', icon: Sparkles, roleAccess: ['Super Admin', 'Media Secretary', 'Events Coordinator'] },
     { label: 'Telugu Business Directory', href: '/admin/telugu-business', icon: Building2, roleAccess: ['Super Admin', 'Membership Officer', 'Events Coordinator'] },
     { label: 'Events Manager', href: '/admin/events', icon: Calendar, roleAccess: ['Super Admin', 'Events Coordinator'] },
     { label: 'Membership Database', href: '/admin/members', icon: Users, roleAccess: ['Super Admin', 'Membership Officer'] },
