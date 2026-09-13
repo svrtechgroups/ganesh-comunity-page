@@ -115,7 +115,7 @@ export default function AdminEventsPage() {
   const [title, setTitle] = useState('');
   const [category, setCategory] = useState<EventItem['category']>('Cultural Events');
   const [date, setDate] = useState('2026-09-14');
-  const [time, setTime] = useState('Monday – Friday: 6:00 PM – 9:00 PM | Saturday: 11:00 AM – 3:00 PM');
+  const [time, setTime] = useState('Monday – Saturday: 6:00 PM – 9:00 PM | Sunday: 11:00 AM – 5:00 PM');
   const [venue, setVenue] = useState('E Block, SLOUGH & LANGLEY COLLEGE');
   const [address, setAddress] = useState('Langley Road, SL3 8GW');
   const [description, setDescription] = useState('');
