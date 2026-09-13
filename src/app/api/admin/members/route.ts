@@ -1,6 +1,5 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { INITIAL_MEMBERS } from '@/data/members';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -30,7 +29,7 @@ export async function GET() {
   } catch (error) {
     console.error('[ADMIN MEMBERS API] Error:', error);
     return NextResponse.json(
-      { success: true, source: 'static', data: INITIAL_MEMBERS },
+      { success: true, source: 'static', data: [] },
       {
         headers: {
           'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0',

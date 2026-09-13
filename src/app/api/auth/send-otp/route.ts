@@ -16,10 +16,6 @@ export async function POST(request: Request) {
 
     // Check if user exists depending on the type
     const existingMember = await prisma.member.findFirst({ where: { email } });
-    if (!existingMember) {
-      console.log('No existing member found with email:', email);
-      console.log('All members:', await prisma.member.findMany());
-    }
 
     if (type === 'REGISTER' && existingMember) {
       return NextResponse.json({ success: false, error: 'An account with this email already exists.' }, { status: 409 });

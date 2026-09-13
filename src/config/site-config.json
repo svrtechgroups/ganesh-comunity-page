@@ -11,11 +11,5 @@
   "ENABLE_SEARCH": false,
   "ENABLE_CHARITY_HELP": true,
   "ENABLE_DONATIONS": true,
-  "ENABLE_POOJA_BOOKING": true,
-  "SHOW_DEMO_CREDENTIALS": false,
-  "DEMO_MEMBER_EMAIL": "member@mitra.org.uk",
-  "DEMO_MEMBER_PASSWORD": "pass123",
-  "DEMO_ADMIN_EMAIL": "admin@mitra.org.uk",
-  "DEMO_ADMIN_PASSWORD": "admin123"
-  
+  "ENABLE_POOJA_BOOKING": true
 }

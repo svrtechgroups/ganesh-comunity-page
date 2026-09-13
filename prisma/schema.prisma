@@ -23,6 +23,7 @@ model Event {
   rsvpCount   Int         @default(0)
   featured    Boolean     @default(false)
   rsvps       EventRSVP[]
+  mediaItems  MediaItem[]
   createdAt   DateTime    @default(now())
   updatedAt   DateTime    @updatedAt
 }
@@ -43,15 +44,35 @@ model EventRSVP {
 }
 
 model Sponsor {
-  id         String   @id @default(cuid())
-  name       String
-  tier       String   @default("Partner")
-  logoUrl    String
-  websiteUrl String?
-  order      Int      @default(0)
-  active     Boolean  @default(true)
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  id          String   @id @default(cuid())
+  name        String
+  tier        String   @default("Partner")
+  logoUrl     String
+  websiteUrl  String?
+  order       Int      @default(0)
+  active      Boolean  @default(true)
+  accent      String?  @default("from-[#E65C00] to-[#FF7A00]")
+  gradient    String?  @default("linear-gradient(135deg, #E65C00 0%, #FF7A00 100%)")
+  blackLogoBg Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model SiteSettings {
+  id                String   @id @default("default-settings")
+  siteTitle         String   @default("Mana Indian Telugu Roots Abroad (MITRA)")
+  tagline           String   @default("Serving and Connecting the Telugu Community in the United Kingdom")
+  contactEmail      String   @default("info@mitra.org.uk")
+  contactPhone      String   @default("+44 20 8123 4567")
+  address           String   @default("MITRA Centre, Chiswick Park, 566 Chiswick High Rd, London W4 5YA, United Kingdom")
+  twitterUrl        String   @default("https://twitter.com/mitra_official")
+  linkedinUrl       String   @default("https://linkedin.com/company/mitra-official")
+  facebookUrl       String   @default("https://facebook.com/ukteluguassociation")
+  instagramUrl      String   @default("https://instagram.com/mitra_official")
+  youtubeUrl        String   @default("https://youtube.com/@mitraofficial")
+  googleAnalyticsId String   @default("G-MITRA2026SEO")
+  enableTracking    Boolean  @default(true)
+  updatedAt         DateTime @updatedAt
 }
 
 model Member {
@@ -96,13 +117,28 @@ model Subscriber {
 }
 
 model MediaItem {
-  id          String   @id @default(cuid())
-  title       String
-  category    String   @default("Photo")
-  coverImage  String
-  url         String?
-  description String?
-  createdAt   DateTime @default(now())
+  id           String    @id @default(cuid())
+  title        String
+  type         String    @default("IMAGE") // "IMAGE" or "VIDEO"
+  category     String    @default("Photo")
+  coverImage   String?
+  url          String    @default("")
+  description  String?
+  eventId      String?
+  event        Event?    @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  isFeatured        Boolean   @default(false)
+  displayOrder      Int       @default(0)
+  isHomeFeatured    Boolean   @default(false)
+  homeDisplayOrder  Int       @default(0)
+  isEventFeatured   Boolean   @default(false)
+  eventDisplayOrder Int       @default(0)
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @default(now()) @updatedAt
+
+  @@index([eventId])
+  @@index([type])
+  @@index([isHomeFeatured])
+  @@index([isEventFeatured])
 }
 
 model BlogPost {

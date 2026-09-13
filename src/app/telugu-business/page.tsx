@@ -29,7 +29,6 @@ import {
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { TeluguBusiness } from '@/lib/types';
-import { INITIAL_TELUGU_BUSINESSES } from '@/data/telugu-businesses';
 
 const CATEGORIES = [
   'All',
@@ -49,7 +48,7 @@ const CATEGORIES = [
 const POPULAR_CITIES = ['All', 'London', 'Slough', 'Milton Keynes', 'Birmingham', 'Reading', 'Manchester', 'Swindon'];
 
 export default function TeluguBusinessPage() {
-  const [businesses, setBusinesses] = useState<TeluguBusiness[]>(INITIAL_TELUGU_BUSINESSES);
+  const [businesses, setBusinesses] = useState<TeluguBusiness[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('All');
@@ -85,7 +84,7 @@ export default function TeluguBusinessPage() {
     try {
       const res = await fetch('/api/telugu-business');
       const data = await res.json();
-      if (data.success && Array.isArray(data.data) && data.data.length > 0) {
+      if (data.success && Array.isArray(data.data)) {
         setBusinesses(data.data);
       }
     } catch (err) {

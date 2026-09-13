@@ -61,6 +61,7 @@ export async function POST(request: Request) {
         path: '/',
         maxAge: 60 * 60 * 24 * 7,
         sameSite: 'lax',
+        secure: process.env.NODE_ENV === 'production',
       });
 
       return response;
@@ -76,7 +77,7 @@ export async function POST(request: Request) {
     if (member && member.passwordHash) {
       // Support bcrypt hash and legacy plain-text password
       const bcryptMatch = await verifyPassword(password, member.passwordHash).catch(() => false);
-      const legacyMatch = member.passwordHash === password || password === 'pass123';
+      const legacyMatch = member.passwordHash === password;
       memberMatched = bcryptMatch || legacyMatch;
     }
 
@@ -120,6 +121,7 @@ export async function POST(request: Request) {
       path: '/',
       maxAge: 60 * 60 * 24 * 30,
       sameSite: 'lax',
+      secure: process.env.NODE_ENV === 'production',
     });
 
     return response;

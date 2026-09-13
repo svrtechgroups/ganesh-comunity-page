@@ -19,7 +19,7 @@ export function generateTicketToken(paymentId: string): string {
 
 /**
  * Resolves a ticket token back to the original payment ID.
- * Verifies HMAC integrity so arbitrary/guessed tokens are rejected.
+ * Verifies HMAC integrity with timingSafeEqual so arbitrary/guessed IDs are rejected (prevents IDOR).
  */
 export function resolveTicketId(tokenOrId: string): string | null {
   if (!tokenOrId) return null;
@@ -36,7 +36,10 @@ export function resolveTicketId(tokenOrId: string): string | null {
           .digest('hex')
           .slice(0, 16);
 
-        if (hmac === expectedHmac) {
+        const hmacBuf = Buffer.from(hmac, 'utf-8');
+        const expectedBuf = Buffer.from(expectedHmac, 'utf-8');
+
+        if (hmacBuf.length === expectedBuf.length && crypto.timingSafeEqual(hmacBuf, expectedBuf)) {
           return paymentId;
         }
       } catch {
@@ -46,6 +49,6 @@ export function resolveTicketId(tokenOrId: string): string | null {
     return null;
   }
 
-  // Fallback to allow legacy raw IDs if directly passed
-  return tokenOrId;
+  // Reject unauthenticated raw IDs to prevent IDOR enumeration
+  return null;
 }

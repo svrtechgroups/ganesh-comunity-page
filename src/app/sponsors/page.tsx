@@ -1,17 +1,36 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Image from 'next/image';
 import { Award, ExternalLink, Send } from 'lucide-react';
-import { SPONSORS_DATA } from '@/data/sponsors';
+import { SponsorItem } from '@/lib/types';
 
 export default function SponsorsPage() {
+  const [sponsors, setSponsors] = useState<SponsorItem[]>([]);
+  const [loading, setLoading] = useState(true);
   const [enquirySent, setEnquirySent] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [company, setCompany] = useState('');
   const [contactName, setContactName] = useState('');
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
+
+  useEffect(() => {
+    async function fetchSponsors() {
+      try {
+        const res = await fetch('/api/sponsors');
+        const data = await res.json();
+        if (data.success && Array.isArray(data.data)) {
+          setSponsors(data.data);
+        }
+      } catch (err) {
+        console.error('Failed to load sponsors:', err);
+      } finally {
+        setLoading(false);
+      }
+    }
+    fetchSponsors();
+  }, []);
 
   const handleSponsorSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -88,19 +107,42 @@ export default function SponsorsPage() {
       </div>
 
       {/* Directory Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
-        {SPONSORS_DATA.map((sp) => (
-          <div key={sp.id || sp.name} className="bg-white dark:bg-slate-900 rounded-3xl p-6 border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col items-center text-center space-y-3">
-            <span className="bg-mitra-gold/15 text-mitra-gold-dark text-[9px] font-black px-3 py-1 rounded-full uppercase tracking-[0.2em]">
-              {sp.tier}
-            </span>
-            <div className="relative w-32 h-24 rounded-2xl overflow-hidden bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
-              {renderLogo(sp.logoUrl, sp.name, sp.blackLogoBg)}
+      {loading ? (
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
+          {[1, 2, 3, 4, 5, 6].map((i) => (
+            <div key={i} className="bg-white dark:bg-slate-900 rounded-3xl p-6 border border-slate-200 dark:border-slate-800 shadow-sm animate-pulse h-48 flex flex-col items-center justify-center space-y-3">
+              <div className="w-20 h-4 bg-slate-200 dark:bg-slate-700 rounded-full" />
+              <div className="w-28 h-20 bg-slate-200 dark:bg-slate-700 rounded-2xl" />
+              <div className="w-32 h-4 bg-slate-200 dark:bg-slate-700 rounded" />
             </div>
-            <h3 className="text-sm font-bold text-slate-900 dark:text-white">{sp.name}</h3>
-          </div>
-        ))}
-      </div>
+          ))}
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
+          {sponsors.map((sp) => (
+            <div key={sp.id || sp.name} className="bg-white dark:bg-slate-900 rounded-3xl p-6 border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col items-center text-center space-y-3">
+              <span className="bg-mitra-gold/15 text-mitra-gold-dark text-[9px] font-black px-3 py-1 rounded-full uppercase tracking-[0.2em]">
+                {sp.tier}
+              </span>
+              <div className="relative w-32 h-24 rounded-2xl overflow-hidden bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
+                {renderLogo(sp.logoUrl, sp.name, sp.blackLogoBg)}
+              </div>
+              <h3 className="text-sm font-bold text-slate-900 dark:text-white">{sp.name}</h3>
+              {sp.websiteUrl && sp.websiteUrl !== '#' && (
+                <a
+                  href={sp.websiteUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-xs text-[#E65C00] hover:underline flex items-center gap-1 font-semibold"
+                >
+                  <span>Visit Website</span>
+                  <ExternalLink className="w-3 h-3" />
+                </a>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
 
       {/* Become a Sponsor Form */}
       <div className="bg-slate-900 text-white rounded-3xl p-8 sm:p-12 border-2 border-mitra-gold shadow-2xl max-w-2xl mx-auto space-y-6">

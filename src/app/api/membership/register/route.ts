@@ -44,6 +44,9 @@ export async function POST(request: Request) {
       response.cookies.set('mitra_member_session', JSON.stringify({ id: newMember.id, fullName, email, tier: selectedTier, status: 'Active', expiryDate: expiry }), {
         path: '/',
         maxAge: 60 * 60 * 24 * 30,
+        httpOnly: true,
+        sameSite: 'lax',
+        secure: process.env.NODE_ENV === 'production',
       });
 
       return response;
@@ -71,6 +74,9 @@ export async function POST(request: Request) {
       response.cookies.set('mitra_member_session', JSON.stringify({ id: memberId, fullName, email, tier: selectedTier, status: 'Active', expiryDate: expiry }), {
         path: '/',
         maxAge: 60 * 60 * 24 * 30,
+        httpOnly: true,
+        sameSite: 'lax',
+        secure: process.env.NODE_ENV === 'production',
       });
 
       return response;

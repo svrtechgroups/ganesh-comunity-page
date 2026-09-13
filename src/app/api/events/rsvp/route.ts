@@ -56,7 +56,7 @@ export async function POST(request: Request) {
           title: 'London Ganesh Mahotsav 2026',
           category: 'Cultural Events',
           date: '13 to 19 September 2026',
-          time: 'Monday – Friday: 6:00 PM – 9:00 PM | Saturday: 11:00 AM – 3:00 PM',
+          time: 'Monday – Saturday: 6:00 PM – 9:00 PM | Sunday: 11:00 AM – 5:00 PM',
           venue: 'E Block, SLOUGH & LANGLEY COLLEGE',
           address: 'Langley Road, SL3 8GW',
           description: 'London’s largest Maha Ganapathi Mahotsav.',
@@ -196,6 +196,7 @@ export async function POST(request: Request) {
         path: '/',
         maxAge: 60 * 60 * 24 * 30, // 30 days
         sameSite: 'lax',
+        secure: process.env.NODE_ENV === 'production',
       });
     }
 

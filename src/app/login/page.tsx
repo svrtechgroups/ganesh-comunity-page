@@ -4,7 +4,6 @@ import { useState, useEffect, Suspense } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { UserCheck, ShieldAlert, Lock, Mail, KeyRound, ArrowLeft, Sparkles } from 'lucide-react';
-import { SITE_CONFIG } from '@/config/site-config';
 import { useAuth } from '@/lib/auth-context';
 
 function LoginForm() {
@@ -25,16 +24,6 @@ function LoginForm() {
       router.replace(redirectTo || '/membership/portal');
     }
   }, [isLoggedIn, redirectTo, router]);
-
-  const fillDemo = () => {
-    if (activeTab === 'member') {
-      setEmail(SITE_CONFIG.DEMO_MEMBER_EMAIL);
-      setPassword(SITE_CONFIG.DEMO_MEMBER_PASSWORD);
-    } else {
-      setEmail(SITE_CONFIG.DEMO_ADMIN_EMAIL);
-      setPassword(SITE_CONFIG.DEMO_ADMIN_PASSWORD);
-    }
-  };
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -123,32 +112,6 @@ function LoginForm() {
           </p>
         </div>
 
-        {/* Demo Credentials Quick Fill */}
-        {SITE_CONFIG.SHOW_DEMO_CREDENTIALS && (
-          <div className="bg-[#FFF0E0] p-3 rounded-2xl border border-[#E65C00]/20 text-[11px] space-y-2 text-center">
-            <div className="flex justify-between items-center px-1">
-              <span className="text-[#E65C00] font-bold">Quick Demo Credentials:</span>
-              <button
-                type="button"
-                onClick={fillDemo}
-                className="text-[10px] bg-[#E65C00] text-white px-2 py-0.5 rounded-full font-extrabold hover:bg-[#FF7A00] transition-colors"
-              >
-                Auto-Fill Demo
-              </button>
-            </div>
-            {activeTab === 'member' ? (
-              <div className="flex justify-center gap-3 text-[#6B3A2A]">
-                <span>Email: <code className="text-[#3D1A00]">{SITE_CONFIG.DEMO_MEMBER_EMAIL}</code></span>
-                <span>Pass: <code className="text-[#3D1A00]">{SITE_CONFIG.DEMO_MEMBER_PASSWORD}</code></span>
-              </div>
-            ) : (
-              <div className="flex justify-center gap-3 text-[#6B3A2A]">
-                <span>Email: <code className="text-[#3D1A00]">{SITE_CONFIG.DEMO_ADMIN_EMAIL}</code></span>
-                <span>Pass: <code className="text-[#3D1A00]">{SITE_CONFIG.DEMO_ADMIN_PASSWORD}</code></span>
-              </div>
-            )}
-          </div>
-        )}
 
         {error && (
           <div className="bg-rose-50 border border-rose-300 text-rose-700 text-xs p-3 rounded-xl text-center font-semibold">

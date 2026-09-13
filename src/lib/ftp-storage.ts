@@ -130,15 +130,7 @@ export async function uploadFileViaFTP(
       user: ftpUser,
       password: ftpPassword,
       port: ftpPort,
-      secure: false,
-    });
-
-    console.debug("ftpDetails",{
-      host: ftpHost,
-      user: ftpUser,
-      password: ftpPassword,
-      port: ftpPort,
-      secure: false,
+      secure: process.env.FTP_SECURE === 'true',
     });
 
     // Target remote directory: e.g. public_html/uploads/leaders/profiles

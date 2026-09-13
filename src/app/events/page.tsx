@@ -1,14 +1,14 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { EVENTS_DATA } from '@/data/events';
 import { EventItem } from '@/lib/types';
 import EventCard from '@/components/EventCard';
 import DonationModal from '@/components/DonationModal';
-import { Calendar as CalendarIcon, List, Search } from 'lucide-react';
+import { Calendar as CalendarIcon, List, Search, Loader2 } from 'lucide-react';
 
 export default function EventsPage() {
-  const [events, setEvents] = useState<EventItem[]>(EVENTS_DATA);
+  const [events, setEvents] = useState<EventItem[]>([]);
+  const [loading, setLoading] = useState(true);
   const [viewMode, setViewMode] = useState<'grid' | 'calendar'>('grid');
   const [statusFilter, setStatusFilter] = useState<'Upcoming' | 'Past'>('Upcoming');
   const [categoryFilter, setCategoryFilter] = useState<string>('All');
@@ -17,15 +17,21 @@ export default function EventsPage() {
   const [selectedDonationCategory, setSelectedDonationCategory] = useState<'Annadanam' | 'Event Donations'>('Annadanam');
 
   useEffect(() => {
-    // Optionally fetch dynamic events from DB
+    setLoading(true);
     fetch('/api/events')
       .then((res) => res.json())
       .then((resData) => {
-        if (resData.success && Array.isArray(resData.data) && resData.data.length > 0) {
+        if (resData.success && Array.isArray(resData.data)) {
           setEvents(resData.data);
+        } else {
+          setEvents([]);
         }
       })
-      .catch(() => {});
+      .catch((err) => {
+        console.error('Failed to load events from DB:', err);
+        setEvents([]);
+      })
+      .finally(() => setLoading(false));
   }, []);
 
   const openDonation = (cat: 'Annadanam' | 'Event Donations') => {
@@ -145,7 +151,12 @@ export default function EventsPage() {
       </div>
 
       {/* Events Output */}
-      {filteredEvents.length === 0 ? (
+      {loading ? (
+        <div className="text-center py-24 bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 space-y-3">
+          <Loader2 className="w-8 h-8 text-mitra-gold animate-spin mx-auto" />
+          <p className="text-xs text-slate-400">Loading events from database...</p>
+        </div>
+      ) : filteredEvents.length === 0 ? (
         <div className="text-center py-20 bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 space-y-3">
           <CalendarIcon className="w-12 h-12 text-slate-300 mx-auto" />
           <h3 className="text-base font-bold text-slate-700 dark:text-slate-300">No events found</h3>

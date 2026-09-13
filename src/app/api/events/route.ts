@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { EVENTS_DATA } from '@/data/events';
+
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
 
 export async function GET() {
   try {
@@ -8,7 +10,9 @@ export async function GET() {
       orderBy: { date: 'asc' },
     });
     return NextResponse.json({ success: true, source: 'prisma', data: events });
-  } catch {
-    return NextResponse.json({ success: true, source: 'static', data: EVENTS_DATA });
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : 'Database error fetching events';
+    console.error('[API EVENTS GET ERROR]:', error);
+    return NextResponse.json({ success: false, error: message, data: [] }, { status: 500 });
   }
 }

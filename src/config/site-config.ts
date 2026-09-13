@@ -14,11 +14,6 @@ export interface SiteConfig {
   ENABLE_CHARITY_HELP: boolean;
   ENABLE_DONATIONS: boolean;
   ENABLE_POOJA_BOOKING: boolean;
-  SHOW_DEMO_CREDENTIALS: boolean;
-  DEMO_MEMBER_EMAIL: string;
-  DEMO_MEMBER_PASSWORD: string;
-  DEMO_ADMIN_EMAIL: string;
-  DEMO_ADMIN_PASSWORD: string;
 }
 
 export const SITE_CONFIG: SiteConfig = siteConfig;

@@ -40,12 +40,16 @@ function AdminLayoutContent({ children }: { children: React.ReactNode }) {
 
   const navItems = [
     { label: 'Dashboard & Stats', href: '/admin/dashboard', icon: LayoutDashboard, roleAccess: ['Super Admin', 'Media Secretary', 'Events Coordinator', 'Membership Officer', 'Charity Officer'] },
+    { label: 'Media & Gallery', href: '/admin/media', icon: ImageIcon, roleAccess: ['Super Admin', 'Media Secretary', 'Events Coordinator'] },
+    { label: 'Featured Media (Home)', href: '/admin/featured-media', icon: Sparkles, roleAccess: ['Super Admin', 'Media Secretary', 'Events Coordinator'] },
+    { label: 'Sponsors & Partners', href: '/admin/sponsors', icon: Sparkles, roleAccess: ['Super Admin', 'Events Coordinator'] },
     { label: 'Telugu Business Directory', href: '/admin/telugu-business', icon: Building2, roleAccess: ['Super Admin', 'Membership Officer', 'Events Coordinator'] },
     { label: 'Events Manager', href: '/admin/events', icon: Calendar, roleAccess: ['Super Admin', 'Events Coordinator'] },
     { label: 'Membership Database', href: '/admin/members', icon: Users, roleAccess: ['Super Admin', 'Membership Officer'] },
     { label: 'Leadership Directory', href: '/admin/leadership', icon: Users, roleAccess: ['Super Admin'] },
     { label: 'Payments & Donations', href: '/admin/payments', icon: CreditCard, roleAccess: ['Super Admin'] },
     { label: 'System Logs (7-Day)', href: '/admin/logs', icon: Activity, roleAccess: ['Super Admin'] },
+    { label: 'Site Settings', href: '/admin/settings', icon: Settings, roleAccess: ['Super Admin'] },
   ];
 
   const isCurrent = (href: string) => pathname === href;

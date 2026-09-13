@@ -90,7 +90,7 @@ export default function GaneshEvent2026Page() {
       
 
       {/* 6. MEDIA & TEASER GALLERY */}
-      <MediaTeaserSection />
+      <MediaTeaserSection eventId="evt-ganesh-chaturthi" />
 
       {/* 7. GET INVOLVED — OFFERING PLAQUES & SPONSORSHIP (EMAIL INQUIRY) */}
       <OfferingPlaques />

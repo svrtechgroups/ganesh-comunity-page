@@ -1,47 +1,94 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
+import { jwtVerify } from 'jose';
 
-// ─── Simple JWT payload decode (no signature verify — just for routing) ──────
-// Full cryptographic verification still happens in API routes via jsonwebtoken.
-function decodeJwtPayload(token: string): { role?: string } | null {
+const JWT_SECRET_STRING = process.env.JWT_SECRET || 'mitra-secret-fallback-key-2026';
+const JWT_SECRET_KEY = new TextEncoder().encode(JWT_SECRET_STRING);
+
+interface TokenPayload {
+  id?: string;
+  email?: string;
+  role?: string;
+}
+
+async function verifyJwtToken(token: string): Promise<TokenPayload | null> {
   try {
-    const parts = token.split('.');
-    if (parts.length !== 3) return null;
-    const payloadBase64 = parts[1].replace(/-/g, '+').replace(/_/g, '/');
-    const payloadJson = atob(payloadBase64);
-    return JSON.parse(payloadJson);
+    const { payload } = await jwtVerify(token, JWT_SECRET_KEY);
+    return payload as TokenPayload;
   } catch {
     return null;
   }
 }
 
-export function middleware(request: NextRequest) {
+export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  const isAdminRoute = pathname === '/admin' || pathname.startsWith('/admin/');
+  const isAdminApiRoute = pathname.startsWith('/api/admin');
+  const isAdminUiRoute = pathname === '/admin' || pathname.startsWith('/admin/');
   const isMemberRoute =
     pathname === '/membership/portal' || pathname.startsWith('/membership/portal/');
 
-  if (!isAdminRoute && !isMemberRoute) {
+  if (!isAdminApiRoute && !isAdminUiRoute && !isMemberRoute) {
     return NextResponse.next();
   }
 
-  const token = request.cookies.get('mitra_token')?.value;
-  const payload = token ? decodeJwtPayload(token) : null;
-
-  // Not authenticated at all → redirect to login
-  if (!payload) {
-    const loginUrl = new URL('/login', request.url);
-    loginUrl.searchParams.set('redirect', pathname);
-    return NextResponse.redirect(loginUrl);
+  // Check auth token from cookie or Authorization header
+  let token = request.cookies.get('mitra_token')?.value;
+  if (!token) {
+    const authHeader = request.headers.get('authorization');
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      token = authHeader.slice(7);
+    }
   }
 
-  // Authenticated as Member but trying admin route → redirect to login
-  if (isAdminRoute && payload.role !== 'Admin') {
-    const loginUrl = new URL('/login', request.url);
-    loginUrl.searchParams.set('redirect', pathname);
-    loginUrl.searchParams.set('error', 'admin_required');
-    return NextResponse.redirect(loginUrl);
+  const payload = token ? await verifyJwtToken(token) : null;
+
+  // 1. Protection for /api/admin/* (API endpoints)
+  if (isAdminApiRoute) {
+    if (!payload) {
+      return NextResponse.json(
+        { success: false, error: 'Unauthorized: Authentication required to access administrative API.' },
+        { status: 401 }
+      );
+    }
+
+    if (payload.role !== 'Admin') {
+      return NextResponse.json(
+        { success: false, error: 'Forbidden: Admin privilege required.' },
+        { status: 403 }
+      );
+    }
+
+    return NextResponse.next();
+  }
+
+  // 2. Protection for /admin/* (UI pages)
+  if (isAdminUiRoute) {
+    if (!payload) {
+      const loginUrl = new URL('/login', request.url);
+      loginUrl.searchParams.set('redirect', pathname);
+      return NextResponse.redirect(loginUrl);
+    }
+
+    if (payload.role !== 'Admin') {
+      const loginUrl = new URL('/login', request.url);
+      loginUrl.searchParams.set('redirect', pathname);
+      loginUrl.searchParams.set('error', 'admin_required');
+      return NextResponse.redirect(loginUrl);
+    }
+
+    return NextResponse.next();
+  }
+
+  // 3. Protection for /membership/portal/* (UI pages)
+  if (isMemberRoute) {
+    if (!payload) {
+      const loginUrl = new URL('/login', request.url);
+      loginUrl.searchParams.set('redirect', pathname);
+      return NextResponse.redirect(loginUrl);
+    }
+
+    return NextResponse.next();
   }
 
   return NextResponse.next();
@@ -51,6 +98,7 @@ export const config = {
   matcher: [
     '/admin',
     '/admin/:path*',
+    '/api/admin/:path*',
     '/membership/portal',
     '/membership/portal/:path*',
   ],

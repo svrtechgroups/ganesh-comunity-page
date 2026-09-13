@@ -49,9 +49,16 @@ export async function POST(req: NextRequest) {
   let event: Stripe.Event;
   try {
     if (!webhookSecret || webhookSecret.includes('REPLACE_WITH')) {
-      await logger.warn('payments/webhook', 'No STRIPE_WEBHOOK_SECRET set — parsing event without signature (DEV mode)');
+      if (process.env.NODE_ENV === 'production') {
+        await logger.error('payments/webhook', 'STRIPE_WEBHOOK_SECRET is missing in production. Refusing to process unsigned webhook.');
+        return NextResponse.json({ error: 'STRIPE_WEBHOOK_SECRET must be configured in production.' }, { status: 500 });
+      }
+      await logger.warn('payments/webhook', 'No STRIPE_WEBHOOK_SECRET set — parsing event without signature (DEV mode only)');
       event = JSON.parse(rawBody) as Stripe.Event;
     } else {
+      if (!signature) {
+        return NextResponse.json({ error: 'Missing stripe-signature header' }, { status: 400 });
+      }
       event = stripe.webhooks.constructEvent(rawBody, signature, webhookSecret);
     }
   } catch (err) {

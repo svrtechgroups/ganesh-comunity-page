@@ -1,13 +1,12 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { INITIAL_MEMBERS } from '@/data/members';
 import { Member } from '@/lib/types';
 import MembershipCardModal from '@/components/MembershipCardModal';
 import { Search, Download, ShieldCheck, QrCode, ChevronLeft, ChevronRight, Users, RefreshCw } from 'lucide-react';
 
 export default function AdminMembersPage() {
-  const [members, setMembers] = useState<Member[]>(INITIAL_MEMBERS);
+  const [members, setMembers] = useState<Member[]>([]);
   const [query, setQuery] = useState('');
   const [passModalMember, setPassModalMember] = useState<Member | null>(null);
   const [loading, setLoading] = useState(true);

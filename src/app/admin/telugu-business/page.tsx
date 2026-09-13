@@ -28,7 +28,6 @@ import {
   Sparkles
 } from 'lucide-react';
 import { TeluguBusiness } from '@/lib/types';
-import { INITIAL_TELUGU_BUSINESSES } from '@/data/telugu-businesses';
 
 const CATEGORIES = [
   'All',
@@ -46,7 +45,7 @@ const CATEGORIES = [
 ];
 
 export default function AdminTeluguBusinessPage() {
-  const [businesses, setBusinesses] = useState<TeluguBusiness[]>(INITIAL_TELUGU_BUSINESSES);
+  const [businesses, setBusinesses] = useState<TeluguBusiness[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'Pending' | 'Approved' | 'Rejected' | 'All'>('Pending');
   const [searchQuery, setSearchQuery] = useState('');
