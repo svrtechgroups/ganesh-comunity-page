@@ -208,8 +208,8 @@ function MemberPortalContent() {
         </Link>
         <Link href="/membership/portal/donations" className="temple-card p-5 rounded-2xl border border-[#E65C00]/20 hover:border-[#E65C00] transition-colors text-center space-y-2 group">
           <Heart className="w-8 h-8 text-[#E65C00] mx-auto group-hover:scale-110 transition-transform" />
-          <p className="text-xs font-black text-[#E65C00] uppercase tracking-wider">My Donations</p>
-          <p className="text-[10px] text-[#6B3A2A]">View your contribution history</p>
+          <p className="text-xs font-black text-[#E65C00] uppercase tracking-wider">My Bookings &amp; Sevas</p>
+          <p className="text-[10px] text-[#6B3A2A]">View your booking and seva history</p>
         </Link>
       </div>
 

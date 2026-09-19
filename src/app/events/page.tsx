@@ -51,6 +51,9 @@ export default function EventsPage() {
     return matchesStatus && matchesCat && matchesSearch;
   });
 
+  console.log(filteredEvents);
+  console.log(events);
+
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 space-y-10">
       

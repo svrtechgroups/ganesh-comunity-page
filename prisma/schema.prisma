@@ -8,24 +8,42 @@ generator client {
 }
 
 model Event {
-  id          String      @id @default(cuid())
-  title       String
-  category    String
-  date        String
-  time        String      @default("09:00 AM")
-  venue       String
-  address     String      @default("Langley, Slough, United Kingdom")
-  ticketPrice Int         @default(0)
-  status      String      @default("Upcoming")
-  description String
-  bannerUrl   String
-  capacity    Int         @default(300)
-  rsvpCount   Int         @default(0)
-  featured    Boolean     @default(false)
-  rsvps       EventRSVP[]
-  mediaItems  MediaItem[]
-  createdAt   DateTime    @default(now())
-  updatedAt   DateTime    @updatedAt
+  id                    String      @id @default(cuid())
+  title                 String
+  category              String
+  date                  String
+  time                  String      @default("09:00 AM")
+  venue                 String
+  address               String      @default("Langley, Slough, United Kingdom")
+  ticketPrice           Int         @default(0) // Adult ticket price (£)
+  childTicketPrice      Int         @default(0) // Child ticket price (£)
+  status                String      @default("Upcoming")
+  description           String
+  bannerUrl             String
+  capacity              Int         @default(300)
+  rsvpCount             Int         @default(0)
+  featured              Boolean     @default(false)
+  
+  // Customization Toggles:
+  enableRsvp            Boolean     @default(true)
+  enableSupportPayment  Boolean     @default(true)
+  enablePooja           Boolean     @default(true)
+  
+  // Capacity Limit enforcement & alerts:
+  enforceCapacityLimit  Boolean     @default(false)
+  capacityAlertSent     Boolean     @default(false)
+  adultCapacity         Int?        @default(0) // 0 = no separate limit (bounded by total capacity)
+  childCapacity         Int?        @default(0) // 0 = no separate limit (bounded by total capacity)
+  availableDates        String[]    @default([])
+
+  // Venue Map & Custom Form Fields:
+  mapUrl                String?
+  customFields          Json?       @default("[]")
+
+  rsvps                 EventRSVP[]
+  mediaItems            MediaItem[]
+  createdAt             DateTime    @default(now())
+  updatedAt             DateTime    @updatedAt
 }
 
 model EventRSVP {
@@ -40,6 +58,16 @@ model EventRSVP {
   adultsCount    Int      @default(1)
   childrenCount  Int      @default(0)
   selectedDates  String[] @default([])
+  
+  // Payment tracking for paid RSVPs & Event Support:
+  totalAmount     Float    @default(0)
+  supportAmount   Float    @default(0)
+  paymentStatus   String   @default("Free") // "Free" | "Pending" | "Completed"
+  paymentIntentId String?
+
+  // Dynamic Custom Field Responses:
+  customResponses Json?    @default("{}")
+
   createdAt      DateTime @default(now())
 }
 

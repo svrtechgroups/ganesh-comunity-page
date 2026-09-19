@@ -17,7 +17,7 @@ export default function DonatePage() {
           Make a Difference in Our Community
         </h1>
         <p className="text-sm text-slate-600 dark:text-slate-300 max-w-xl mx-auto">
-          Your donations support student emergency welfare, repatriation assistance, and preserving Telugu cultural heritage across the UK.
+          Your contributions support student emergency welfare, repatriation assistance, and preserving Telugu cultural heritage across the UK.
         </p>
       </div>
 
@@ -26,7 +26,7 @@ export default function DonatePage() {
         className="bg-mitra-red hover:bg-mitra-red-dark text-white font-extrabold px-8 py-4 rounded-2xl text-sm shadow-xl transition-all inline-flex items-center gap-2"
       >
         <Heart className="w-5 h-5 fill-white" />
-        <span>Open Donation Gateway</span>
+        <span>Make a Booking</span>
       </button>
 
       <DonationModal isOpen={modalOpen} onClose={() => setModalOpen(false)} />

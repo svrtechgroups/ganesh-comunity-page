@@ -1,17 +1,19 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { MapPin, Calendar, Clock, Download, ExternalLink, Sparkles, Flame, Heart, Utensils, Star, CheckCircle } from 'lucide-react';
-import { POOJA_DATES } from '@/components/PoojaBookingModal';
+import { MapPin, Calendar, Clock, Download, ExternalLink, Sparkles, Flame, Heart, Utensils, Star, CheckCircle, Ticket } from 'lucide-react';
+import { POOJA_DATES, getPoojaDateStatus } from '@/components/PoojaBookingModal';
 
 interface EventDetailsSectionProps {
   onOpenPoojaBooking?: (dateId?: string) => void;
   onOpenDonation?: (cat?: 'Annadanam' | 'Event Donations') => void;
+  onOpenRSVP?: () => void;
 }
 
 export default function EventDetailsSection({
   onOpenPoojaBooking,
   onOpenDonation,
+  onOpenRSVP,
 }: EventDetailsSectionProps) {
   const [dbCounts, setDbCounts] = useState<Record<string, number>>({});
 
@@ -78,12 +80,13 @@ export default function EventDetailsSection({
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
             {POOJA_DATES.map((dayItem, idx) => {
               const count = getBookingCount(dayItem.date);
-              const isFullyBooked = count >= 10;
+              const status = getPoojaDateStatus(dayItem.date, count);
+              const isUnavailable = status.disabled;
               return (
                 <div
                   key={dayItem.id}
                   className={`temple-card rounded-3xl p-6 border-2 flex flex-col justify-between space-y-5 relative transition-all duration-300 hover:scale-[1.02] ${
-                    isFullyBooked
+                    isUnavailable
                       ? 'border-slate-300 bg-slate-50 opacity-70 shadow-none'
                       : dayItem.id === 'day-2'
                       ? 'border-[#E65C00] bg-gradient-to-b from-[#FFF0E0] to-white shadow-md'
@@ -96,14 +99,20 @@ export default function EventDetailsSection({
                       <span className="text-[11px] font-black uppercase text-[#E65C00] font-cinzel tracking-wider">
                         {dayItem.day}
                       </span>
-                      <h4 className={`text-xl font-black font-cinzel ${isFullyBooked ? 'text-slate-400 line-through' : 'text-[#3D1A00]'}`}>
+                      <h4 className={`text-xl font-black font-cinzel ${isUnavailable ? 'text-slate-400 line-through' : 'text-[#3D1A00]'}`}>
                         {dayItem.date}
                       </h4>
                     </div>
 
-                    {isFullyBooked ? (
-                      <span className="bg-red-600 text-white text-[9px] font-black px-2.5 py-1 rounded-full uppercase tracking-wider shadow">
-                        FULLY BOOKED
+                    {isUnavailable ? (
+                      <span className={`text-white text-[9px] font-black px-2.5 py-1 rounded-full uppercase tracking-wider shadow ${
+                        status.reason === 'past'
+                          ? 'bg-slate-500'
+                          : status.reason === 'visarjan'
+                          ? 'bg-amber-600'
+                          : 'bg-red-600'
+                      }`}>
+                        {status.statusLabel}
                       </span>
                     ) : dayItem.badge ? (
                       <span className="bg-[#E65C00] text-white text-[9px] font-black px-2.5 py-1 rounded-full uppercase tracking-wider shadow">
@@ -119,32 +128,48 @@ export default function EventDetailsSection({
                   {/* Day Details */}
                   <div className="space-y-2">
                     <div className="flex items-center gap-2">
-                      <Flame className={`w-4 h-4 shrink-0 ${isFullyBooked ? 'text-slate-400' : 'text-[#E65C00]'}`} />
-                      <h5 className={`text-base font-bold font-cinzel leading-tight ${isFullyBooked ? 'text-slate-400' : 'text-[#E65C00]'}`}>
+                      <Flame className={`w-4 h-4 shrink-0 ${isUnavailable ? 'text-slate-400' : 'text-[#E65C00]'}`} />
+                      <h5 className={`text-base font-bold font-cinzel leading-tight ${isUnavailable ? 'text-slate-400' : 'text-[#E65C00]'}`}>
                         {dayItem.title}
                       </h5>
                     </div>
-                    <p className={`text-xs font-semibold ${isFullyBooked ? 'text-slate-400' : 'text-[#3D1A00]'}`}>
+                    <p className={`text-xs font-semibold ${isUnavailable ? 'text-slate-400' : 'text-[#3D1A00]'}`}>
                       {dayItem.theme}
                     </p>
-                    <p className={`text-[11px] leading-relaxed italic ${isFullyBooked ? 'text-slate-400' : 'text-[#6B3A2A]'}`}>
-                      ✦ {isFullyBooked ? 'Daily booking limit reached.' : dayItem.blessing}
+                    <p className={`text-[11px] leading-relaxed italic ${isUnavailable ? 'text-slate-400' : 'text-[#6B3A2A]'}`}>
+                      ✦ {isUnavailable
+                        ? status.reason === 'past'
+                          ? 'Pooja date has passed.'
+                          : status.reason === 'visarjan'
+                          ? 'Maha Visarjan & Nimajjanam day. Bookings closed.'
+                          : 'Daily booking limit reached.'
+                        : dayItem.blessing}
                     </p>
                   </div>
 
                   {/* Card Action */}
-                  <button
-                    disabled={isFullyBooked}
-                    onClick={() => !isFullyBooked && onOpenPoojaBooking?.(dayItem.id)}
-                    className={`w-full py-2.5 rounded-full text-xs font-black uppercase tracking-wider flex items-center justify-center gap-2 shadow-sm ${
-                      isFullyBooked
-                        ? 'bg-slate-300 text-slate-500 border border-slate-400/30 cursor-not-allowed'
-                        : 'gold-button'
-                    }`}
-                  >
-                    <Flame className="w-3.5 h-3.5 fill-current text-white" />
-                    <span>{isFullyBooked ? 'Fully Booked' : 'Book Pooja / Seva'}</span>
-                  </button>
+                  {onOpenPoojaBooking ? (
+                    <button
+                      disabled={isUnavailable}
+                      onClick={() => !isUnavailable && onOpenPoojaBooking?.(dayItem.id)}
+                      className={`w-full py-2.5 rounded-full text-xs font-black uppercase tracking-wider flex items-center justify-center gap-2 shadow-sm ${
+                        isUnavailable
+                          ? 'bg-slate-300 text-slate-500 border border-slate-400/30 cursor-not-allowed'
+                          : 'gold-button'
+                      }`}
+                    >
+                      <Flame className="w-3.5 h-3.5 fill-current text-white" />
+                      <span>
+                        {isUnavailable
+                          ? status.reason === 'past'
+                            ? 'Date Passed'
+                            : status.reason === 'visarjan'
+                            ? 'Visarjan Day'
+                            : 'Fully Booked'
+                          : 'Make Event Payment'}
+                      </span>
+                    </button>
+                  ) : null}
                 </div>
               );
             })}
@@ -164,6 +189,16 @@ export default function EventDetailsSection({
           </div>
 
           <div className="flex flex-wrap gap-3">
+            {onOpenRSVP && (
+              <button
+                onClick={onOpenRSVP}
+                className="gold-button px-6 py-3 rounded-full text-xs font-black uppercase tracking-wider flex items-center gap-2 shadow-md hover:scale-105 transition-all"
+              >
+                <Ticket className="w-4 h-4 text-white" />
+                <span>Register / RSVP Now</span>
+              </button>
+            )}
+
             <a
               href="https://maps.google.com/?q=Langley+Road+SL3+8GW+Slough+UK"
               target="_blank"

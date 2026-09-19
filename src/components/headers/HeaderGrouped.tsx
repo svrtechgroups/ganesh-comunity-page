@@ -34,7 +34,7 @@ export default function HeaderGrouped({ previewMode = false }: HeaderProps) {
   const { user, isLoggedIn, logout } = useAuth();
 
   const isCurrent = (path: string) => pathname === path;
-  const isAboutActive = pathname.startsWith('/about') || pathname === '/history' || pathname === '/chairman-message' || pathname === '/leadership';
+  const isAboutActive = pathname.startsWith('/about') || pathname === '/history' || pathname === '/leadership';
   const isCommunityActive = pathname === '/sponsors' || pathname === '/telugu-business' || pathname === '/media';
 
   return (
@@ -128,13 +128,6 @@ export default function HeaderGrouped({ previewMode = false }: HeaderProps) {
                     <div>
                       <div className="font-bold">Guinness World Record</div>
                       <div className="text-[10px] text-[#6B3A2A] normal-case">Largest laddu historic milestone</div>
-                    </div>
-                  </Link>
-                  <Link href="/chairman-message" className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-xs text-[#3D1A00] hover:bg-[#FFF0E0] hover:text-[#E65C00] transition-colors">
-                    <Sparkles className="w-4 h-4 text-[#E65C00]" />
-                    <div>
-                      <div className="font-bold">Chairman's Address</div>
-                      <div className="text-[10px] text-[#6B3A2A] normal-case">Official patron message</div>
                     </div>
                   </Link>
                 </div>

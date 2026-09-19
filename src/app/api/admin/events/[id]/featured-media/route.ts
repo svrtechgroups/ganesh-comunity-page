@@ -73,7 +73,7 @@ export async function POST(
     }
 
     const body = await request.json();
-    const { slot, mediaItemId } = body;
+    const { slot, mediaItemId, newMedia } = body;
 
     const slotNum = Number(slot);
     if (!slotNum || slotNum < 1 || slotNum > 4) {
@@ -96,9 +96,22 @@ export async function POST(
       },
     });
 
-    // 2. If mediaItemId is provided, assign it to this slot for this event
-    if (mediaItemId) {
-      // Also verify mediaItem belongs to this event
+    // 2. If newMedia is provided (direct upload), create it in DB and assign to slot
+    if (newMedia && newMedia.url) {
+      await prisma.mediaItem.create({
+        data: {
+          title: newMedia.title || `Event Media Slot ${slotNum}`,
+          url: newMedia.url,
+          coverImage: newMedia.coverImage || newMedia.url,
+          type: newMedia.type || 'IMAGE',
+          category: 'Photo',
+          eventId,
+          isEventFeatured: true,
+          eventDisplayOrder: slotNum,
+        },
+      });
+    } else if (mediaItemId) {
+      // If existing mediaItemId is provided, assign it to this slot
       await prisma.mediaItem.update({
         where: { id: mediaItemId },
         data: {

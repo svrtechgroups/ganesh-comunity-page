@@ -160,10 +160,10 @@ export default function AdminDashboardPage() {
       ['Total Real Devotees / Users in DB', kpi.totalRealUsers],
       ['Total Registered Members', kpi.registeredMembersCount],
       ['Total Active Members', kpi.activeMembersCount],
-      ['Total Completed Donation Revenue (£)', kpi.completedRevenue.toFixed(2)],
-      ['Completed Donations Count', kpi.completedCount],
-      ['Pending Donations / In-Flight (£)', kpi.pendingRevenue.toFixed(2)],
-      ['Pending Donations Count', kpi.pendingCount],
+      ['Total Completed Booking & Seva Revenue (£)', kpi.completedRevenue.toFixed(2)],
+      ['Completed Bookings Count', kpi.completedCount],
+      ['Pending Bookings / In-Flight (£)', kpi.pendingRevenue.toFixed(2)],
+      ['Pending Bookings Count', kpi.pendingCount],
       [''],
       ['--- SACRED POOJAS & PASSES ---'],
       ['Paid Pooja Bookings (£116 Sevas)', kpi.totalPaidPoojas],
@@ -255,7 +255,7 @@ export default function AdminDashboardPage() {
             EXECUTIVE CMS &amp; CONVERSIONS ANALYTICS
           </h1>
           <p className="text-xs text-slate-400 font-medium">
-            Live database intelligence tracking RSVP passes, Sacred Pooja Sevas, Stripe donations, and devotee registrations.
+            Live database intelligence tracking RSVP passes, Sacred Pooja Sevas, Stripe bookings, and devotee registrations.
           </p>
         </div>
 
@@ -357,7 +357,7 @@ export default function AdminDashboardPage() {
         <div className="bg-slate-950 p-5 rounded-2xl border border-emerald-500/30 space-y-2 hover:border-emerald-400 transition-all shadow-md group bg-gradient-to-b from-emerald-950/10 to-transparent">
           <div className="flex items-center justify-between">
             <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-400">
-              Completed Donations Revenue
+              Completed Seva &amp; Booking Revenue
             </span>
             <div className="p-2 bg-emerald-500/10 text-emerald-400 rounded-xl border border-emerald-500/30 group-hover:bg-emerald-400 group-hover:text-black transition-colors">
               <Heart className="w-4 h-4" />
@@ -547,7 +547,7 @@ export default function AdminDashboardPage() {
           <div className="flex items-center justify-between border-b border-slate-800 pb-3">
             <div className="flex items-center gap-2">
               <Heart className="w-5 h-5 text-emerald-400" />
-              <h3 className="text-base font-bold text-white">Donations &amp; Revenue Breakdown</h3>
+              <h3 className="text-base font-bold text-white">Bookings &amp; Revenue Breakdown</h3>
             </div>
             <Link href="/admin/payments" className="text-xs text-mitra-gold hover:underline flex items-center gap-1">
               <span>Full Ledger</span>
@@ -579,7 +579,7 @@ export default function AdminDashboardPage() {
           {/* Donation Classification Table */}
           <div className="space-y-2 pt-1">
             <span className="text-[11px] font-bold uppercase text-slate-400 tracking-wider block">
-              Completed Donations by Category
+              Completed Bookings &amp; Sevas by Category
             </span>
             <div className="space-y-2">
               {(data?.donationBreakdown || []).map((cat, idx) => (

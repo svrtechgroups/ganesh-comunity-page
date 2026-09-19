@@ -34,9 +34,13 @@ import {
   Image as ImageIcon,
   Check,
   Play,
-  Film
+  Film,
+  Upload
 } from 'lucide-react';
 import { isYouTubeUrl, getYouTubeThumbnailUrl } from '@/lib/youtube';
+import MultiDateSelector from '@/components/admin/MultiDateSelector';
+import CustomFieldBuilder from '@/components/admin/CustomFieldBuilder';
+import { CustomFieldDefinition } from '@/lib/types';
 
 interface RSVPRecord {
   id: string;
@@ -49,6 +53,10 @@ interface RSVPRecord {
   adultsCount: number;
   childrenCount: number;
   selectedDates: string[];
+  totalAmount?: number;
+  supportAmount?: number;
+  paymentStatus?: string;
+  customResponses?: Record<string, any>;
   createdAt: string;
   isMember?: boolean;
   event?: {
@@ -128,6 +136,18 @@ export default function AdminEventsPage() {
   const [bannerUrl, setBannerUrl] = useState('/assets/poster.jpg');
   const [capacity, setCapacity] = useState(5000);
   const [ticketPrice, setTicketPrice] = useState(0);
+  const [childTicketPrice, setChildTicketPrice] = useState(0);
+  const [enableRsvp, setEnableRsvp] = useState(true);
+  const [enableSupportPayment, setEnableSupportPayment] = useState(true);
+  const [enablePooja, setEnablePooja] = useState(true);
+  const [enforceCapacityLimit, setEnforceCapacityLimit] = useState(false);
+  const [adultCapacity, setAdultCapacity] = useState(0);
+  const [childCapacity, setChildCapacity] = useState(0);
+  const [mapUrl, setMapUrl] = useState('');
+  const [customFields, setCustomFields] = useState<CustomFieldDefinition[]>([]);
+  const [availableDates, setAvailableDates] = useState<string[]>([]);
+  const [uploadingBanner, setUploadingBanner] = useState(false);
+  const [uploadingSlot, setUploadingSlot] = useState<number | null>(null);
 
   // Edit Event & Featured Media State
   const [editingEvent, setEditingEvent] = useState<EventItem | null>(null);
@@ -140,10 +160,20 @@ export default function AdminEventsPage() {
     venue: '',
     address: '',
     ticketPrice: 0,
+    childTicketPrice: 0,
     status: 'Upcoming',
     description: '',
     bannerUrl: '',
     capacity: 5000,
+    enableRsvp: true,
+    enableSupportPayment: true,
+    enablePooja: true,
+    enforceCapacityLimit: false,
+    adultCapacity: 0,
+    childCapacity: 0,
+    mapUrl: '',
+    customFields: [] as CustomFieldDefinition[],
+    availableDates: [] as string[],
   });
   const [savingEdit, setSavingEdit] = useState(false);
   const [eventSlots, setEventSlots] = useState<(any | null)[]>([null, null, null, null]);
@@ -151,6 +181,97 @@ export default function AdminEventsPage() {
   const [loadingEventMedia, setLoadingEventMedia] = useState(false);
   const [activeEventSlotPicker, setActiveEventSlotPicker] = useState<number | null>(null);
   const [eventMediaSearch, setEventMediaSearch] = useState('');
+
+  const handleUploadBanner = async (e: React.ChangeEvent<HTMLInputElement>, isEdit: boolean) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setUploadingBanner(true);
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('useCase', 'events');
+      formData.append('identifier', 'event-banner');
+
+      const res = await fetch('/api/upload', {
+        method: 'POST',
+        body: formData,
+      });
+      const json = await res.json();
+      if (json.success && json.url) {
+        if (isEdit) {
+          setEditFormData((prev) => ({ ...prev, bannerUrl: json.url }));
+        } else {
+          setBannerUrl(json.url);
+        }
+        setActionNotice('Banner image uploaded successfully!');
+      } else {
+        alert(json.error || 'Failed to upload banner image');
+      }
+    } catch (err) {
+      console.error('Banner upload error:', err);
+      alert('Failed to upload banner image');
+    } finally {
+      setUploadingBanner(false);
+      e.target.value = '';
+    }
+  };
+
+  const handleUploadDirectToSlot = async (e: React.ChangeEvent<HTMLInputElement>, slotNum: number) => {
+    const file = e.target.files?.[0];
+    if (!file || !editingEvent) return;
+
+    setUploadingSlot(slotNum);
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('useCase', 'events');
+      formData.append('identifier', `event-${editingEvent.id}-slot-${slotNum}`);
+
+      const uploadRes = await fetch('/api/upload', {
+        method: 'POST',
+        body: formData,
+      });
+      const uploadJson = await uploadRes.json();
+      if (!uploadJson.success || !uploadJson.url) {
+        alert(uploadJson.error || 'Failed to upload media file');
+        return;
+      }
+
+      const isVideo = file.type.startsWith('video/') || file.name.match(/\.(mp4|webm|mov)$/i);
+
+      // Now assign to slot with newMedia payload
+      const assignRes = await fetch(`/api/admin/events/${editingEvent.id}/featured-media`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          slot: slotNum,
+          newMedia: {
+            title: file.name.replace(/\.[^/.]+$/, '').replace(/[-_]/g, ' '),
+            url: uploadJson.url,
+            coverImage: uploadJson.url,
+            type: isVideo ? 'VIDEO' : 'IMAGE',
+          },
+        }),
+      });
+
+      const assignJson = await assignRes.json();
+      if (assignJson.success) {
+        setEventSlots(assignJson.data.slots);
+        setEventMediaItems(assignJson.data.eventMedia);
+        setActiveEventSlotPicker(null);
+        setActionNotice(`Uploaded & assigned to Event Slot #${slotNum} successfully!`);
+      } else {
+        alert(assignJson.error || 'Failed to assign uploaded media to slot');
+      }
+    } catch (err: any) {
+      console.error('Upload to slot error:', err);
+      alert('Error uploading media to slot');
+    } finally {
+      setUploadingSlot(null);
+      e.target.value = '';
+    }
+  };
 
   const openEditModal = (evt: EventItem) => {
     setEditingEvent(evt);
@@ -165,10 +286,24 @@ export default function AdminEventsPage() {
       venue: evt.venue || '',
       address: evt.address || '',
       ticketPrice: evt.ticketPrice || 0,
+      childTicketPrice: evt.childTicketPrice || 0,
       status: evt.status || 'Upcoming',
       description: evt.description || '',
       bannerUrl: evt.bannerUrl || '/assets/poster.jpg',
       capacity: evt.capacity || 5000,
+      enableRsvp: evt.enableRsvp !== false,
+      enableSupportPayment: evt.enableSupportPayment !== false,
+      enablePooja: evt.enablePooja !== false,
+      enforceCapacityLimit: Boolean(evt.enforceCapacityLimit),
+      adultCapacity: evt.adultCapacity || 0,
+      childCapacity: evt.childCapacity || 0,
+      mapUrl: evt.mapUrl || '',
+      customFields: Array.isArray(evt.customFields) ? evt.customFields : [],
+      availableDates: Array.isArray(evt.availableDates)
+        ? evt.availableDates
+        : (typeof evt.availableDates === 'string' && evt.availableDates
+            ? (evt.availableDates as string).split(/[,\n]+/).map((s: string) => s.trim()).filter(Boolean)
+            : []),
     });
     fetchEventFeaturedMedia(evt.id);
   };
@@ -316,12 +451,27 @@ export default function AdminEventsPage() {
       status: 'Upcoming',
       capacity: Number(capacity),
       ticketPrice: Number(ticketPrice),
+      childTicketPrice: Number(childTicketPrice),
+      enableRsvp,
+      enableSupportPayment,
+      enablePooja,
+      enforceCapacityLimit,
+      adultCapacity: Number(adultCapacity) || 0,
+      childCapacity: Number(childCapacity) || 0,
+      mapUrl: mapUrl ? mapUrl.trim() : undefined,
+      customFields,
+      availableDates,
       rsvpCount: 0,
       featured: true,
     };
 
     setEvents((prev) => [newEvent, ...prev]);
     setShowAddForm(false);
+    setAvailableDates([]);
+    setAdultCapacity(0);
+    setChildCapacity(0);
+    setMapUrl('');
+    setCustomFields([]);
 
     try {
       await fetch('/api/admin/events', {
@@ -658,7 +808,7 @@ export default function AdminEventsPage() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
                 <div>
                   <label className="block text-slate-300 font-bold mb-1">Event Date</label>
                   <input
@@ -680,24 +830,36 @@ export default function AdminEventsPage() {
                   />
                 </div>
                 <div>
-                  <label className="block text-slate-300 font-bold mb-1">Ticket Price (£)</label>
+                  <label className="block text-slate-300 font-bold mb-1">Adult Ticket Price (£)</label>
                   <input
                     type="number"
+                    min="0"
                     required
                     value={ticketPrice}
                     onChange={(e) => setTicketPrice(Number(e.target.value))}
                     className="w-full bg-slate-900 border border-slate-800 rounded-xl p-2.5 text-white"
                   />
                 </div>
+                <div>
+                  <label className="block text-slate-300 font-bold mb-1">Child Ticket Price (£)</label>
+                  <input
+                    type="number"
+                    min="0"
+                    required
+                    value={childTicketPrice}
+                    onChange={(e) => setChildTicketPrice(Number(e.target.value))}
+                    className="w-full bg-slate-900 border border-slate-800 rounded-xl p-2.5 text-white"
+                  />
+                </div>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div>
                   <label className="block text-slate-300 font-bold mb-1">Venue Location</label>
                   <input
                     type="text"
                     required
-                    placeholder="e.g. E Block, SLOUGH &amp; LANGLEY COLLEGE"
+                    placeholder="e.g. E Block, SLOUGH & LANGLEY COLLEGE"
                     value={venue}
                     onChange={(e) => setVenue(e.target.value)}
                     className="w-full bg-slate-900 border border-slate-800 rounded-xl p-2.5 text-white"
@@ -713,6 +875,154 @@ export default function AdminEventsPage() {
                     onChange={(e) => setAddress(e.target.value)}
                     className="w-full bg-slate-900 border border-slate-800 rounded-xl p-2.5 text-white"
                   />
+                </div>
+                <div>
+                  <label className="block text-slate-300 font-bold mb-1">Venue Google Map / Embed URL</label>
+                  <input
+                    type="text"
+                    placeholder="e.g. https://maps.google.com/..."
+                    value={mapUrl}
+                    onChange={(e) => setMapUrl(e.target.value)}
+                    className="w-full bg-slate-900 border border-slate-800 rounded-xl p-2.5 text-white placeholder:text-slate-600 text-xs"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div>
+                  <label className="block text-slate-300 font-bold mb-1">Total Capacity</label>
+                  <input
+                    type="number"
+                    min="1"
+                    required
+                    value={capacity}
+                    onChange={(e) => setCapacity(Number(e.target.value))}
+                    className="w-full bg-slate-900 border border-slate-800 rounded-xl p-2.5 text-white"
+                  />
+                  <span className="text-[10px] text-slate-500">Overall attendee limit</span>
+                </div>
+                <div>
+                  <label className="block text-slate-300 font-bold mb-1">Adult Limit Booking</label>
+                  <input
+                    type="number"
+                    min="0"
+                    value={adultCapacity}
+                    onChange={(e) => setAdultCapacity(Number(e.target.value))}
+                    className="w-full bg-slate-900 border border-slate-800 rounded-xl p-2.5 text-white"
+                  />
+                  <span className="text-[10px] text-slate-500">0 = no separate limit</span>
+                </div>
+                <div>
+                  <label className="block text-slate-300 font-bold mb-1">Child Limit Booking</label>
+                  <input
+                    type="number"
+                    min="0"
+                    value={childCapacity}
+                    onChange={(e) => setChildCapacity(Number(e.target.value))}
+                    className="w-full bg-slate-900 border border-slate-800 rounded-xl p-2.5 text-white"
+                  />
+                  <span className="text-[10px] text-slate-500">0 = no separate limit</span>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-slate-300 font-bold mb-1">Banner Image URL</label>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    required
+                    placeholder="e.g. /assets/poster.jpg"
+                    value={bannerUrl}
+                    onChange={(e) => setBannerUrl(e.target.value)}
+                    className="flex-1 bg-slate-900 border border-slate-800 rounded-xl p-2.5 text-white"
+                  />
+                  <label className="cursor-pointer bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 px-4 py-2.5 rounded-xl text-xs font-bold flex items-center gap-1.5 shrink-0 transition-colors">
+                    <Upload className="w-3.5 h-3.5 text-mitra-gold" />
+                    <span>{uploadingBanner ? 'Uploading...' : 'Upload Image'}</span>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      disabled={uploadingBanner}
+                      onChange={(e) => handleUploadBanner(e, false)}
+                    />
+                  </label>
+                </div>
+              </div>
+
+              <div>
+                <MultiDateSelector
+                  dates={availableDates}
+                  onChange={setAvailableDates}
+                  label="Select Darshan / Event Date(s) for RSVP"
+                  helperText="Pick multiple individual dates or generate a date range. Attendees will be able to select from these dates during registration."
+                />
+              </div>
+
+              <div>
+                <CustomFieldBuilder
+                  fields={customFields}
+                  onChange={setCustomFields}
+                />
+              </div>
+
+              {/* Feature Toggles & Capacity Limit */}
+              <div className="bg-slate-900/80 border border-slate-800 p-4 rounded-2xl space-y-3">
+                <span className="text-[11px] font-bold text-mitra-gold uppercase tracking-wider block">
+                  Action Buttons &amp; Registration Control
+                </span>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <label className="flex items-center gap-2.5 bg-slate-950 p-2.5 rounded-xl border border-slate-800 cursor-pointer hover:border-mitra-gold/50 transition-colors">
+                    <input
+                      type="checkbox"
+                      checked={enableRsvp}
+                      onChange={(e) => setEnableRsvp(e.target.checked)}
+                      className="w-4 h-4 rounded text-mitra-gold focus:ring-mitra-gold bg-slate-900 border-slate-700"
+                    />
+                    <div>
+                      <span className="text-xs font-bold text-white block">Enable "Register / RSVP Now"</span>
+                      <span className="text-[10px] text-slate-400">Allow devotee event registrations</span>
+                    </div>
+                  </label>
+
+                  <label className="flex items-center gap-2.5 bg-slate-950 p-2.5 rounded-xl border border-slate-800 cursor-pointer hover:border-mitra-gold/50 transition-colors">
+                    <input
+                      type="checkbox"
+                      checked={enableSupportPayment}
+                      onChange={(e) => setEnableSupportPayment(e.target.checked)}
+                      className="w-4 h-4 rounded text-mitra-gold focus:ring-mitra-gold bg-slate-900 border-slate-700"
+                    />
+                    <div>
+                      <span className="text-xs font-bold text-white block">Enable "Event Support Payment"</span>
+                      <span className="text-[10px] text-slate-400">Show donation / support payment CTA</span>
+                    </div>
+                  </label>
+
+                  <label className="flex items-center gap-2.5 bg-slate-950 p-2.5 rounded-xl border border-slate-800 cursor-pointer hover:border-mitra-gold/50 transition-colors">
+                    <input
+                      type="checkbox"
+                      checked={enablePooja}
+                      onChange={(e) => setEnablePooja(e.target.checked)}
+                      className="w-4 h-4 rounded text-mitra-gold focus:ring-mitra-gold bg-slate-900 border-slate-700"
+                    />
+                    <div>
+                      <span className="text-xs font-bold text-white block">Enable "Book Pooja"</span>
+                      <span className="text-[10px] text-slate-400">Allow devotees to book poojas/rituals</span>
+                    </div>
+                  </label>
+
+                  <label className="flex items-center gap-2.5 bg-slate-950 p-2.5 rounded-xl border border-slate-800 cursor-pointer hover:border-mitra-gold/50 transition-colors">
+                    <input
+                      type="checkbox"
+                      checked={enforceCapacityLimit}
+                      onChange={(e) => setEnforceCapacityLimit(e.target.checked)}
+                      className="w-4 h-4 rounded text-mitra-gold focus:ring-mitra-gold bg-slate-900 border-slate-700"
+                    />
+                    <div>
+                      <span className="text-xs font-bold text-white block">Limit Registrations When Full</span>
+                      <span className="text-[10px] text-slate-400">Stop accepting RSVPs if capacity is reached</span>
+                    </div>
+                  </label>
                 </div>
               </div>
 
@@ -1232,6 +1542,29 @@ export default function AdminEventsPage() {
                         <div className="text-[10px] text-slate-400">
                           {rsvp.adultsCount || 1} Adult(s) · {rsvp.childrenCount || 0} Child(ren)
                         </div>
+                        {rsvp.supportAmount ? (
+                          <div className="text-[10px] text-amber-300 font-bold">
+                            + £{rsvp.supportAmount} Event Support
+                          </div>
+                        ) : null}
+                        {rsvp.totalAmount !== undefined && rsvp.totalAmount > 0 && (
+                          <div className="text-[10px] font-bold text-slate-300">
+                            Paid: £{rsvp.totalAmount.toFixed(2)} ({rsvp.paymentStatus || 'Completed'})
+                          </div>
+                        )}
+                        {rsvp.customResponses && Object.keys(rsvp.customResponses).length > 0 && (
+                          <div className="pt-1 flex flex-wrap gap-1">
+                            {Object.entries(rsvp.customResponses).map(([key, val]) => (
+                              <span
+                                key={key}
+                                className="text-[9px] px-1.5 py-0.5 rounded bg-slate-800 text-slate-300 border border-slate-700"
+                                title={`${key}: ${String(val)}`}
+                              >
+                                {String(val)}
+                              </span>
+                            ))}
+                          </div>
+                        )}
                       </td>
 
                       {/* Registered Timestamp */}
@@ -1495,8 +1828,19 @@ export default function AdminEventsPage() {
                       />
                     </div>
 
+                    <div className="space-y-1.5 md:col-span-2">
+                      <label className="text-xs font-bold uppercase text-slate-300">Venue Google Map / Embed URL</label>
+                      <input
+                        type="text"
+                        placeholder="e.g. https://maps.google.com/..."
+                        value={editFormData.mapUrl}
+                        onChange={(e) => setEditFormData({ ...editFormData, mapUrl: e.target.value })}
+                        className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3.5 py-2.5 text-xs text-white focus:outline-none focus:border-mitra-gold placeholder:text-slate-600"
+                      />
+                    </div>
+
                     <div className="space-y-1.5">
-                      <label className="text-xs font-bold uppercase text-slate-300">Capacity</label>
+                      <label className="text-xs font-bold uppercase text-slate-300">Total Capacity</label>
                       <input
                         type="number"
                         min="1"
@@ -1507,7 +1851,31 @@ export default function AdminEventsPage() {
                     </div>
 
                     <div className="space-y-1.5">
-                      <label className="text-xs font-bold uppercase text-slate-300">Ticket Price (£, 0 for free)</label>
+                      <label className="text-xs font-bold uppercase text-slate-300">Adult Limit Booking</label>
+                      <input
+                        type="number"
+                        min="0"
+                        value={editFormData.adultCapacity}
+                        onChange={(e) => setEditFormData({ ...editFormData, adultCapacity: Number(e.target.value) || 0 })}
+                        className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3.5 py-2.5 text-xs text-white focus:outline-none focus:border-mitra-gold"
+                      />
+                      <span className="text-[10px] text-slate-500">0 = no separate limit</span>
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-bold uppercase text-slate-300">Child Limit Booking</label>
+                      <input
+                        type="number"
+                        min="0"
+                        value={editFormData.childCapacity}
+                        onChange={(e) => setEditFormData({ ...editFormData, childCapacity: Number(e.target.value) || 0 })}
+                        className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3.5 py-2.5 text-xs text-white focus:outline-none focus:border-mitra-gold"
+                      />
+                      <span className="text-[10px] text-slate-500">0 = no separate limit</span>
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-bold uppercase text-slate-300">Adult Ticket Price (£, 0 for free)</label>
                       <input
                         type="number"
                         min="0"
@@ -1517,14 +1885,116 @@ export default function AdminEventsPage() {
                       />
                     </div>
 
-                    <div className="space-y-1.5 md:col-span-2">
-                      <label className="text-xs font-bold uppercase text-slate-300">Banner Image URL</label>
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-bold uppercase text-slate-300">Child Ticket Price (£, 0 for free)</label>
                       <input
-                        type="text"
-                        value={editFormData.bannerUrl}
-                        onChange={(e) => setEditFormData({ ...editFormData, bannerUrl: e.target.value })}
+                        type="number"
+                        min="0"
+                        value={editFormData.childTicketPrice}
+                        onChange={(e) => setEditFormData({ ...editFormData, childTicketPrice: Number(e.target.value) || 0 })}
                         className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3.5 py-2.5 text-xs text-white focus:outline-none focus:border-mitra-gold"
                       />
+                    </div>
+
+                    <div className="space-y-1.5 md:col-span-2">
+                      <label className="text-xs font-bold uppercase text-slate-300">Banner Image URL</label>
+                      <div className="flex gap-2">
+                        <input
+                          type="text"
+                          value={editFormData.bannerUrl}
+                          onChange={(e) => setEditFormData({ ...editFormData, bannerUrl: e.target.value })}
+                          className="flex-1 bg-slate-900 border border-slate-800 rounded-xl px-3.5 py-2.5 text-xs text-white focus:outline-none focus:border-mitra-gold"
+                        />
+                        <label className="cursor-pointer bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 px-3.5 py-2.5 rounded-xl text-xs font-bold flex items-center gap-1.5 shrink-0 transition-colors">
+                          <Upload className="w-3.5 h-3.5 text-mitra-gold" />
+                          <span>{uploadingBanner ? 'Uploading...' : 'Upload Image'}</span>
+                          <input
+                            type="file"
+                            accept="image/*"
+                            className="hidden"
+                            disabled={uploadingBanner}
+                            onChange={(e) => handleUploadBanner(e, true)}
+                          />
+                        </label>
+                      </div>
+                    </div>
+
+                    <div className="space-y-1.5 md:col-span-2">
+                      <MultiDateSelector
+                        dates={editFormData.availableDates}
+                        onChange={(dates) => setEditFormData({ ...editFormData, availableDates: dates })}
+                        label="Select Darshan / Event Date(s) for RSVP"
+                        helperText="Pick multiple individual dates or generate a date range. Attendees will be able to select from these dates during registration."
+                      />
+                    </div>
+
+                    <div className="md:col-span-2">
+                      <CustomFieldBuilder
+                        fields={editFormData.customFields}
+                        onChange={(fields) => setEditFormData({ ...editFormData, customFields: fields })}
+                      />
+                    </div>
+
+                    {/* Action Buttons & Capacity Toggles */}
+                    <div className="md:col-span-2 bg-slate-900/90 border border-slate-800 p-4 rounded-2xl space-y-3">
+                      <h4 className="text-xs font-bold text-mitra-gold uppercase tracking-wider flex items-center gap-1.5">
+                        <Sparkles className="w-3.5 h-3.5" />
+                        <span>Event Action Buttons &amp; Registration Controls</span>
+                      </h4>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+                        <label className="flex items-center gap-2.5 bg-slate-950 p-3 rounded-xl border border-slate-800/80 cursor-pointer hover:border-mitra-gold/50 transition-colors">
+                          <input
+                            type="checkbox"
+                            checked={editFormData.enableRsvp}
+                            onChange={(e) => setEditFormData({ ...editFormData, enableRsvp: e.target.checked })}
+                            className="w-4 h-4 rounded text-mitra-gold focus:ring-mitra-gold bg-slate-900 border-slate-700"
+                          />
+                          <div>
+                            <span className="text-xs font-bold text-white block">Enable "Register / RSVP Now"</span>
+                            <span className="text-[10px] text-slate-400">Allow devotees to register for passes</span>
+                          </div>
+                        </label>
+
+                        <label className="flex items-center gap-2.5 bg-slate-950 p-3 rounded-xl border border-slate-800/80 cursor-pointer hover:border-mitra-gold/50 transition-colors">
+                          <input
+                            type="checkbox"
+                            checked={editFormData.enableSupportPayment}
+                            onChange={(e) => setEditFormData({ ...editFormData, enableSupportPayment: e.target.checked })}
+                            className="w-4 h-4 rounded text-mitra-gold focus:ring-mitra-gold bg-slate-900 border-slate-700"
+                          />
+                          <div>
+                            <span className="text-xs font-bold text-white block">Enable "Event Support Payment"</span>
+                            <span className="text-[10px] text-slate-400">Display donate / event payment CTA</span>
+                          </div>
+                        </label>
+
+                        <label className="flex items-center gap-2.5 bg-slate-950 p-3 rounded-xl border border-slate-800/80 cursor-pointer hover:border-mitra-gold/50 transition-colors">
+                          <input
+                            type="checkbox"
+                            checked={editFormData.enablePooja}
+                            onChange={(e) => setEditFormData({ ...editFormData, enablePooja: e.target.checked })}
+                            className="w-4 h-4 rounded text-mitra-gold focus:ring-mitra-gold bg-slate-900 border-slate-700"
+                          />
+                          <div>
+                            <span className="text-xs font-bold text-white block">Enable "Book Pooja"</span>
+                            <span className="text-[10px] text-slate-400">Allow devotees to book poojas/rituals</span>
+                          </div>
+                        </label>
+
+                        <label className="flex items-center gap-2.5 bg-slate-950 p-3 rounded-xl border border-slate-800/80 cursor-pointer hover:border-mitra-gold/50 transition-colors">
+                          <input
+                            type="checkbox"
+                            checked={editFormData.enforceCapacityLimit}
+                            onChange={(e) => setEditFormData({ ...editFormData, enforceCapacityLimit: e.target.checked })}
+                            className="w-4 h-4 rounded text-mitra-gold focus:ring-mitra-gold bg-slate-900 border-slate-700"
+                          />
+                          <div>
+                            <span className="text-xs font-bold text-white block">Limit Registrations When Full</span>
+                            <span className="text-[10px] text-slate-400">Stop accepting RSVPs if capacity is reached</span>
+                          </div>
+                        </label>
+                      </div>
                     </div>
 
                     <div className="space-y-1.5 md:col-span-2">
@@ -1649,34 +2119,49 @@ export default function AdminEventsPage() {
                             </div>
                           )}
 
-                          <div className="pt-2 border-t border-slate-800 flex items-center gap-1.5">
-                            {item ? (
-                              <>
+                          <div className="pt-2 border-t border-slate-800 space-y-1.5">
+                            <div className="flex items-center gap-1.5">
+                              {item ? (
+                                <>
+                                  <button
+                                    type="button"
+                                    onClick={() => setActiveEventSlotPicker(slotNum)}
+                                    className="flex-1 bg-slate-800 hover:bg-slate-700 text-slate-200 text-[10px] font-bold py-1.5 rounded-lg border border-slate-700"
+                                  >
+                                    Gallery
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleAssignEventSlot(slotNum, null)}
+                                    className="p-1.5 bg-rose-950/50 text-rose-400 hover:bg-rose-900 hover:text-white rounded-lg border border-rose-800"
+                                    title="Clear Slot"
+                                  >
+                                    <Trash2 className="w-3.5 h-3.5" />
+                                  </button>
+                                </>
+                              ) : (
                                 <button
                                   type="button"
                                   onClick={() => setActiveEventSlotPicker(slotNum)}
-                                  className="flex-1 bg-slate-800 hover:bg-slate-700 text-slate-200 text-[10px] font-bold py-1.5 rounded-lg border border-slate-700"
+                                  className="flex-1 bg-slate-800 hover:bg-slate-700 text-white text-[10px] font-bold py-1.5 rounded-lg flex items-center justify-center gap-1 border border-slate-700"
                                 >
-                                  Change
+                                  <Plus className="w-3 h-3" />
+                                  <span>From Gallery</span>
                                 </button>
-                                <button
-                                  type="button"
-                                  onClick={() => handleAssignEventSlot(slotNum, null)}
-                                  className="p-1.5 bg-rose-950/50 text-rose-400 hover:bg-rose-900 hover:text-white rounded-lg border border-rose-800"
-                                >
-                                  <Trash2 className="w-3.5 h-3.5" />
-                                </button>
-                              </>
-                            ) : (
-                              <button
-                                type="button"
-                                onClick={() => setActiveEventSlotPicker(slotNum)}
-                                className="w-full bg-mitra-red hover:bg-mitra-red-dark text-white text-[10px] font-bold py-1.5 rounded-lg flex items-center justify-center gap-1"
-                              >
-                                <Plus className="w-3 h-3" />
-                                <span>Assign</span>
-                              </button>
-                            )}
+                              )}
+                            </div>
+
+                            <label className="cursor-pointer w-full bg-mitra-gold hover:bg-amber-400 text-black text-[10px] font-black py-1.5 rounded-lg flex items-center justify-center gap-1 transition-all shadow">
+                              <Upload className="w-3 h-3" />
+                              <span>{uploadingSlot === slotNum ? 'Uploading...' : 'Upload Direct'}</span>
+                              <input
+                                type="file"
+                                accept="image/*,video/*"
+                                className="hidden"
+                                disabled={uploadingSlot !== null}
+                                onChange={(e) => handleUploadDirectToSlot(e, slotNum)}
+                              />
+                            </label>
                           </div>
                         </div>
                       );
@@ -1692,14 +2177,25 @@ export default function AdminEventsPage() {
                             <span className="bg-mitra-gold text-black font-black text-xs px-2.5 py-0.5 rounded-full font-mono">
                               Event Slot #{activeEventSlotPicker}
                             </span>
-                            <span className="text-xs font-bold text-white">Choose a Photo from this Event:</span>
+                            <span className="text-xs font-bold text-white">Choose a Photo or Upload Directly:</span>
                           </div>
                           <p className="text-[10px] text-slate-400 mt-0.5">
-                            Click any image below to link it to Slot #{activeEventSlotPicker} for {editingEvent.title}.
+                            Click any image below or upload a new photo directly to Slot #{activeEventSlotPicker} for {editingEvent.title}.
                           </p>
                         </div>
 
                         <div className="flex items-center gap-2 w-full sm:w-auto">
+                          <label className="cursor-pointer bg-mitra-gold hover:bg-amber-400 text-black text-xs font-black px-3.5 py-2 rounded-xl flex items-center gap-1.5 shrink-0 transition-colors shadow">
+                            <Upload className="w-3.5 h-3.5" />
+                            <span>{uploadingSlot === activeEventSlotPicker ? 'Uploading...' : 'Upload Direct to Slot'}</span>
+                            <input
+                              type="file"
+                              accept="image/*,video/*"
+                              className="hidden"
+                              disabled={uploadingSlot !== null}
+                              onChange={(e) => handleUploadDirectToSlot(e, activeEventSlotPicker)}
+                            />
+                          </label>
                           <div className="relative flex-1 sm:w-56">
                             <Search className="w-3.5 h-3.5 text-slate-500 absolute left-2.5 top-2.5" />
                             <input

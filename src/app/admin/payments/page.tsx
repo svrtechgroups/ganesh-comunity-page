@@ -203,11 +203,11 @@ export default function AdminPaymentsPage() {
       const exportList: PaymentItem[] = json.success && Array.isArray(json.data) ? json.data : payments;
 
       const csvRows = [
-        'Payment ID,Member ID,Event,Donation Type,Pooja Category,Customer Name,Primary Devotee,Email,Phone,Pooja Date,Pooja Day,Pooja Title,Gotram,Priest Sankalpam,Special Wishes,Description,Amount (£),Currency,Payment Method,Status,Date',
+        'Payment ID,Member ID,Event,Booking Type,Pooja Category,Customer Name,Primary Devotee,Email,Phone,Pooja Date,Pooja Day,Pooja Title,Gotram,Priest Sankalpam,Special Wishes,Description,Amount (£),Currency,Payment Method,Status,Date',
       ];
       exportList.forEach((p) => {
         const eventName = (p.eventName || 'London Ganesh Mahotsav 2026').replace(/"/g, '""');
-        const dType = (p.donationType || 'Donation').toUpperCase();
+        const dType = (p.donationType || 'Booking').toUpperCase();
         const pCategory = (p.poojaCategory || '').replace(/"/g, '""');
         const pDate = p.poojaDate || '';
         const pDay = p.poojaDay || '';
@@ -414,7 +414,7 @@ export default function AdminPaymentsPage() {
                   RECENT PAYMENTS &amp; SANKALPAM LEDGER
                 </h3>
                 <p className="text-xs text-[#6B3A2A] font-semibold">
-                  Detailed logs of devotee pooja bookings, Gotrams, priest Sankalpam family names, and donations.
+                  Detailed logs of devotee pooja bookings, Gotrams, priest Sankalpam family names, and seva payments.
                 </p>
               </div>
 
@@ -488,7 +488,7 @@ export default function AdminPaymentsPage() {
                     <option value="all">All Types</option>
                     <option value="pooja">Pooja Bookings</option>
                     <option value="anadanam">Annadanam Seva</option>
-                    <option value="event donation">Event Donations</option>
+                    <option value="event donation">Event Seva</option>
                     <option value="membership">Membership</option>
                   </select>
                 </div>
@@ -593,7 +593,7 @@ export default function AdminPaymentsPage() {
                             : p.description?.toLowerCase().includes('anadanam') ||
                               p.description?.toLowerCase().includes('annadanam')
                             ? 'anadanam'
-                            : 'event donation');
+                            : 'event seva');
 
                         const isCompleted = p.status?.toLowerCase() === 'completed';
                         const isPending = p.status?.toLowerCase() === 'pending';
@@ -615,7 +615,7 @@ export default function AdminPaymentsPage() {
                               )}
                             </td>
 
-                            {/* Event & Donation Type */}
+                            {/* Event & Booking Type */}
                             <td className="p-4 space-y-1">
                               <div className="flex flex-wrap items-center gap-1.5">
                                 <span className="inline-block bg-[#FFF0E0] text-[#E65C00] border border-[#E65C00]/30 font-black px-2.5 py-0.5 rounded-full text-[10px] uppercase tracking-wider">
@@ -790,7 +790,7 @@ export default function AdminPaymentsPage() {
                 CONFIGURE STRIPE RECEIVING ACCOUNT
               </h3>
               <p className="text-xs text-[#6B3A2A] font-semibold">
-                Update your Stripe API Secret Key &amp; Publishable Key below to instantly redirect all incoming donations, event ticket fees, and membership payments to any Stripe Account.
+                Update your Stripe API Secret Key &amp; Publishable Key below to instantly redirect all incoming bookings, seva contributions, event ticket fees, and membership payments to any Stripe Account.
               </p>
             </div>
 
@@ -905,7 +905,7 @@ export default function AdminPaymentsPage() {
             {/* Header */}
             <div className="border-b border-[#E65C00]/20 pb-4 space-y-1">
               <span className="inline-block bg-[#FFF0E0] text-[#E65C00] border border-[#E65C00]/30 font-black px-3 py-1 rounded-full text-[10px] uppercase tracking-wider">
-                {selectedPaymentDetail.donationType || 'Pooja / Donation'}
+                {selectedPaymentDetail.donationType || 'Pooja / Seva'}
               </span>
               <h3 className="text-xl font-black font-cinzel text-[#3D1A00]">
                 Payment &amp; Devotee Sankalpam

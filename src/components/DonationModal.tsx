@@ -313,7 +313,7 @@ export default function DonationModal({
 
   const getCauseName = useCallback(() => {
     if (category === 'Annadanam') return 'London Ganesh Mahotsav Annadanam Fund.';
-    return 'London Ganesh Mahotsav Event & Cultural Support Donation';
+    return 'London Ganesh Mahotsav Event & Cultural Support Seva';
   }, [category]);
 
   // Step 1: Submit details → create Stripe PaymentIntent
@@ -439,7 +439,7 @@ export default function DonationModal({
                 <span className="font-semibold text-[#3D1A00]">{receipt.donorName}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-[#6B3A2A]">Donation Amount:</span>
+                <span className="text-[#6B3A2A]">Amount:</span>
                 <span className="font-black text-base text-emerald-600">£{receipt.amount}.00 GBP</span>
               </div>
               <div className="flex justify-between">
@@ -473,7 +473,7 @@ export default function DonationModal({
                 <Heart className="w-6 h-6 fill-current" />
               </div>
               <div>
-                <h2 className="text-xl font-black font-cinzel gold-foil-text">MAKE A DONATION</h2>
+                <h2 className="text-xl font-black font-cinzel gold-foil-text">MAKE A BOOKING</h2>
                 <p className="text-xs text-[#6B3A2A]">Quick details — no account needed</p>
               </div>
             </div>
@@ -560,7 +560,7 @@ export default function DonationModal({
               ) : (
                 <>
                   <Heart className="w-4 h-4 fill-current text-white" />
-                  <span>Continue to Donate →</span>
+                  <span>Continue to Booking →</span>
                 </>
               )}
             </button>
@@ -576,7 +576,7 @@ export default function DonationModal({
               </div>
               <div>
                 <h2 className="text-xl font-black font-cinzel gold-foil-text">
-                  MAKE A DONATION
+                  MAKE A BOOKING
                 </h2>
                 <p className="text-xs text-[#6B3A2A]">
                   MITRA UK &amp; Mahotsav Seva Contributions
@@ -587,13 +587,13 @@ export default function DonationModal({
             {/* Category Selection */}
             <div>
               <label className="block text-xs font-bold text-[#E65C00] uppercase tracking-wider mb-2">
-                Select Donation Category
+                Event category
               </label>
               <div className="grid grid-cols-2 gap-3">
                 {(
                   [
                     { key: 'Annadanam' as Category, label: 'Annadanam Seva', icon: <Utensils className="w-4 h-4 text-[#E65C00]" />, desc: 'Sponsor Mahaprasadam food distribution' },
-                    { key: 'Event Donations' as Category, label: 'Event Donation', icon: <Calendar className="w-4 h-4 text-[#E65C00]" />, desc: 'For Idol Purchase, Puja Samagri, Flower Decor, Fruits' },
+                    { key: 'Event Donations' as Category, label: 'Event Seva', icon: <Calendar className="w-4 h-4 text-[#E65C00]" />, desc: 'For Idol Purchase, Puja Samagri, Flower Decor, Fruits' },
                   ] as Array<{ key: Category; label: string; icon: React.ReactNode; desc: string }>
                 ).map(({ key, label, icon, desc }) => (
                   <button
@@ -619,7 +619,7 @@ export default function DonationModal({
             {/* Amount Selection */}
             <div>
               <label className="block text-xs font-bold text-[#6B3A2A] mb-2">
-                Select Donation Amount (GBP £ · Min £1)
+                Select amount (GBP £ · Min £1)
               </label>
               <div className="grid grid-cols-4 gap-2 mb-3">
                 {[21, 51, 108, 251].map((amt) => (
@@ -708,7 +708,7 @@ export default function DonationModal({
                   </span>
                 </>
               ) : (
-                <span>Please enter donation amount</span>
+                <span>Please enter amount</span>
               )}
             </button>
           </form>

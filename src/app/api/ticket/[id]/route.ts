@@ -54,7 +54,7 @@ const DEMO_PAYMENTS: Record<string, {
     status: 'Completed',
     customerName: 'Mahesh Babu G',
     customerEmail: 'member@mitra.org.uk',
-    description: 'Donation — Ganesh Mahotsav 2026 Seva Fund',
+    description: 'Seva Booking — Ganesh Mahotsav 2026 Seva Fund',
     paymentMethod: 'Stripe Card',
     createdAt: new Date(Date.now() - 3600000 * 10).toISOString(),
   },

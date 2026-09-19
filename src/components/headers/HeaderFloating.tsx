@@ -29,7 +29,7 @@ export default function HeaderFloating({ previewMode = false }: HeaderProps) {
   const { user, isLoggedIn, logout } = useAuth();
 
   const isCurrent = (path: string) => pathname === path;
-  const isMoreActive = ['/leadership', '/media', '/sponsors', '/telugu-business', '/history', '/chairman-message'].includes(pathname);
+  const isMoreActive = ['/leadership', '/media', '/sponsors', '/telugu-business', '/history'].includes(pathname);
 
   return (
     <div className={`${previewMode ? 'relative w-full' : 'sticky top-3 z-50'} px-3 sm:px-6 max-w-7xl mx-auto transition-all`}>
@@ -112,9 +112,6 @@ export default function HeaderFloating({ previewMode = false }: HeaderProps) {
                   </Link>
                   <Link href="/history" className="block px-3 py-2 text-xs text-[#3D1A00] hover:bg-[#FFF0E0] hover:text-[#E65C00] rounded-xl font-bold transition-colors">
                     Guinness World Record
-                  </Link>
-                  <Link href="/chairman-message" className="block px-3 py-2 text-xs text-[#3D1A00] hover:bg-[#FFF0E0] hover:text-[#E65C00] rounded-xl font-bold transition-colors">
-                    Chairman's Address
                   </Link>
                 </div>
               )}

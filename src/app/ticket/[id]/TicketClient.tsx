@@ -94,7 +94,7 @@ export default function TicketClient({ payment, qrDataUrl, ticketUrl }: TicketCl
                 </div>
                 <div className="text-left">
                   <p className="text-[#3D1A00] font-black text-lg tracking-widest">MITRA UK</p>
-                  <p className="text-[#6B3A2A] text-[9px] font-bold uppercase tracking-widest">Official Donation Receipt</p>
+                  <p className="text-[#6B3A2A] text-[9px] font-bold uppercase tracking-widest">Official Booking Receipt</p>
                 </div>
               </div>
               <div className="h-px bg-[#E65C00]/25 my-3" />
@@ -165,7 +165,7 @@ export default function TicketClient({ payment, qrDataUrl, ticketUrl }: TicketCl
                   <img src={qrDataUrl} alt="Scan to verify ticket" width={160} height={160} />
                 </div>
                 <p className="text-[9px] text-[#6B3A2A] text-center font-bold uppercase tracking-wider max-w-[140px] leading-tight">
-                  Scan to verify this donation receipt
+                  Scan to verify this booking receipt
                 </p>
                 <a
                   href={ticketUrl}
@@ -213,7 +213,7 @@ export default function TicketClient({ payment, qrDataUrl, ticketUrl }: TicketCl
         </div>
 
         <p className="no-print mt-6 text-[10px] text-[#6B3A2A] text-center max-w-md">
-          This ticket link is publicly accessible — share it with anyone to verify this donation.
+          This ticket link is publicly accessible — share it with anyone to verify this booking.
         </p>
       </div>
     </>

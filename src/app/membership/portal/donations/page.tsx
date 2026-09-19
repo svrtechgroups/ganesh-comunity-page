@@ -86,13 +86,13 @@ function MyDonationsContent() {
 
         <div className="text-center space-y-3">
           <span className="bg-[#FFF0E0] text-[#E65C00] border border-[#E65C00]/30 text-xs font-black px-4 py-1.5 rounded-full uppercase inline-block shadow-sm">
-            MY DONATION HISTORY
+            MY BOOKING &amp; SEVA HISTORY
           </span>
           <h1 className="text-3xl sm:text-4xl font-black font-cinzel gold-foil-text">
             MY CONTRIBUTIONS
           </h1>
           <p className="text-xs text-[#6B3A2A] max-w-xl mx-auto">
-            All donations and payments made by{' '}
+            All bookings and payments made by{' '}
             <strong className="text-[#E65C00]">{user?.fullName || user?.email}</strong>.
           </p>
         </div>
@@ -129,7 +129,7 @@ function MyDonationsContent() {
       <div className="max-w-4xl mx-auto temple-card rounded-3xl border border-[#E65C00]/25 overflow-hidden p-6 space-y-4">
         <div className="flex justify-between items-center border-b border-[#E65C00]/20 pb-4">
           <div>
-            <h3 className="text-lg font-black font-cinzel text-[#3D1A00]">DONATION RECEIPTS</h3>
+            <h3 className="text-lg font-black font-cinzel text-[#3D1A00]">BOOKING RECEIPTS</h3>
             <p className="text-xs text-[#6B3A2A]">Click "View Ticket" to open or share your official receipt.</p>
           </div>
           <button
@@ -144,7 +144,7 @@ function MyDonationsContent() {
         {loading ? (
           <div className="text-center py-16 space-y-3">
             <div className="w-8 h-8 border-4 border-[#E65C00] border-t-transparent rounded-full animate-spin mx-auto" />
-            <p className="text-xs text-[#6B3A2A]">Loading your donations…</p>
+            <p className="text-xs text-[#6B3A2A]">Loading your bookings…</p>
           </div>
         ) : error ? (
           <div className="text-center py-12 text-rose-600 text-xs">{error}</div>
@@ -153,14 +153,14 @@ function MyDonationsContent() {
             <div className="w-16 h-16 bg-[#FFF0E0] rounded-full flex items-center justify-center mx-auto border border-[#E65C00]/25">
               <Inbox className="w-8 h-8 text-[#6B3A2A]" />
             </div>
-            <p className="text-sm text-[#6B3A2A] font-bold">No donations yet</p>
-            <p className="text-xs text-[#6B3A2A]/70">Make your first contribution to the MITRA community.</p>
+            <p className="text-sm text-[#6B3A2A] font-bold">No bookings yet</p>
+            <p className="text-xs text-[#6B3A2A]/70">Make your first booking or seva contribution to the MITRA community.</p>
             <Link
               href="/donate"
               className="gold-button inline-flex items-center gap-2 px-6 py-3 rounded-full font-black text-xs uppercase tracking-wider shadow-lg"
             >
               <Heart className="w-4 h-4 text-white" />
-              <span>Make a Donation</span>
+              <span>Make a Booking</span>
             </Link>
           </div>
         ) : (
@@ -258,7 +258,7 @@ function MyDonationsContent() {
           className="gold-button inline-flex items-center gap-2 px-8 py-4 rounded-full font-black text-sm uppercase tracking-wider shadow-xl hover:scale-105 transition-transform"
         >
           <Heart className="w-5 h-5 text-white" />
-          <span>Make Another Donation</span>
+          <span>Make Another Booking</span>
         </Link>
       </div>
 

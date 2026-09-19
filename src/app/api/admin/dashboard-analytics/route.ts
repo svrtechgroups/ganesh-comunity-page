@@ -339,8 +339,8 @@ export async function GET() {
         title: p.customerName || 'Anonymous Devotee',
         subtitle: isPooja
           ? `Sacred Pooja: ${p.poojaDate || ''} ${p.poojaTitle || ''}`
-          : p.description || 'Donation to MITRA UK',
-        badge: isCompleted ? (isPooja ? 'PAID POOJA' : 'DONATION') : p.status.toUpperCase(),
+          : p.description || 'Contribution to MITRA UK',
+        badge: isCompleted ? (isPooja ? 'PAID POOJA' : 'SEVA / BOOKING') : p.status.toUpperCase(),
         badgeColor: isCompleted
           ? isPooja ? 'bg-amber-500/20 text-amber-300 border-amber-500/40' : 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40'
           : 'bg-slate-700/50 text-slate-300 border-slate-600',

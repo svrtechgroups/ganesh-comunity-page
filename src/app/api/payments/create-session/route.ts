@@ -69,6 +69,39 @@ export async function POST(request: Request) {
     );
   }
 
+  // ── Restrict Maha Yajaman, 20th Sep, and Past Dates ────────────────────────
+  if (poojaCategory && /maha\s*yajaman/i.test(poojaCategory)) {
+    return NextResponse.json(
+      { success: false, error: 'Maha Yajaman seva bookings are currently closed. Please choose another category.' },
+      { status: 400 }
+    );
+  }
+
+  if (poojaDate && safeType !== 'archana' && !String(poojaDate).includes('All 7 Days')) {
+    const dayMatch = String(poojaDate).match(/(\d+)/);
+    const dayNum = dayMatch ? parseInt(dayMatch[1], 10) : NaN;
+
+    if (dayNum === 20 || String(poojaDate).includes('20th')) {
+      return NextResponse.json(
+        { success: false, error: 'Pooja bookings are closed on 20th September for Maha Visarjan.' },
+        { status: 400 }
+      );
+    }
+
+    const now = new Date();
+    const isPast =
+      now.getFullYear() > 2026 ||
+      (now.getFullYear() === 2026 && now.getMonth() > 8) ||
+      (now.getFullYear() === 2026 && now.getMonth() === 8 && !isNaN(dayNum) && dayNum < now.getDate());
+
+    if (isPast) {
+      return NextResponse.json(
+        { success: false, error: `The selected pooja date (${poojaDate}) has already passed.` },
+        { status: 400 }
+      );
+    }
+  }
+
   try {
     // ── Check Auth Token if present ──────────────────────────────────────────
     const cookieStore = await cookies();

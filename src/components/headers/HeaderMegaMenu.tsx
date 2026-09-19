@@ -186,15 +186,6 @@ export default function HeaderMegaMenu({ previewMode = false }: HeaderProps) {
                     <ChevronRight className="w-4 h-4 text-[#E65C00]/60" />
                   </Link>
                 </li>
-                <li>
-                  <Link href="/chairman-message" onClick={() => setMegaOpen(false)} className="flex items-center justify-between p-2 rounded-xl hover:bg-[#FFF0E0] hover:text-[#E65C00] transition-colors">
-                    <div>
-                      <div className="font-bold">Chairman's Address</div>
-                      <p className="text-[11px] text-[#6B3A2A]">Message from leadership</p>
-                    </div>
-                    <ChevronRight className="w-4 h-4 text-[#E65C00]/60" />
-                  </Link>
-                </li>
               </ul>
             </div>
 

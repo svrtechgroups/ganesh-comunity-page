@@ -1,12 +1,12 @@
 import { Metadata } from 'next';
 import { EventItem, BlogPost } from './types';
 
-export const BASE_URL = 'https://www.mitra.org.uk';
+export const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL || 'https://www.mitrauk.com';
 
 export function constructMetadata({
   title = 'Mana Indian Telugu Roots Abroad (MITRA) | Official Website',
   description = 'The premier UK non-profit organization promoting Telugu language, culture, arts, community welfare, student counselling, and high-impact charitable programs across Great Britain.',
-  image = '/assets/poster.jpg',
+  image = '/assets/organizers-poster.jpg',
   canonical = '/',
   noIndex = false,
 }: {
@@ -16,6 +16,10 @@ export function constructMetadata({
   canonical?: string;
   noIndex?: boolean;
 } = {}): Metadata {
+  const absoluteImageUrl = image.startsWith('http')
+    ? image
+    : `${BASE_URL.replace(/\/$/, '')}${image.startsWith('/') ? '' : '/'}${image}`;
+
   return {
     title: `${title} | MITRA`,
     description,
@@ -41,7 +45,8 @@ export function constructMetadata({
       siteName: 'Mana Indian Telugu Roots Abroad (MITRA)',
       images: [
         {
-          url: image,
+          url: absoluteImageUrl,
+          secureUrl: absoluteImageUrl,
           width: 1200,
           height: 630,
           alt: title,
@@ -54,7 +59,7 @@ export function constructMetadata({
       card: 'summary_large_image',
       title,
       description,
-      images: [image],
+      images: [absoluteImageUrl],
       creator: '@mitra_official',
     },
     robots: noIndex
@@ -94,6 +99,10 @@ export function generateOrganizationJsonLd() {
 }
 
 export function generateEventJsonLd(event: EventItem) {
+  const eventBanner = event.bannerUrl?.startsWith('http')
+    ? event.bannerUrl
+    : `${BASE_URL.replace(/\/$/, '')}${event.bannerUrl?.startsWith('/') ? '' : '/'}${event.bannerUrl || 'assets/organizers-poster.jpg'}`;
+
   return {
     '@context': 'https://schema.org',
     '@type': 'Event',
@@ -107,7 +116,7 @@ export function generateEventJsonLd(event: EventItem) {
       name: event.venue,
       address: event.address,
     },
-    image: [event.bannerUrl],
+    image: [eventBanner],
     organizer: {
       '@type': 'Organization',
       name: 'Mana Indian Telugu Roots Abroad',

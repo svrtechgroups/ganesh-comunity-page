@@ -1,20 +1,39 @@
 export type Role = 'Super Admin' | 'Media Secretary' | 'Events Coordinator' | 'Membership Officer' | 'Charity Officer' | 'Committee Viewer';
 
+export interface CustomFieldDefinition {
+  id: string;
+  label: string;
+  type: 'text' | 'textarea' | 'select' | 'checkbox' | 'number';
+  required?: boolean;
+  placeholder?: string;
+  options?: string[]; // for select type
+}
+
 export interface EventItem {
   id: string;
   title: string;
-  category: 'Cultural Events' | 'Business Networking' | 'Sports' | 'Women Empowerment' | 'World Conferences';
+  category: 'Cultural Events' | 'Business Networking' | 'Sports' | 'Women Empowerment' | 'World Conferences' | string;
   date: string; // YYYY-MM-DD
   time: string;
   venue: string;
   address: string;
   description: string;
   bannerUrl: string;
-  status: 'Upcoming' | 'Past';
+  status: 'Upcoming' | 'Past' | string;
   capacity: number;
   rsvpCount: number;
-  ticketPrice: number; // 0 for free
+  ticketPrice: number; // 0 for free (adults)
+  childTicketPrice?: number; // 0 for free (children)
   featured?: boolean;
+  enableRsvp?: boolean;
+  enableSupportPayment?: boolean;
+  enablePooja?: boolean;
+  enforceCapacityLimit?: boolean;
+  adultCapacity?: number;
+  childCapacity?: number;
+  availableDates?: string[];
+  mapUrl?: string;
+  customFields?: CustomFieldDefinition[];
 }
 
 export interface LeadershipMember {

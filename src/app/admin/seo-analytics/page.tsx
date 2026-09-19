@@ -19,7 +19,7 @@ export default function AdminSeoAnalyticsPage() {
         <div>
           <h1 className="text-2xl font-black text-white">SEO & Conversion Tracking Inspector</h1>
           <p className="text-xs text-slate-400">
-            Real-time event logging framework tracking RSVPs, membership conversions, donation triggers, and search queries.
+            Real-time event logging framework tracking RSVPs, membership conversions, booking &amp; seva triggers, and search queries.
           </p>
         </div>
 

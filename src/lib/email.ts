@@ -44,7 +44,7 @@ interface EmailLayoutOptions {
   isAlert?: boolean;
 }
 
-function renderEmailLayout({
+export function renderEmailLayout({
   pageTitle,
   badgeText = 'London Ganesh Mahotsav 2026',
   children,
@@ -211,7 +211,7 @@ export const sendGuestWelcomeEmail = async (
       Namaste <strong style="color: #C2410C;">${fullName}</strong> 🙏,
     </p>
     <p style="color: #4A3B32; font-size: 13.5px; line-height: 1.7; margin: 0 0 22px;">
-      Your <strong>MITRA UK</strong> membership account has been created so you can access your Pooja bookings, donation receipts, and festival passes seamlessly.
+      Your <strong>MITRA UK</strong> membership account has been created so you can access your Pooja bookings, seva booking receipts, and festival passes seamlessly.
     </p>
 
     <!-- Credentials Card (Light Theme) -->
@@ -382,3 +382,220 @@ export const sendPaymentFailureAlert = async (details: PaymentFailureDetails) =>
   console.log(`[PAYMENT FAILURE EMAIL] Sending alert to ${recipient} for ${devoteeName} (${amountStr})...`);
   return sendEmail(recipient, subject, html);
 };
+
+// ── 4. Event Registration & Payment Confirmation Email ────────────────────────
+
+export interface EventRegistrationConfirmationParams {
+  recipientEmail: string;
+  recipientName: string;
+  eventName: string;
+  eventDate?: string;
+  eventTime?: string;
+  eventVenue?: string;
+  eventAddress?: string;
+  totalAmount?: number;
+  supportAmount?: number;
+  ticketsCount?: number;
+  adultsCount?: number;
+  childrenCount?: number;
+  selectedDates?: string[];
+  paymentIntentId?: string;
+  rsvpId?: string;
+}
+
+export const sendEventRegistrationConfirmationEmail = async (
+  params: EventRegistrationConfirmationParams
+) => {
+  const {
+    recipientEmail,
+    recipientName,
+    eventName,
+    eventDate = 'Sunday, 18 October 2026',
+    eventTime = '4:30 PM onwards',
+    eventVenue = 'Thurrock Rugby Football Club, Oakfield, Long Lane, Grays, Essex, RM16 2QH',
+    eventAddress = '',
+    totalAmount = 0,
+    supportAmount = 0,
+    ticketsCount = 1,
+    adultsCount = 1,
+    childrenCount = 0,
+    selectedDates = [],
+    paymentIntentId,
+    rsvpId,
+  } = params;
+
+  const isBathukamma =
+    eventName.toLowerCase().includes('bathukamma') ||
+    eventName.toLowerCase().includes('grays');
+
+  const subject = isBathukamma
+    ? '🌸 Registration & Payment Confirmed — MITRA Grays Bathukamma 2026'
+    : `🎟️ Registration & Payment Confirmed — ${eventName}`;
+
+  const badgeText = isBathukamma ? 'MITRA Grays Bathukamma 2026' : eventName;
+
+  // Render Venue & Schedule
+  const displayDate = isBathukamma ? 'Sunday, 18 October 2026' : (eventDate || 'Sunday, 18 October 2026');
+  const displayTime = isBathukamma ? '4:30 PM onwards' : (eventTime || '4:30 PM onwards');
+  const displayVenue = isBathukamma
+    ? 'Thurrock Rugby Football Club, Oakfield, Long Lane, Grays, Essex, RM16 2QH'
+    : `${eventVenue}${eventAddress ? `, ${eventAddress}` : ''}`;
+
+  const body = `
+    <!-- Top Welcome Message -->
+    <p style="color: #2D231E; font-size: 15px; margin: 0 0 16px;">
+      Namaste <strong>${recipientName}</strong> 🙏,
+    </p>
+
+    <p style="color: #2D231E; font-size: 14.5px; line-height: 1.7; margin: 0 0 22px;">
+      ${
+        isBathukamma
+          ? 'Thank you for registering and making your payment for <strong>MITRA Grays Bathukamma 2026</strong>. We’re delighted to confirm your registration and look forward to welcoming you and your family.'
+          : `Thank you for registering and making your payment for <strong>${eventName}</strong>. We’re delighted to confirm your registration and look forward to welcoming you and your family.`
+      }
+    </p>
+
+    <!-- Event Schedule & Location Card -->
+    <div style="background: #FFF8F0; border: 1.5px solid #FDBA74; border-radius: 16px; padding: 22px 20px; margin: 0 0 22px; box-shadow: 0 6px 18px rgba(234, 88, 12, 0.08);">
+      <div style="font-size: 11px; font-weight: 800; color: #EA580C; text-transform: uppercase; letter-spacing: 1.5px; margin-bottom: 12px; border-bottom: 1px solid #FED7AA; padding-bottom: 6px;">
+        🌺 Event Schedule &amp; Venue
+      </div>
+      <table style="width: 100%; border-collapse: collapse; font-size: 13.5px; line-height: 1.6;">
+        <tr>
+          <td style="padding: 6px 0; width: 34px; vertical-align: top; font-size: 16px;">📅</td>
+          <td style="padding: 6px 0; color: #2D231E; font-weight: 700;">${displayDate}</td>
+        </tr>
+        <tr>
+          <td style="padding: 6px 0; width: 34px; vertical-align: top; font-size: 16px;">⏰</td>
+          <td style="padding: 6px 0; color: #2D231E; font-weight: 700;">${displayTime}</td>
+        </tr>
+        <tr>
+          <td style="padding: 6px 0; width: 34px; vertical-align: top; font-size: 16px;">📍</td>
+          <td style="padding: 6px 0; color: #2D231E; font-weight: 700;">
+            ${displayVenue}
+          </td>
+        </tr>
+      </table>
+    </div>
+
+    <!-- Booking Details Summary -->
+    <div style="background: #FAF5EE; border: 1px solid #EAD8C7; border-radius: 14px; padding: 18px 20px; margin: 0 0 22px;">
+      <div style="font-size: 11px; font-weight: 800; color: #7C2D12; text-transform: uppercase; letter-spacing: 1.2px; margin-bottom: 10px; border-bottom: 1px solid #E5D5C5; padding-bottom: 4px;">
+        🎟️ Confirmed Booking Summary
+      </div>
+      <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
+        <tr>
+          <td style="padding: 5px 0; color: #6B5E55;">Devotee / Attendee:</td>
+          <td style="padding: 5px 0; color: #2D231E; font-weight: 700; text-align: right;">${recipientName}</td>
+        </tr>
+        <tr>
+          <td style="padding: 5px 0; color: #6B5E55;">Registered Email:</td>
+          <td style="padding: 5px 0; color: #2D231E; font-family: monospace; font-size: 12px; text-align: right;">${recipientEmail}</td>
+        </tr>
+        ${
+          adultsCount > 0
+            ? `<tr>
+                <td style="padding: 5px 0; color: #6B5E55;">Adult Passes (Above 5 yrs):</td>
+                <td style="padding: 5px 0; color: #2D231E; font-weight: 700; text-align: right;">${adultsCount}</td>
+              </tr>`
+            : ''
+        }
+        ${
+          childrenCount > 0
+            ? `<tr>
+                <td style="padding: 5px 0; color: #6B5E55;">Children Passes (Below 5 yrs):</td>
+                <td style="padding: 5px 0; color: #2D231E; font-weight: 700; text-align: right;">${childrenCount}</td>
+              </tr>`
+            : ''
+        }
+        ${
+          ticketsCount > 0
+            ? `<tr>
+                <td style="padding: 5px 0; color: #6B5E55;">Total Passes:</td>
+                <td style="padding: 5px 0; color: #2D231E; font-weight: 700; text-align: right;">${ticketsCount}</td>
+              </tr>`
+            : ''
+        }
+        ${
+          selectedDates && selectedDates.length > 0
+            ? `<tr>
+                <td style="padding: 5px 0; color: #6B5E55;">Selected Dates:</td>
+                <td style="padding: 5px 0; color: #C2410C; font-weight: 700; text-align: right;">${selectedDates.join(', ')}</td>
+              </tr>`
+            : ''
+        }
+        ${
+          totalAmount > 0
+            ? `<tr>
+                <td style="padding: 7px 0; color: #6B5E55; font-weight: 700; border-top: 1px dashed #E5D5C5;">Total Amount Paid:</td>
+                <td style="padding: 7px 0; color: #15803D; font-weight: 900; font-size: 16px; text-align: right; border-top: 1px dashed #E5D5C5;">£${Number(totalAmount).toFixed(2)}</td>
+              </tr>`
+            : `<tr>
+                <td style="padding: 5px 0; color: #6B5E55; border-top: 1px dashed #E5D5C5;">Pass Type:</td>
+                <td style="padding: 5px 0; color: #15803D; font-weight: 700; text-align: right; border-top: 1px dashed #E5D5C5;">Free Admission Entry</td>
+              </tr>`
+        }
+        ${
+          supportAmount > 0
+            ? `<tr>
+                <td style="padding: 4px 0; color: #6B5E55; font-size: 12px;">Includes Event Support:</td>
+                <td style="padding: 4px 0; color: #B45309; font-weight: 700; font-size: 12px; text-align: right;">£${Number(supportAmount).toFixed(2)}</td>
+              </tr>`
+            : ''
+        }
+        ${
+          paymentIntentId
+            ? `<tr>
+                <td style="padding: 5px 0; color: #6B5E55; font-size: 11px;">Payment Reference:</td>
+                <td style="padding: 5px 0; color: #6B5E55; font-family: monospace; font-size: 11px; text-align: right;">${paymentIntentId}</td>
+              </tr>`
+            : ''
+        }
+        ${
+          rsvpId
+            ? `<tr>
+                <td style="padding: 5px 0; color: #6B5E55; font-size: 11px;">Pass Reference ID:</td>
+                <td style="padding: 5px 0; color: #6B5E55; font-family: monospace; font-size: 11px; text-align: right;">${rsvpId}</td>
+              </tr>`
+            : ''
+        }
+      </table>
+    </div>
+
+    <!-- Celebration Note -->
+    <p style="color: #2D231E; font-size: 14px; line-height: 1.7; margin: 0 0 16px;">
+      ${
+        isBathukamma
+          ? 'Get ready for a wonderful evening celebrating flowers, culture and togetherness, with family fun, DJ, food and traditional Bathukamma celebrations.'
+          : 'Get ready for a memorable cultural gathering with our vibrant diaspora community, wonderful traditions, authentic food, and festive celebrations.'
+      }
+    </p>
+
+    <p style="color: #2D231E; font-size: 14px; line-height: 1.7; margin: 0 0 24px;">
+      Thank you for your support, and we look forward to celebrating with you!
+    </p>
+
+    <!-- Warm regards Sign-Off -->
+    <div style="border-top: 1px solid #EAD8C7; padding-top: 18px; margin-top: 20px;">
+      <p style="color: #2D231E; font-size: 14px; margin: 0 0 4px;">
+        Warm regards,
+      </p>
+      <p style="color: #C2410C; font-size: 14px; font-weight: 800; margin: 0 0 2px;">
+        ${isBathukamma ? 'Team MITRA Grays' : 'Team MITRA UK'}
+      </p>
+      <p style="color: #7C2D12; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px; margin: 0;">
+        Mana Indian Telugu Roots Abroad
+      </p>
+    </div>
+  `;
+
+  const html = renderEmailLayout({
+    pageTitle: subject,
+    badgeText,
+    children: body,
+  });
+
+  console.log(`[CONFIRMATION EMAIL] Sending registration confirmation to ${recipientEmail} for ${eventName}...`);
+  return sendEmail(recipientEmail, subject, html);
+};
+

@@ -31,7 +31,7 @@ export default function TicketBlocked({
         headline: 'This ticket is not available.',
         subtext:
           'The payment for this transaction did not go through. No ticket or receipt has been issued.',
-        hint: 'If you believe this is an error, please contact us or try donating again.',
+        hint: 'If you believe this is an error, please contact us or try booking again.',
       }
     : isPending
     ? {
@@ -87,7 +87,7 @@ export default function TicketBlocked({
             <div className="text-left">
               <p className="text-[#3D1A00] font-black text-base tracking-widest">MITRA UK</p>
               <p className="text-[#6B3A2A] text-[9px] font-bold uppercase tracking-widest">
-                Donation Ticket
+                Booking Ticket
               </p>
             </div>
           </div>
@@ -170,7 +170,7 @@ export default function TicketBlocked({
           href="/membership/portal/donations"
           className="inline-flex items-center gap-2 px-8 py-3 rounded-full font-bold text-sm uppercase tracking-wider border border-[#E65C00]/40 text-[#E65C00] hover:bg-[#FFF0E0] transition-colors"
         >
-          My Donations
+          My Bookings
         </Link>
       </div>
     </div>

@@ -5,17 +5,20 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { EventItem } from '@/lib/types';
-import { trackRSVP } from '@/lib/analytics';
 import { generateEventJsonLd } from '@/lib/seo-config';
 import { 
   Calendar, 
   Clock, 
   MapPin, 
-  Users, 
-  CheckCircle2, 
   Download, 
-  ArrowLeft,
-  Loader2,
+  ArrowLeft, 
+  Loader2, 
+  Heart, 
+  Sparkles, 
+  Ticket, 
+  AlertTriangle,
+  Share2,
+  Check,
 } from 'lucide-react';
 import Ganesha3DHero from '@/components/Ganesha3DHero';
 import RitualCountdown from '@/components/RitualCountdown';
@@ -24,16 +27,36 @@ import IdolSpecsCard from '@/components/IdolSpecsCard';
 import MediaTeaserSection from '@/components/MediaTeaserSection';
 import NotifyMeModal from '@/components/NotifyMeModal';
 import DonationModal from '@/components/DonationModal';
+import PoojaBookingModal from '@/components/PoojaBookingModal';
+import EventRSVPModal from '@/components/EventRSVPModal';
 
 export default function EventDetailPage() {
   const params = useParams();
   const id = params?.id as string;
   const [event, setEvent] = useState<EventItem | null>(null);
   const [loading, setLoading] = useState(true);
-  const [rsvped, setRsvped] = useState(false);
-  const [rsvpCount, setRsvpCount] = useState(1420);
+  const [rsvpCount, setRsvpCount] = useState(0);
   const [notifyModalOpen, setNotifyModalOpen] = useState(false);
   const [donateModalOpen, setDonateModalOpen] = useState(false);
+  const [rsvpModalOpen, setRsvpModalOpen] = useState(false);
+  const [poojaModalOpen, setPoojaModalOpen] = useState(false);
+  const [copied, setCopied] = useState(false);
+
+  const handleCopyLink = () => {
+    if (typeof window !== 'undefined') {
+      navigator.clipboard.writeText(window.location.href);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    }
+  };
+
+  const handleWhatsAppShare = () => {
+    if (typeof window !== 'undefined' && event) {
+      const shareUrl = window.location.href;
+      const text = `🌸 *${event.title}*\n📅 ${event.date} • ${event.time}\n📍 ${event.venue}\n\nJoin us! Event passes & details:\n${shareUrl}`;
+      window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(text)}`, '_blank');
+    }
+  };
 
   useEffect(() => {
     setLoading(true);
@@ -79,26 +102,6 @@ export default function EventDetailPage() {
   const jsonLd = generateEventJsonLd(event);
   const isGaneshEvent = id === 'evt-ganesh-chaturthi' || id === 'evt-101' || event.title.toLowerCase().includes('ganesh');
 
-  const handleRSVP = async () => {
-    if (rsvped) return;
-    setRsvpCount((prev) => prev + 1);
-    setRsvped(true);
-    trackRSVP(event.id, event.title);
-
-    try {
-      await fetch('/api/events/rsvp', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          eventId: event.id,
-          attendeeName: 'Community Attendee',
-          attendeeEmail: 'attendee@mitra.org.uk',
-          ticketsCount: 1,
-        }),
-      });
-    } catch {}
-  };
-
   const handleICSDownload = () => {
     const icsData = `BEGIN:VCALENDAR
 VERSION:2.0
@@ -117,6 +120,13 @@ END:VCALENDAR`;
     link.download = `${event.title.replace(/\s+/g, '_')}.ics`;
     link.click();
   };
+
+  const isCapacityFull = !!(
+    event.enforceCapacityLimit &&
+    event.capacity &&
+    event.capacity > 0 &&
+    rsvpCount >= event.capacity
+  );
 
   // If viewing Ganesh Chaturthi event, render the full Home Page experience with 3D Ganesha & Puja booking!
   if (isGaneshEvent) {
@@ -139,13 +149,20 @@ END:VCALENDAR`;
         </div>
 
         {/* 1. HERO — 3D VEILED GANESHA & REVEAL EXPERIENCE */}
-        <Ganesha3DHero onNotifyClick={() => setNotifyModalOpen(true)} />
+        <Ganesha3DHero 
+          onNotifyClick={() => setNotifyModalOpen(true)}
+          onRSVPClick={event.enableRsvp !== false ? () => setRsvpModalOpen(true) : undefined}
+          onDonateClick={event.enableSupportPayment !== false ? () => setDonateModalOpen(true) : undefined}
+          onBookPoojaClick={event.enablePooja !== false ? () => setPoojaModalOpen(true) : undefined}
+        />
 
         {/* 2. RITUAL COUNTDOWN CLOCK */}
         <RitualCountdown />
 
-        {/* 3. EVENT DETAILS, VENUE & 3 DONATION CATEGORIES / POOJA BOOKING (£116) */}
-        <EventDetailsSection />
+        {/* 3. EVENT DETAILS, VENUE & POOJA BOOKING */}
+        <EventDetailsSection 
+          onOpenPoojaBooking={event.enablePooja !== false ? () => setPoojaModalOpen(true) : undefined} 
+        />
 
         {/* 4. IDOL SPECS PLAQUE */}
         <IdolSpecsCard />
@@ -159,6 +176,17 @@ END:VCALENDAR`;
         {/* MODAL FORMS */}
         <NotifyMeModal isOpen={notifyModalOpen} onClose={() => setNotifyModalOpen(false)} />
         <DonationModal isOpen={donateModalOpen} onClose={() => setDonateModalOpen(false)} />
+        <PoojaBookingModal isOpen={poojaModalOpen} onClose={() => setPoojaModalOpen(false)} />
+        {rsvpModalOpen && (
+          <EventRSVPModal
+            event={{
+              ...event,
+              rsvpCount,
+            }}
+            onClose={() => setRsvpModalOpen(false)}
+            onSuccess={() => setRsvpCount((prev) => prev + 1)}
+          />
+        )}
       </div>
     );
   }
@@ -180,13 +208,18 @@ END:VCALENDAR`;
       <div className="relative h-80 sm:h-96 rounded-3xl overflow-hidden shadow-2xl border-4 border-mitra-gold/30">
         <Image src={event.bannerUrl} alt={event.title} fill className="object-cover" priority />
         <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent" />
-        <div className="absolute top-4 left-4 flex gap-2">
+        <div className="absolute top-4 left-4 flex flex-wrap gap-2">
           <span className="bg-mitra-red text-white text-xs font-bold px-3 py-1 rounded-full uppercase shadow">
             {event.category}
           </span>
           <span className="bg-mitra-gold text-mitra-navy text-xs font-black px-3 py-1 rounded-full uppercase shadow">
-            {event.ticketPrice === 0 ? 'FREE EVENT' : `£${event.ticketPrice}`}
+            {event.ticketPrice === 0 ? 'FREE EVENT' : `Adult £${event.ticketPrice}`}
           </span>
+          {event.childTicketPrice !== undefined && event.childTicketPrice !== null && (
+            <span className="bg-amber-100 text-amber-900 text-xs font-black px-3 py-1 rounded-full uppercase shadow border border-amber-300">
+              Child {event.childTicketPrice === 0 ? 'FREE' : `£${event.childTicketPrice}`}
+            </span>
+          )}
         </div>
         <div className="absolute bottom-6 left-6 right-6 text-white space-y-2">
           <h1 className="text-2xl sm:text-4xl font-extrabold tracking-tight">
@@ -207,7 +240,7 @@ END:VCALENDAR`;
             <h2 className="text-xl font-bold text-slate-900 dark:text-white">
               About This Event
             </h2>
-            <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-300 leading-relaxed">
+            <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-300 leading-relaxed whitespace-pre-line">
               {event.description}
             </p>
           </div>
@@ -221,25 +254,64 @@ END:VCALENDAR`;
               <p>{event.address}</p>
             </div>
             
-            {/* Interactive Map Placeholder */}
-            <div className="h-48 rounded-2xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 flex items-center justify-center text-slate-400 text-xs font-semibold">
-              <MapPin className="w-5 h-5 text-mitra-red mr-2" />
-              <span>Interactive Google Map Location Pin ({event.venue})</span>
+            {/* Embedded Google Map or Direct Search Embed */}
+            <div className="rounded-2xl overflow-hidden border border-slate-200 dark:border-slate-700 h-56 relative shadow-sm">
+              <iframe
+                title="Venue Map"
+                width="100%"
+                height="100%"
+                frameBorder="0"
+                scrolling="no"
+                marginHeight={0}
+                marginWidth={0}
+                src={
+                  event.mapUrl && event.mapUrl.includes('embed')
+                    ? event.mapUrl
+                    : `https://maps.google.com/maps?q=${encodeURIComponent((event.venue || '') + ' ' + (event.address || ''))}&t=&z=15&ie=UTF8&iwloc=&output=embed`
+                }
+                className="w-full h-full border-0"
+              />
+            </div>
+            <div className="flex justify-end pt-1">
+              <a
+                href={
+                  event.mapUrl && !event.mapUrl.includes('embed')
+                    ? event.mapUrl
+                    : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent((event.venue || '') + ' ' + (event.address || ''))}`
+                }
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1.5 text-xs font-bold text-mitra-red dark:text-mitra-gold hover:underline"
+              >
+                <MapPin className="w-3.5 h-3.5" />
+                <span>Open in Google Maps &amp; Get Directions &rarr;</span>
+              </a>
             </div>
           </div>
         </div>
 
         {/* Right Col: RSVP Card & ICS Export */}
         <div className="space-y-6">
-          <div className="bg-white dark:bg-slate-900 p-6 rounded-3xl border-2 border-mitra-gold/50 shadow-xl space-y-4 sticky top-28">
+          <div className="bg-white dark:bg-slate-900 p-6 rounded-3xl border-2 border-mitra-gold/50 shadow-xl space-y-5 sticky top-28">
             <div className="border-b border-slate-100 dark:border-slate-800 pb-3">
-              <span className="text-[10px] font-bold text-mitra-red uppercase tracking-wider block">Registration Status</span>
-              <span className="text-xl font-black text-slate-900 dark:text-white">
-                {event.ticketPrice === 0 ? 'Free RSVP' : `£${event.ticketPrice} per Ticket`}
-              </span>
+              <span className="text-[10px] font-bold text-mitra-red uppercase tracking-wider block">Admission / Pricing</span>
+              <div className="mt-1 space-y-1">
+                <div className="flex items-center justify-between text-xs">
+                  <span className="text-slate-500">Adult Ticket:</span>
+                  <span className="font-extrabold text-slate-900 dark:text-white">
+                    {event.ticketPrice === 0 ? 'Free' : `£${event.ticketPrice}`}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between text-xs">
+                  <span className="text-slate-500">Child Ticket:</span>
+                  <span className="font-extrabold text-slate-900 dark:text-white">
+                    {(event.childTicketPrice ?? event.ticketPrice) === 0 ? 'Free' : `£${event.childTicketPrice ?? event.ticketPrice}`}
+                  </span>
+                </div>
+              </div>
             </div>
 
-            <div className="space-y-3 text-xs text-slate-700 dark:text-slate-200">
+            <div className="space-y-2.5 text-xs text-slate-700 dark:text-slate-200">
               <div className="flex items-center gap-2">
                 <Calendar className="w-4 h-4 text-mitra-gold shrink-0" />
                 <span>{event.date}</span>
@@ -248,55 +320,128 @@ END:VCALENDAR`;
                 <Clock className="w-4 h-4 text-mitra-gold shrink-0" />
                 <span>{event.time}</span>
               </div>
-              {/* <div className="flex items-center gap-2">
-                <Users className="w-4 h-4 text-mitra-gold shrink-0" />
-                <span>{rsvpCount} / {event.capacity} Confirmed Attendees</span>
-              </div> */}
             </div>
 
             {/* Capacity Progress Bar */}
-            <div className="space-y-1">
-              <div className="w-full bg-slate-100 dark:bg-slate-800 rounded-full h-2 overflow-hidden">
-                <div 
-                  className="bg-mitra-red h-2 rounded-full" 
-                  style={{ width: `${Math.min(100, (rsvpCount / event.capacity) * 100)}%` }} 
-                />
+            {event.capacity && event.capacity > 0 ? (
+              <div className="space-y-1 pt-1">
+                <div className="w-full bg-slate-100 dark:bg-slate-800 rounded-full h-2 overflow-hidden">
+                  <div 
+                    className={`h-2 rounded-full transition-all ${isCapacityFull ? 'bg-red-500' : 'bg-mitra-red'}`} 
+                    style={{ width: `${Math.min(100, (rsvpCount / event.capacity) * 100)}%` }} 
+                  />
+                </div>
+                <div className="flex justify-between text-[10px] text-slate-400 font-medium">
+                  <span>Capacity: {event.capacity}</span>
+                  <span>{rsvpCount} Confirmed</span>
+                </div>
               </div>
-              <span className="text-[10px] text-slate-400 block text-right">
-                {Math.round((rsvpCount / event.capacity) * 100)}% Seats Reserved
-              </span>
-            </div>
+            ) : null}
 
-            <button
-              onClick={handleRSVP}
-              disabled={rsvped}
-              className={`w-full py-3 rounded-xl font-extrabold text-xs shadow-md transition-all flex items-center justify-center gap-2 ${
-                rsvped
-                  ? 'bg-emerald-600 text-white cursor-default'
-                  : 'bg-mitra-red hover:bg-mitra-red-dark text-white'
-              }`}
-            >
-              {rsvped ? (
-                <>
-                  <CheckCircle2 className="w-4 h-4" />
-                  <span>RSVP Confirmed & Ticket Issued</span>
-                </>
+            {/* Capacity Sold Out Banner */}
+            {isCapacityFull && (
+              <div className="p-3 bg-red-50 border border-red-200 rounded-xl text-red-700 text-xs flex items-center gap-2">
+                <AlertTriangle className="w-4 h-4 shrink-0" />
+                <span className="font-semibold">Event has reached full capacity. Registrations are closed.</span>
+              </div>
+            )}
+
+            {/* ACTION BUTTONS BASED ON ADMIN TOGGLES */}
+            <div className="space-y-2.5 pt-2">
+              {/* RSVP Button */}
+              {event.enableRsvp !== false ? (
+                <button
+                  onClick={() => setRsvpModalOpen(true)}
+                  disabled={isCapacityFull}
+                  className={`w-full py-3 rounded-xl font-extrabold text-xs shadow-md transition-all flex items-center justify-center gap-2 ${
+                    isCapacityFull
+                      ? 'bg-slate-200 dark:bg-slate-800 text-slate-400 cursor-not-allowed'
+                      : 'bg-mitra-red hover:bg-mitra-red-dark text-white hover:scale-[1.02]'
+                  }`}
+                >
+                  <Ticket className="w-4 h-4" />
+                  <span>{isCapacityFull ? 'Capacity Full' : 'Register / RSVP Now'}</span>
+                </button>
               ) : (
-                <span>Confirm RSVP Registration</span>
+                <div className="p-2.5 bg-slate-100 dark:bg-slate-800/60 rounded-xl text-center text-slate-500 text-xs font-medium">
+                  Registration is currently not required or closed.
+                </div>
               )}
-            </button>
 
-            <button
-              onClick={handleICSDownload}
-              className="w-full py-2.5 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 font-bold text-xs rounded-xl transition-colors flex items-center justify-center gap-2"
-            >
-              <Download className="w-3.5 h-3.5 text-mitra-gold" />
-              <span>Add to iCal / Outlook (.ICS)</span>
-            </button>
+              {/* Event Support Payment Button */}
+              {event.enableSupportPayment !== false && (
+                <button
+                  onClick={() => setDonateModalOpen(true)}
+                  className="w-full py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow transition-all flex items-center justify-center gap-2"
+                >
+                  <Heart className="w-3.5 h-3.5 fill-white" />
+                  <span>Support / Sponsor Event</span>
+                </button>
+              )}
+
+              {/* Book Pooja Button */}
+              {event.enablePooja !== false && (
+                <button
+                  onClick={() => setPoojaModalOpen(true)}
+                  className="w-full py-2.5 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white font-bold text-xs rounded-xl shadow transition-all flex items-center justify-center gap-2"
+                >
+                  <Sparkles className="w-3.5 h-3.5" />
+                  <span>Book Pooja / Seva</span>
+                </button>
+              )}
+
+              {/* Add to Calendar */}
+              <button
+                onClick={handleICSDownload}
+                className="w-full py-2.5 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 font-bold text-xs rounded-xl transition-colors flex items-center justify-center gap-2"
+              >
+                <Download className="w-3.5 h-3.5 text-mitra-gold" />
+                <span>Add to iCal / Outlook (.ICS)</span>
+              </button>
+
+              {/* WhatsApp Share & Copy Link */}
+              <div className="flex items-center gap-2 pt-1">
+                <button
+                  onClick={handleWhatsAppShare}
+                  className="flex-1 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow transition-all flex items-center justify-center gap-2"
+                  title="Share Event on WhatsApp"
+                >
+                  <img src="/assets/whatsapp.png" alt="WhatsApp" className="w-4 h-4 object-contain brightness-0 invert" />
+                  <span>Share on WhatsApp</span>
+                </button>
+
+                <button
+                  onClick={handleCopyLink}
+                  className="p-2.5 bg-[#FFF0E0] hover:bg-[#E65C00]/10 text-[#E65C00] border border-[#E65C00]/25 rounded-xl text-xs transition-colors relative flex items-center justify-center"
+                  title="Copy Event Link"
+                >
+                  {copied ? <Check className="w-4 h-4 text-emerald-600" /> : <Share2 className="w-4 h-4" />}
+                  {copied && (
+                    <span className="absolute -top-8 right-0 bg-[#E65C00] text-white text-[10px] px-2 py-1 rounded border border-[#E65C00]/30 shadow whitespace-nowrap">
+                      Link Copied!
+                    </span>
+                  )}
+                </button>
+              </div>
+            </div>
           </div>
         </div>
 
       </div>
+
+      {/* Modals */}
+      <DonationModal isOpen={donateModalOpen} onClose={() => setDonateModalOpen(false)} />
+      <PoojaBookingModal isOpen={poojaModalOpen} onClose={() => setPoojaModalOpen(false)} />
+      {rsvpModalOpen && (
+        <EventRSVPModal
+          event={{
+            ...event,
+            rsvpCount,
+          }}
+          onClose={() => setRsvpModalOpen(false)}
+          onSuccess={() => setRsvpCount((prev) => prev + 1)}
+        />
+      )}
     </div>
   );
 }

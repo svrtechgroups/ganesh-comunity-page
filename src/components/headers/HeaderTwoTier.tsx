@@ -159,7 +159,7 @@ export default function HeaderTwoTier({ previewMode = false }: HeaderProps) {
               onMouseEnter={() => setAboutDropdown(true)}
               onMouseLeave={() => setAboutDropdown(false)}
             >
-              <button className={`flex items-center gap-1 px-2 py-1 hover:text-[#E65C00] transition-colors ${pathname.startsWith('/about') || pathname === '/history' || pathname === '/chairman-message' ? 'text-[#E65C00] font-black' : 'text-[#3D1A00]'}`}>
+              <button className={`flex items-center gap-1 px-2 py-1 hover:text-[#E65C00] transition-colors ${pathname.startsWith('/about') || pathname === '/history' ? 'text-[#E65C00] font-black' : 'text-[#3D1A00]'}`}>
                 <span>About US</span>
                 <ChevronDown className="w-3.5 h-3.5" />
               </button>
@@ -167,7 +167,6 @@ export default function HeaderTwoTier({ previewMode = false }: HeaderProps) {
                 <div className="absolute top-full left-0 w-56 bg-[#FFFAF5] shadow-xl rounded-2xl py-2 border border-[#E65C00]/20 z-50">
                   <Link href="/about" className="block px-4 py-2 text-xs text-[#3D1A00] hover:bg-[#FFF0E0] hover:text-[#E65C00] transition-colors">MITRA UK Mission</Link>
                   <Link href="/history" className="block px-4 py-2 text-xs text-[#3D1A00] hover:bg-[#FFF0E0] hover:text-[#E65C00] transition-colors">Guinness World Record</Link>
-                  <Link href="/chairman-message" className="block px-4 py-2 text-xs text-[#3D1A00] hover:bg-[#FFF0E0] hover:text-[#E65C00] transition-colors">Chairman's Address</Link>
                 </div>
               )}
             </div>
