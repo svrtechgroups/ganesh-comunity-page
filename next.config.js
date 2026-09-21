@@ -1,6 +1,9 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
+  experimental: {
+    instrumentationHook: true,
+  },
   images: {
     domains: ['images.unsplash.com', 'mitra.org.uk', 'img.youtube.com', 'media.mitrauk.com'],
   },

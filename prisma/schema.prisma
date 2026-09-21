@@ -8,42 +8,42 @@ generator client {
 }
 
 model Event {
-  id                    String      @id @default(cuid())
-  title                 String
-  category              String
-  date                  String
-  time                  String      @default("09:00 AM")
-  venue                 String
-  address               String      @default("Langley, Slough, United Kingdom")
-  ticketPrice           Int         @default(0) // Adult ticket price (£)
-  childTicketPrice      Int         @default(0) // Child ticket price (£)
-  status                String      @default("Upcoming")
-  description           String
-  bannerUrl             String
-  capacity              Int         @default(300)
-  rsvpCount             Int         @default(0)
-  featured              Boolean     @default(false)
-  
+  id               String  @id @default(cuid())
+  title            String
+  category         String
+  date             String
+  time             String  @default("09:00 AM")
+  venue            String
+  address          String  @default("Langley, Slough, United Kingdom")
+  ticketPrice      Int     @default(0) // Adult ticket price (£)
+  childTicketPrice Int     @default(0) // Child ticket price (£)
+  status           String  @default("Upcoming")
+  description      String
+  bannerUrl        String
+  capacity         Int     @default(300)
+  rsvpCount        Int     @default(0)
+  featured         Boolean @default(false)
+
   // Customization Toggles:
-  enableRsvp            Boolean     @default(true)
-  enableSupportPayment  Boolean     @default(true)
-  enablePooja           Boolean     @default(true)
-  
+  enableRsvp           Boolean @default(true)
+  enableSupportPayment Boolean @default(true)
+  enablePooja          Boolean @default(true)
+
   // Capacity Limit enforcement & alerts:
-  enforceCapacityLimit  Boolean     @default(false)
-  capacityAlertSent     Boolean     @default(false)
-  adultCapacity         Int?        @default(0) // 0 = no separate limit (bounded by total capacity)
-  childCapacity         Int?        @default(0) // 0 = no separate limit (bounded by total capacity)
-  availableDates        String[]    @default([])
+  enforceCapacityLimit Boolean  @default(false)
+  capacityAlertSent    Boolean  @default(false)
+  adultCapacity        Int?     @default(0) // 0 = no separate limit (bounded by total capacity)
+  childCapacity        Int?     @default(0) // 0 = no separate limit (bounded by total capacity)
+  availableDates       String[] @default([])
 
   // Venue Map & Custom Form Fields:
-  mapUrl                String?
-  customFields          Json?       @default("[]")
+  mapUrl       String?
+  customFields Json?   @default("[]")
 
-  rsvps                 EventRSVP[]
-  mediaItems            MediaItem[]
-  createdAt             DateTime    @default(now())
-  updatedAt             DateTime    @updatedAt
+  rsvps      EventRSVP[]
+  mediaItems MediaItem[]
+  createdAt  DateTime    @default(now())
+  updatedAt  DateTime    @updatedAt
 }
 
 model EventRSVP {
@@ -58,17 +58,17 @@ model EventRSVP {
   adultsCount    Int      @default(1)
   childrenCount  Int      @default(0)
   selectedDates  String[] @default([])
-  
+
   // Payment tracking for paid RSVPs & Event Support:
-  totalAmount     Float    @default(0)
-  supportAmount   Float    @default(0)
-  paymentStatus   String   @default("Free") // "Free" | "Pending" | "Completed"
+  totalAmount     Float   @default(0)
+  supportAmount   Float   @default(0)
+  paymentStatus   String  @default("Free") // "Free" | "Pending" | "Completed"
   paymentIntentId String?
 
   // Dynamic Custom Field Responses:
-  customResponses Json?    @default("{}")
+  customResponses Json? @default("{}")
 
-  createdAt      DateTime @default(now())
+  createdAt DateTime @default(now())
 }
 
 model Sponsor {
@@ -104,13 +104,13 @@ model SiteSettings {
 }
 
 model Member {
-  id           String    @id @default(cuid())
+  id           String   @id @default(cuid())
   fullName     String
-  email        String    @unique
+  email        String   @unique
   phone        String
-  tier         String    @default("Annual Member")
-  role         String    @default("Member")
-  status       String    @default("Active")
+  tier         String   @default("Annual Member")
+  role         String   @default("Member")
+  status       String   @default("Active")
   profession   String?
   address      String?
   passwordHash String?
@@ -118,8 +118,8 @@ model Member {
   expiryDate   String?
   notes        String?
   imageUrl     String?
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @updatedAt
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 }
 
 model CharityCase {
@@ -145,23 +145,23 @@ model Subscriber {
 }
 
 model MediaItem {
-  id           String    @id @default(cuid())
-  title        String
-  type         String    @default("IMAGE") // "IMAGE" or "VIDEO"
-  category     String    @default("Photo")
-  coverImage   String?
-  url          String    @default("")
-  description  String?
-  eventId      String?
-  event        Event?    @relation(fields: [eventId], references: [id], onDelete: Cascade)
-  isFeatured        Boolean   @default(false)
-  displayOrder      Int       @default(0)
-  isHomeFeatured    Boolean   @default(false)
-  homeDisplayOrder  Int       @default(0)
-  isEventFeatured   Boolean   @default(false)
-  eventDisplayOrder Int       @default(0)
-  createdAt         DateTime  @default(now())
-  updatedAt         DateTime  @default(now()) @updatedAt
+  id                String   @id @default(cuid())
+  title             String
+  type              String   @default("IMAGE") // "IMAGE" or "VIDEO"
+  category          String   @default("Photo")
+  coverImage        String?
+  url               String   @default("")
+  description       String?
+  eventId           String?
+  event             Event?   @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  isFeatured        Boolean  @default(false)
+  displayOrder      Int      @default(0)
+  isHomeFeatured    Boolean  @default(false)
+  homeDisplayOrder  Int      @default(0)
+  isEventFeatured   Boolean  @default(false)
+  eventDisplayOrder Int      @default(0)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @default(now()) @updatedAt
 
   @@index([eventId])
   @@index([type])
@@ -185,44 +185,44 @@ model BlogPost {
 }
 
 model Payment {
-  id                    String   @id @default(cuid())
+  id                    String  @id @default(cuid())
   amount                Float
-  currency              String   @default("GBP")
-  status                String   @default("Completed") // "Completed", "Pending", "Failed"
+  currency              String  @default("GBP")
+  status                String  @default("Completed") // "Completed", "Pending", "Failed"
   customerName          String
   customerEmail         String
   customerPhone         String?
-  description           String   // "Donation to Student Fund", "Mahotsav VIP Ticket", etc.
-  paymentMethod         String   @default("Stripe Card")
+  description           String // "Donation to Student Fund", "Mahotsav VIP Ticket", etc.
+  paymentMethod         String  @default("Stripe Card")
   stripePaymentIntentId String?
-  memberId              String?  // Plain standalone string identifier (no foreign key constraint)
+  memberId              String? // Plain standalone string identifier (no foreign key constraint)
 
   // ── Event & Donation Classification (flexible string, no enum) ─────────
-  eventId               String?  // e.g. "evt-ganesh-chaturthi"
-  eventName             String?  // e.g. "London Ganesh Mahotsav 2026"
-  donationType          String?  // e.g. "pooja", "anadanam", "event donation", "membership", "general"
+  eventId      String? // e.g. "evt-ganesh-chaturthi"
+  eventName    String? // e.g. "London Ganesh Mahotsav 2026"
+  donationType String? // e.g. "pooja", "anadanam", "event donation", "membership", "general"
 
   // ── Sacred Pooja & Devotee Sankalpam Details ───────────────────────────
-  poojaCategory         String?  // e.g. "Maha Yajaman", "Vishita Yajaman", "Yajaman", "7 Days Daily Archana"
-  poojaDate             String?  // e.g. "13th Sep"
-  poojaDay              String?  // e.g. "Sunday"
-  poojaTitle            String?  // e.g. "Ganapathi Agamana"
-  gotram                String?  // e.g. "Kasyapa"
-  familyMembers         String?  // e.g. "Priya (Rohini), Aryan (Revathi)"
-  specialWishes         String?  // Special prayer / wish notes
-  primaryDevoteeName    String?  // Yajamani name
+  poojaCategory      String? // e.g. "Maha Yajaman", "Vishita Yajaman", "Yajaman", "7 Days Daily Archana"
+  poojaDate          String? // e.g. "13th Sep"
+  poojaDay           String? // e.g. "Sunday"
+  poojaTitle         String? // e.g. "Ganapathi Agamana"
+  gotram             String? // e.g. "Kasyapa"
+  familyMembers      String? // e.g. "Priya (Rohini), Aryan (Revathi)"
+  specialWishes      String? // Special prayer / wish notes
+  primaryDevoteeName String? // Yajamani name
 
-  createdAt             DateTime @default(now())
+  createdAt DateTime @default(now())
   // updatedAt          DateTime @updatedAt
 }
 
 model PaymentSettings {
-  id                    String   @id @default("default")
-  stripePublishableKey  String
-  stripeSecretKey       String
-  currency              String   @default("GBP")
-  activeAccountName     String   @default("MITRA Main Account")
-  updatedAt             DateTime @updatedAt
+  id                   String   @id @default("default")
+  stripePublishableKey String
+  stripeSecretKey      String
+  currency             String   @default("GBP")
+  activeAccountName    String   @default("MITRA Main Account")
+  updatedAt            DateTime @updatedAt
 }
 
 model AdminUser {
@@ -238,7 +238,7 @@ model OTP {
   id        String   @id @default(cuid())
   email     String
   code      String
-  type      String   // "REGISTER" or "FORGOT_PASSWORD"
+  type      String // "REGISTER" or "FORGOT_PASSWORD"
   expiresAt DateTime
   createdAt DateTime @default(now())
 
@@ -265,9 +265,9 @@ model LeadershipMember {
 model SystemLog {
   id        String   @id @default(cuid())
   level     String   @default("INFO") // INFO, WARN, ERROR, PAYMENT_SUCCESS, PAYMENT_FAILURE
-  source    String   // e.g. "payments/webhook", "payments/create-session", "auth", "system"
+  source    String // e.g. "payments/webhook", "payments/create-session", "auth", "system"
   message   String
-  details   Json?    // Structured metadata, stack traces, payment details
+  details   Json? // Structured metadata, stack traces, payment details
   ip        String?
   userId    String?
   createdAt DateTime @default(now())
@@ -295,7 +295,7 @@ model TeluguBusiness {
   postcode     String?
   status       String   @default("Pending") // "Pending", "Approved", "Rejected"
   isFeatured   Boolean  @default(false)
-  specialOffer String?  // e.g. "10% off for MITRA members"
+  specialOffer String? // e.g. "10% off for MITRA members"
   adminNotes   String?
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
@@ -305,3 +305,14 @@ model TeluguBusiness {
   @@index([city])
 }
 
+model EmailQueue {
+  id           String   @id @default(cuid())
+  email        String
+  subject      String
+  html         String
+  status       String   @default("pending") // pending, failed -> send will be deleted
+  tryCount     Int      @default(0)
+  campaignType String?
+  campaignId   String?
+  createdAt    DateTime @default(now())
+}

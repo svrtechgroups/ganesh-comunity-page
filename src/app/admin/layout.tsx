@@ -22,6 +22,8 @@ import {
   CreditCard,
   Activity,
   Building2,
+  Mail,
+  Send,
 } from 'lucide-react';
 
 function AdminLayoutContent({ children }: { children: React.ReactNode }) {
@@ -46,8 +48,10 @@ function AdminLayoutContent({ children }: { children: React.ReactNode }) {
     { label: 'Telugu Business Directory', href: '/admin/telugu-business', icon: Building2, roleAccess: ['Super Admin', 'Membership Officer', 'Events Coordinator'] },
     { label: 'Events Manager', href: '/admin/events', icon: Calendar, roleAccess: ['Super Admin', 'Events Coordinator'] },
     { label: 'Membership Database', href: '/admin/members', icon: Users, roleAccess: ['Super Admin', 'Membership Officer'] },
+    { label: 'Member Broadcast', href: '/admin/members/broadcast', icon: Send, roleAccess: ['Super Admin', 'Membership Officer'] },
     { label: 'Leadership Directory', href: '/admin/leadership', icon: Users, roleAccess: ['Super Admin'] },
     { label: 'Payments & Bookings', href: '/admin/payments', icon: CreditCard, roleAccess: ['Super Admin'] },
+    { label: 'Email Queue Worker', href: '/admin/email-queue', icon: Mail, roleAccess: ['Super Admin'] },
     { label: 'System Logs (7-Day)', href: '/admin/logs', icon: Activity, roleAccess: ['Super Admin'] },
     { label: 'Site Settings', href: '/admin/settings', icon: Settings, roleAccess: ['Super Admin'] },
   ];

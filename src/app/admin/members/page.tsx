@@ -1,16 +1,15 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import Link from 'next/link';
 import { Member } from '@/lib/types';
 import MembershipCardModal from '@/components/MembershipCardModal';
-import NotifyMembersModal from '@/components/admin/NotifyMembersModal';
 import { Search, Download, ShieldCheck, QrCode, ChevronLeft, ChevronRight, Users, RefreshCw, Send } from 'lucide-react';
 
 export default function AdminMembersPage() {
   const [members, setMembers] = useState<Member[]>([]);
   const [query, setQuery] = useState('');
   const [passModalMember, setPassModalMember] = useState<Member | null>(null);
-  const [notifyModalOpen, setNotifyModalOpen] = useState(false);
   const [loading, setLoading] = useState(true);
 
   // Pagination state
@@ -109,13 +108,13 @@ export default function AdminMembersPage() {
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
-          <button
-            onClick={() => setNotifyModalOpen(true)}
+          <Link
+            href="/admin/members/broadcast"
             className="bg-gradient-to-r from-mitra-gold to-amber-500 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-black px-4 py-2 rounded-xl text-xs flex items-center gap-1.5 shadow-lg transition-all"
           >
             <Send className="w-4 h-4" />
             <span>Notify Members ({members.length})</span>
-          </button>
+          </Link>
 
           <button
             onClick={fetchMembers}
@@ -295,14 +294,6 @@ export default function AdminMembersPage() {
       {passModalMember && (
         <MembershipCardModal member={passModalMember} onClose={() => setPassModalMember(null)} />
       )}
-
-      {/* Notify Members Broadcast Modal */}
-      <NotifyMembersModal
-        isOpen={notifyModalOpen}
-        onClose={() => setNotifyModalOpen(false)}
-        totalMembersCount={members.length}
-        onSuccess={fetchMembers}
-      />
 
     </div>
   );

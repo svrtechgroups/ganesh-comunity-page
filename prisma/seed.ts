@@ -176,6 +176,11 @@ const SEED_SPONSORS = [
 async function main() {
   console.log('🌱 Starting MITRA & Slough Mahotsav database seeding...');
 
+  if (process.env.NODE_ENV !== 'development') {
+    console.log('Please run this only in development mode');
+    return;
+  }
+
   // 1. Seed Events
   await prisma.event.deleteMany({});
   await prisma.event.createMany({

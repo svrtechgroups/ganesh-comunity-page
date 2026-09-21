@@ -1,37 +1,11 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { sendEmail, renderEmailLayout } from '@/lib/email';
+import { renderEmailLayout } from '@/lib/email';
+import { enqueueEmails, EmailQueuePayload } from '@/lib/email-queue';
 import { logger } from '@/lib/logger';
 
 export const dynamic = 'force-dynamic';
 
-export const maxDuration = 300;
-
-const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
-
-async function sendEmailWithRetry(
-  to: string,
-  subject: string,
-  html: string,
-  maxAttempts: number = 3,
-  delayMs: number = 1000
-): Promise<boolean> {
-  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
-    // Wait 1 sec before sending / retrying
-    await sleep(delayMs);
-
-    try {
-      const sent = await sendEmail(to, subject, html);
-      if (sent) {
-        return true;
-      }
-      console.warn(`[NOTIFY] Attempt ${attempt}/${maxAttempts} failed to send email to ${to}`);
-    } catch (err) {
-      console.error(`[NOTIFY] Attempt ${attempt}/${maxAttempts} encountered error for ${to}:`, err);
-    }
-  }
-  return false;
-}
 
 export async function POST(request: Request) {
   try {
@@ -95,13 +69,12 @@ export async function POST(request: Request) {
     }
 
     const displayTitle = title?.trim() || subject.trim();
-    let sentCount = 0;
-    let failedCount = 0;
+    const campaignId = `camp-member-notify-${Date.now()}`;
+    const payloadsToQueue: EmailQueuePayload[] = [];
 
-    // Send emails sequentially with retry mechanism (3 attempts, 1s delay)
+    // Prepare email payloads
     for (const member of members) {
       if (!member.email || !member.email.includes('@')) {
-        failedCount++;
         continue;
       }
 
@@ -178,35 +151,45 @@ export async function POST(request: Request) {
         footerNote: 'You received this official notice as a registered member of MITRA UK.',
       });
 
-      console.log(`[NOTIFY] Dispatching to ${memberEmail}...`);
-      const sent = await sendEmailWithRetry(memberEmail, subject.trim(), fullHtml, 3, 1000);
-      if (sent) {
-        sentCount++;
-      } else {
-        failedCount++;
-      }
+      payloadsToQueue.push({
+        email: memberEmail,
+        subject: subject.trim(),
+        html: fullHtml,
+        campaignType: 'member_announcement',
+        campaignId,
+      });
     }
+
+    // Bulk insert into EmailQueue in chunks of 500 max
+    const { totalQueued, chunksProcessed } = await enqueueEmails(payloadsToQueue);
 
     await logger.info(
       'admin/members/notify',
-      `Member Notification Broadcast: "${subject}" sent to ${sentCount}/${members.length} members (failed: ${failedCount})`,
+      `Member Notification Broadcast Queued: "${subject}" queued for ${totalQueued}/${members.length} members across ${chunksProcessed} chunk(s)`,
       {
         subject,
         badgeText,
         targetAudience,
         totalRecipients: members.length,
-        sentCount,
-        failedCount,
+        totalQueued,
+        chunksProcessed,
+        campaignId,
       }
     );
 
+    // Return immediate response to the client
     return NextResponse.json({
       success: true,
-      message: `Successfully dispatched notification to ${sentCount} members.`,
+      message: `Successfully queued notifications for ${totalQueued} member(s). Background worker is dispatching 10 emails every 20 seconds.`,
+      campaignId,
       stats: {
         totalRecipients: members.length,
-        sentCount,
-        failedCount,
+        sentCount: totalQueued,
+        queuedCount: totalQueued,
+        failedCount: 0,
+        chunks: chunksProcessed,
+        workerIntervalSeconds: 20,
+        batchSize: 10,
       },
     });
   } catch (error: any) {
