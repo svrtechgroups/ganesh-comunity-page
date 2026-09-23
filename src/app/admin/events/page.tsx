@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { EventItem } from '@/lib/types';
 import Link from 'next/link';
 
 import { 
