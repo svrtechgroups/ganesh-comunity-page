@@ -1,20 +1,10 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { Prisma } from '@prisma/client';
+import { getEventSchedule } from '@/lib/event-schedule';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
-
-const DEFAULT_FESTIVAL_DATES = [
-  { id: '13-sep', date: '13 Sep (Sun)', title: 'Ganapathi Agamana & Sthapana' },
-  { id: '14-sep', date: '14 Sep (Mon)', title: 'Maha Ganapati Chaturthi' },
-  { id: '15-sep', date: '15 Sep (Tue)', title: 'Vidya Ganapati' },
-  { id: '16-sep', date: '16 Sep (Wed)', title: 'Arogya Ganapati' },
-  { id: '17-sep', date: '17 Sep (Thu)', title: 'Lakshmi Ganapati' },
-  { id: '18-sep', date: '18 Sep (Fri)', title: 'Korikala Ganapati' },
-  { id: '19-sep', date: '19 Sep (Sat)', title: 'Bhakti Ganapati' },
-  { id: '20-sep', date: '20 Sep (Sun)', title: 'Utsava Ganapati & Visarjan' },
-];
 
 export async function GET(request: Request) {
   const timestamp = new Date().toISOString();
@@ -31,75 +21,134 @@ export async function GET(request: Request) {
     console.log(`[ADMIN RSVPS API] [${timestamp}] GET query: eventId="${eventId}", selectedDate="${selectedDate}", search="${search}", page=${page}, limit=${limit}`);
 
     // Base condition for the event (used for analytics calculation)
-    const eventWhere: Prisma.EventRSVPWhereInput = eventId && eventId !== 'all' ? { eventId } : {};
+    const isSingleEventSelected = Boolean(eventId && eventId !== 'all');
+    const eventWhere: Prisma.EventRSVPWhereInput = isSingleEventSelected ? { eventId } : {};
 
-    // 1. Fetch all RSVPs for this event (or all events) to compute Day Analytics & overall stats
-    const allEventRSVPs = await prisma.eventRSVP.findMany({
-      where: eventWhere,
-      select: {
-        id: true,
-        ticketsCount: true,
-        adultsCount: true,
-        childrenCount: true,
-        selectedDates: true,
-        createdAt: true,
-      },
-    });
+    // 1. Fetch RSVPs and Event details (if single event is selected)
+    const [allEventRSVPs, targetEvent] = await Promise.all([
+      prisma.eventRSVP.findMany({
+        where: eventWhere,
+        select: {
+          id: true,
+          ticketsCount: true,
+          adultsCount: true,
+          childrenCount: true,
+          selectedDates: true,
+          createdAt: true,
+        },
+      }),
+      isSingleEventSelected
+        ? prisma.event.findUnique({
+            where: { id: eventId },
+            select: {
+              id: true,
+              title: true,
+              date: true,
+              eventSchedule: true,
+              availableDates: true,
+            },
+          })
+        : Promise.resolve(null),
+    ]);
 
     let totalRSVPs = allEventRSVPs.length;
     let totalPasses = 0;
     let totalAdults = 0;
     let totalChildren = 0;
 
-    // Day Analytics Map: date -> stats
-    const dayStatsMap = new Map<string, { date: string; title: string; bookingsCount: number; totalPasses: number; adultsCount: number; childrenCount: number }>();
+    // Day Analytics: ONLY computed and visible when a single event is selected
+    let dayAnalytics: {
+      date: string;
+      title: string;
+      bookingsCount: number;
+      totalPasses: number;
+      adultsCount: number;
+      childrenCount: number;
+    }[] = [];
 
-    // Initialize with standard festival dates
-    DEFAULT_FESTIVAL_DATES.forEach((f) => {
-      dayStatsMap.set(f.date, {
-        date: f.date,
-        title: f.title,
-        bookingsCount: 0,
-        totalPasses: 0,
-        adultsCount: 0,
-        childrenCount: 0,
+    if (isSingleEventSelected && targetEvent) {
+      const scheduleDays = getEventSchedule(targetEvent);
+      const dayStatsMap = new Map<string, {
+        date: string;
+        title: string;
+        bookingsCount: number;
+        totalPasses: number;
+        adultsCount: number;
+        childrenCount: number;
+      }>();
+
+      // Initialize with dates from DB schedule for this event
+      scheduleDays.forEach((f) => {
+        const key = f.dateLabel || f.date;
+        dayStatsMap.set(key, {
+          date: key,
+          title: f.title,
+          bookingsCount: 0,
+          totalPasses: 0,
+          adultsCount: 0,
+          childrenCount: 0,
+        });
       });
-    });
 
-    // Populate day stats from actual RSVPs
-    for (const r of allEventRSVPs) {
-      const tickets = r.ticketsCount || (r.adultsCount + r.childrenCount) || 1;
-      const adults = r.adultsCount ?? 1;
-      const children = r.childrenCount ?? 0;
+      // Populate day stats from actual RSVPs
+      for (const r of allEventRSVPs) {
+        const tickets = r.ticketsCount || (r.adultsCount + r.childrenCount) || 1;
+        const adults = r.adultsCount ?? 1;
+        const children = r.childrenCount ?? 0;
 
-      totalPasses += tickets;
-      totalAdults += adults;
-      totalChildren += children;
+        totalPasses += tickets;
+        totalAdults += adults;
+        totalChildren += children;
 
-      const dates = Array.isArray(r.selectedDates) && r.selectedDates.length > 0
-        ? r.selectedDates
-        : ['14 Sep (Mon)'];
+        const dates = Array.isArray(r.selectedDates) && r.selectedDates.length > 0
+          ? r.selectedDates
+          : [];
 
-      for (const d of dates) {
-        if (!dayStatsMap.has(d)) {
-          dayStatsMap.set(d, {
-            date: d,
-            title: `Festival Day - ${d}`,
-            bookingsCount: 0,
-            totalPasses: 0,
-            adultsCount: 0,
-            childrenCount: 0,
-          });
+        for (const d of dates) {
+          // Find matching key in dayStatsMap (direct match or partial date label match)
+          let matchedKey = dayStatsMap.has(d) ? d : null;
+          if (!matchedKey) {
+            for (const [k] of dayStatsMap.entries()) {
+              if (k.toLowerCase() === d.toLowerCase() || d.toLowerCase().includes(k.toLowerCase()) || k.toLowerCase().includes(d.toLowerCase())) {
+                matchedKey = k;
+                break;
+              }
+            }
+          }
+
+          if (!matchedKey) {
+            matchedKey = d;
+            dayStatsMap.set(d, {
+              date: d,
+              title: `${targetEvent.title} - ${d}`,
+              bookingsCount: 0,
+              totalPasses: 0,
+              adultsCount: 0,
+              childrenCount: 0,
+            });
+          }
+
+          const curr = dayStatsMap.get(matchedKey)!;
+          curr.bookingsCount += 1;
+          curr.totalPasses += tickets;
+          curr.adultsCount += adults;
+          curr.childrenCount += children;
         }
-        const curr = dayStatsMap.get(d)!;
-        curr.bookingsCount += 1;
-        curr.totalPasses += tickets;
-        curr.adultsCount += adults;
-        curr.childrenCount += children;
+      }
+
+      dayAnalytics = Array.from(dayStatsMap.values());
+    } else {
+      // If no single event is selected, just sum totals
+      for (const r of allEventRSVPs) {
+        const tickets = r.ticketsCount || (r.adultsCount + r.childrenCount) || 1;
+        const adults = r.adultsCount ?? 1;
+        const children = r.childrenCount ?? 0;
+
+        totalPasses += tickets;
+        totalAdults += adults;
+        totalChildren += children;
       }
     }
-
-    const dayAnalytics = Array.from(dayStatsMap.values());
 
     // 2. Build Prisma Filter Where Clause for Attendee Table Query
     const whereConditions: Prisma.EventRSVPWhereInput[] = [];

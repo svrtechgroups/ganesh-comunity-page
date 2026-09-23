@@ -161,6 +161,7 @@ END:VCALENDAR`;
 
         {/* 3. EVENT DETAILS, VENUE & POOJA BOOKING */}
         <EventDetailsSection 
+          event={event}
           onOpenPoojaBooking={event.enablePooja !== false ? () => setPoojaModalOpen(true) : undefined} 
         />
 
@@ -176,7 +177,7 @@ END:VCALENDAR`;
         {/* MODAL FORMS */}
         <NotifyMeModal isOpen={notifyModalOpen} onClose={() => setNotifyModalOpen(false)} />
         <DonationModal isOpen={donateModalOpen} onClose={() => setDonateModalOpen(false)} />
-        <PoojaBookingModal isOpen={poojaModalOpen} onClose={() => setPoojaModalOpen(false)} />
+        <PoojaBookingModal isOpen={poojaModalOpen} onClose={() => setPoojaModalOpen(false)} event={event} />
         {rsvpModalOpen && (
           <EventRSVPModal
             event={{
@@ -431,7 +432,7 @@ END:VCALENDAR`;
 
       {/* Modals */}
       <DonationModal isOpen={donateModalOpen} onClose={() => setDonateModalOpen(false)} />
-      <PoojaBookingModal isOpen={poojaModalOpen} onClose={() => setPoojaModalOpen(false)} />
+      <PoojaBookingModal isOpen={poojaModalOpen} onClose={() => setPoojaModalOpen(false)} event={event} />
       {rsvpModalOpen && (
         <EventRSVPModal
           event={{

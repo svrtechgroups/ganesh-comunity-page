@@ -11,7 +11,10 @@ if (process.env.NODE_ENV === 'production') {
 const prisma = new PrismaClient();
 const BATCH_SIZE = 100;
 
+
+
 async function importCsvToDatabase() {
+  
   const results: { id: string; fullName: any; email: any; phone: any; tier: any; role: any; status: any; profession: any; address: any; passwordHash: any; startDate: string; expiryDate: any; }[] = [];
   let index = 0;
   let batchCount = 0;

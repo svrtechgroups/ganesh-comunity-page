@@ -129,6 +129,7 @@ export default function GaneshEvent2026Page() {
       />
 
       <EventDetailsSection 
+        event={eventData}
         onOpenRSVP={isRsvpEnabled ? openRSVP : undefined}
         onOpenPoojaBooking={isPoojaEnabled ? openPoojaBooking : undefined}
         onOpenDonation={isSupportPaymentEnabled ? openDonation : undefined}
@@ -160,6 +161,7 @@ export default function GaneshEvent2026Page() {
         isOpen={poojaModalOpen} 
         onClose={() => setPoojaModalOpen(false)} 
         initialDateId={selectedPoojaDateId}
+        event={eventData}
       />
 
       <DonationModal 

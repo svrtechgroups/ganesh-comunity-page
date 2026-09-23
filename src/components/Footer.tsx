@@ -9,32 +9,7 @@ export default function Footer() {
     <footer className="bg-[#3D1A00] text-[#FFF8F0] border-t-2 border-[#E65C00]/40 relative overflow-hidden">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 relative z-10 space-y-12">
         
-        {/* Top Highlight Banner */}
-        <div className="bg-gradient-to-r from-[#4A2200] via-[#5A2A00] to-[#4A2200] border-2 border-[#E65C00]/40 rounded-3xl p-8 flex flex-col md:flex-row items-center justify-between gap-6">
-          <div className="space-y-2 text-center md:text-left">
-            <span className="font-script text-4xl sm:text-5xl text-[#FF9A3C] block tracking-wide">
-              Coming Soon...
-            </span>
-            <h3 className="text-xl sm:text-2xl font-black font-cinzel text-[#FFF8F0] tracking-wider uppercase">
-              LONDON'S LARGEST MAHA GANAPATHI MAHOTSAV 2026
-            </h3>
-            <p className="text-xs text-[#FFD4A0] max-w-xl">
-              13th – 19th September 2026 · E Block, SLOUGH &amp; LANGLEY COLLEGE, Langley Road, SL3 8GW. Join thousands of devotees celebrating culture, unity, and tradition.
-            </p>
-          </div>
-
-          <div className="shrink-0 flex flex-col sm:flex-row gap-3">
-            <a
-              href="https://chat.whatsapp.com/IVqirWWzM96IBNRfhSWGEd"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="gold-button px-6 py-3 rounded-full text-xs font-black uppercase tracking-wider flex items-center justify-center gap-2 shadow-xl hover:scale-105 transition-transform"
-            >
-              <img src="/assets/whatsapp.png" alt="WhatsApp" className="w-5 h-5 object-contain" />
-              <span>Join WhatsApp Group</span>
-            </a>
-          </div>
-        </div>
+        
 
         {/* Footer Navigation Columns */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8 text-xs ">

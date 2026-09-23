@@ -56,7 +56,8 @@ function AdminLayoutContent({ children }: { children: React.ReactNode }) {
     { label: 'Site Settings', href: '/admin/settings', icon: Settings, roleAccess: ['Super Admin'] },
   ];
 
-  const isCurrent = (href: string) => pathname === href;
+  const isCurrent = (href: string) =>
+    pathname === href || (href !== '/admin/dashboard' && pathname.startsWith(href));
 
   const handleLogout = async () => {
     setLoggingOut(true);

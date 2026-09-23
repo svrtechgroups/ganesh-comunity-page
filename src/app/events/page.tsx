@@ -10,7 +10,7 @@ export default function EventsPage() {
   const [events, setEvents] = useState<EventItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [viewMode, setViewMode] = useState<'grid' | 'calendar'>('grid');
-  const [statusFilter, setStatusFilter] = useState<'Upcoming' | 'Past'>('Upcoming');
+  const [statusFilter, setStatusFilter] = useState<'Upcoming' | 'Completed'>('Upcoming');
   const [categoryFilter, setCategoryFilter] = useState<string>('All');
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [donateModalOpen, setDonateModalOpen] = useState(false);
@@ -87,9 +87,9 @@ export default function EventsPage() {
               Upcoming Events
             </button>
             <button
-              onClick={() => setStatusFilter('Past')}
+              onClick={() => setStatusFilter('Completed')}
               className={`px-4 py-2 rounded-xl text-xs font-extrabold transition-all ${
-                statusFilter === 'Past'
+                statusFilter === 'Completed'
                   ? 'bg-mitra-navy text-mitra-gold border border-mitra-gold/30 shadow'
                   : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300'
               }`}

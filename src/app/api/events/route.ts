@@ -4,8 +4,18 @@ import { prisma } from '@/lib/prisma';
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
+    const { searchParams } = new URL(request.url);
+    const id = searchParams.get('id');
+
+    if (id) {
+      const event = await prisma.event.findUnique({
+        where: { id },
+      });
+      return NextResponse.json({ success: true, source: 'prisma', data: event });
+    }
+
     const events = await prisma.event.findMany({
       orderBy: { date: 'asc' },
     });

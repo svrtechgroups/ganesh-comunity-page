@@ -4,8 +4,35 @@ import { prisma } from '@/lib/prisma';
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
+    const { searchParams } = new URL(request.url);
+    const id = searchParams.get('id');
+
+    if (id) {
+      const event = await prisma.event.findUnique({
+        where: { id },
+        include: {
+          mediaItems: true,
+        },
+      });
+
+      if (!event) {
+        return NextResponse.json({ success: false, error: 'Event not found' }, { status: 404 });
+      }
+
+      return NextResponse.json(
+        { success: true, source: 'prisma', data: event },
+        {
+          headers: {
+            'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0',
+            Pragma: 'no-cache',
+            Expires: '0',
+          },
+        }
+      );
+    }
+
     const events = await prisma.event.findMany({
       orderBy: { createdAt: 'desc' },
     });
@@ -49,15 +76,30 @@ export async function POST(request: Request) {
       adultCapacity = 0,
       childCapacity = 0,
       availableDates,
+      eventSchedule,
       mapUrl,
       customFields,
     } = body;
+
+    let parsedSchedule: any[] = [];
+    if (Array.isArray(eventSchedule)) {
+      parsedSchedule = eventSchedule;
+    } else if (typeof eventSchedule === 'string' && eventSchedule.trim()) {
+      try {
+        parsedSchedule = JSON.parse(eventSchedule);
+      } catch {}
+    }
 
     let parsedDates: string[] = [];
     if (Array.isArray(availableDates)) {
       parsedDates = availableDates.map(String).map((s) => s.trim()).filter(Boolean);
     } else if (typeof availableDates === 'string') {
       parsedDates = availableDates.split(/[\n,]+/).map((s) => s.trim()).filter(Boolean);
+    }
+
+    // Auto-sync availableDates if empty but eventSchedule has dates
+    if (parsedDates.length === 0 && parsedSchedule.length > 0) {
+      parsedDates = parsedSchedule.map((s) => String(s.dateLabel || s.date || '').trim()).filter(Boolean);
     }
 
     let parsedCustomFields = [];
@@ -90,6 +132,7 @@ export async function POST(request: Request) {
         adultCapacity: Number(adultCapacity) || 0,
         childCapacity: Number(childCapacity) || 0,
         availableDates: parsedDates,
+        eventSchedule: parsedSchedule,
         mapUrl: mapUrl ? String(mapUrl).trim() : null,
         customFields: parsedCustomFields,
       },
@@ -148,6 +191,7 @@ export async function PUT(request: Request) {
       adultCapacity,
       childCapacity,
       availableDates,
+      eventSchedule,
       mapUrl,
       customFields,
     } = body;
@@ -159,6 +203,21 @@ export async function PUT(request: Request) {
       );
     }
 
+    let parsedSchedule: any[] | undefined = undefined;
+    if (eventSchedule !== undefined) {
+      if (Array.isArray(eventSchedule)) {
+        parsedSchedule = eventSchedule;
+      } else if (typeof eventSchedule === 'string' && eventSchedule.trim()) {
+        try {
+          parsedSchedule = JSON.parse(eventSchedule);
+        } catch {
+          parsedSchedule = [];
+        }
+      } else if (eventSchedule === null) {
+        parsedSchedule = [];
+      }
+    }
+
     let parsedDates: string[] | undefined = undefined;
     if (availableDates !== undefined) {
       if (Array.isArray(availableDates)) {
@@ -166,6 +225,11 @@ export async function PUT(request: Request) {
       } else if (typeof availableDates === 'string') {
         parsedDates = availableDates.split(/[\n,]+/).map((s) => s.trim()).filter(Boolean);
       }
+    }
+
+    // Auto-sync availableDates if eventSchedule was provided and availableDates wasn't explicitly given
+    if (parsedDates === undefined && parsedSchedule !== undefined && Array.isArray(parsedSchedule)) {
+      parsedDates = parsedSchedule.map((s) => String(s.dateLabel || s.date || '').trim()).filter(Boolean);
     }
 
     let parsedCustomFields = undefined;
@@ -205,6 +269,7 @@ export async function PUT(request: Request) {
         adultCapacity: adultCapacity !== undefined ? Number(adultCapacity) : undefined,
         childCapacity: childCapacity !== undefined ? Number(childCapacity) : undefined,
         availableDates: parsedDates !== undefined ? parsedDates : undefined,
+        eventSchedule: parsedSchedule !== undefined ? parsedSchedule : undefined,
         mapUrl: mapUrl !== undefined ? (mapUrl ? String(mapUrl).trim() : null) : undefined,
         customFields: parsedCustomFields !== undefined ? parsedCustomFields : undefined,
       },

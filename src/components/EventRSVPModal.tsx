@@ -29,6 +29,7 @@ import {
 import confetti from 'canvas-confetti';
 
 import { CustomFieldDefinition } from '@/lib/types';
+import { DEFAULT_GANESH_SCHEDULE } from '@/lib/event-schedule';
 
 interface EventRSVPModalProps {
   event: {
@@ -44,6 +45,7 @@ interface EventRSVPModalProps {
     enforceCapacityLimit?: boolean;
     enableRsvp?: boolean;
     availableDates?: string[];
+    eventSchedule?: any[];
     adultCapacity?: number;
     childCapacity?: number;
     customFields?: CustomFieldDefinition[];
@@ -51,17 +53,6 @@ interface EventRSVPModalProps {
   onClose: () => void;
   onSuccess?: () => void;
 }
-
-const DEFAULT_FESTIVAL_DATES = [
-  { id: '13-sep', date: '13 Sep (Sun)', title: 'Ganapathi Agamana & Sthapana' },
-  { id: '14-sep', date: '14 Sep (Mon)', title: 'Maha Ganapati Chaturthi' },
-  { id: '15-sep', date: '15 Sep (Tue)', title: 'Vidya Ganapati' },
-  { id: '16-sep', date: '16 Sep (Wed)', title: 'Arogya Ganapati' },
-  { id: '17-sep', date: '17 Sep (Thu)', title: 'Lakshmi Ganapati' },
-  { id: '18-sep', date: '18 Sep (Fri)', title: 'Korikala Ganapati' },
-  { id: '19-sep', date: '19 Sep (Sat)', title: 'Bhakti Ganapati' },
-  { id: '20-sep', date: '20 Sep (Sun)', title: 'Utsava Ganapati & Visarjan' },
-];
 
 function isFestivalDatePast(dateStr: string): boolean {
   if (!dateStr.toLowerCase().includes('sep')) return false;
@@ -243,14 +234,17 @@ export default function EventRSVPModal({ event, onClose, onSuccess }: EventRSVPM
 
   // Compute dynamic selectable dates from event configuration
   const eventDates: string[] = useMemo(() => {
+    if (Array.isArray(event.eventSchedule) && event.eventSchedule.length > 0) {
+      return event.eventSchedule.map((s: any) => s.dateLabel || s.date);
+    }
     if (Array.isArray(event.availableDates) && event.availableDates.length > 0) {
       return event.availableDates;
     }
     if (event.id === 'evt-ganesh-chaturthi' || event.title.toLowerCase().includes('ganesh')) {
-      return DEFAULT_FESTIVAL_DATES.map((d) => d.date);
+      return DEFAULT_GANESH_SCHEDULE.map((d) => d.dateLabel || d.date);
     }
     return [event.date || 'Main Event Day'];
-  }, [event.availableDates, event.id, event.title, event.date]);
+  }, [event.eventSchedule, event.availableDates, event.id, event.title, event.date]);
 
   const availableEventDates = useMemo(() => {
     return eventDates.filter((d) => !isFestivalDatePast(d));

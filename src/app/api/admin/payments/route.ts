@@ -13,14 +13,39 @@ export async function GET(request: Request) {
     const search = searchParams.get('search')?.trim() || '';
     const type = searchParams.get('type')?.trim() || 'all';
     const status = searchParams.get('status')?.trim() || 'all';
+    const eventId = searchParams.get('eventId')?.trim() || 'all';
     const page = Math.max(1, parseInt(searchParams.get('page') || '1', 10));
     const limit = searchParams.get('limit') === 'all' ? 0 : Math.max(1, parseInt(searchParams.get('limit') || '10', 10));
     const exportAll = searchParams.get('exportAll') === 'true';
 
-    console.log(`[ADMIN PAYMENTS API] [${timestamp}] GET query: search="${search}", type="${type}", status="${status}", page=${page}, limit=${limit}`);
+    console.log(`[ADMIN PAYMENTS API] [${timestamp}] GET query: search="${search}", type="${type}", status="${status}", eventId="${eventId}", page=${page}, limit=${limit}`);
+
+    // Fetch available events for filtering
+    const availableEvents = await prisma.event.findMany({
+      select: { id: true, title: true, date: true, category: true },
+      orderBy: { date: 'asc' },
+    });
 
     // Build Prisma Where Clause
     const whereConditions: Prisma.PaymentWhereInput[] = [];
+
+    // Event Filter
+    let eventCondition: Prisma.PaymentWhereInput | null = null;
+    if (eventId && eventId !== 'all') {
+      const matchedEvent = availableEvents.find((e) => e.id === eventId);
+      eventCondition = {
+        OR: [
+          { eventId: eventId },
+          ...(matchedEvent?.title
+            ? [
+                { eventName: { contains: matchedEvent.title, mode: 'insensitive' as const } },
+                { description: { contains: matchedEvent.title, mode: 'insensitive' as const } },
+              ]
+            : [{ eventName: { contains: eventId, mode: 'insensitive' as const } }]),
+        ],
+      };
+      whereConditions.push(eventCondition);
+    }
 
     // Status Filter
     if (status && status !== 'all') {
@@ -59,10 +84,12 @@ export async function GET(request: Request) {
     }
 
     const where: Prisma.PaymentWhereInput = whereConditions.length > 0 ? { AND: whereConditions } : {};
+    const statsWhere: Prisma.PaymentWhereInput = eventCondition ? { AND: [eventCondition] } : {};
 
-    // 1. Calculate Full Database Stats (across all payments in DB)
+    // 1. Calculate Stats (scoped to event if eventId is filtered)
     const [allPayments, totalFiltered] = await Promise.all([
       prisma.payment.findMany({
+        where: statsWhere,
         select: {
           id: true,
           amount: true,
@@ -138,6 +165,13 @@ export async function GET(request: Request) {
           totalRevenue,
           totalCount,
         },
+        selectedEventId: eventId,
+        events: availableEvents.map((e) => ({
+          id: e.id,
+          title: e.title,
+          date: e.date,
+          category: e.category,
+        })),
       },
       {
         headers: {

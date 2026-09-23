@@ -19,7 +19,8 @@ import {
   HeartHandshake
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
-import { DonationRecord } from '@/lib/types';
+import { DonationRecord, EventItem } from '@/lib/types';
+import { getEventSchedule } from '@/lib/event-schedule';
 import { useAuth } from '@/lib/auth-context';
 import { loadStripe, Stripe as StripeType } from '@stripe/stripe-js';
 import {
@@ -176,32 +177,43 @@ export interface PoojaDateStatus {
   statusLabel?: string;
 }
 
-export function getPoojaDateStatus(dateStr: string, currentBookingCount: number = 0): PoojaDateStatus {
-  const dayNum = parseInt(dateStr.replace(/\D/g, ''), 10);
+export function getPoojaDateStatus(
+  dateStr: string,
+  currentBookingCount: number = 0,
+  itemBadge?: string
+): PoojaDateStatus {
+  // 1. Explicitly closed or completed badge
+  if (itemBadge && (itemBadge.toUpperCase().includes('CLOSED') || itemBadge.toUpperCase().includes('COMPLETED'))) {
+    return {
+      disabled: true,
+      reason: 'visarjan',
+      statusLabel: itemBadge.toUpperCase(),
+    };
+  }
 
-  // 1. 20th Sep is explicitly disabled for Pooja booking (Visarjan day)
-  // if (dayNum === 20 || dateStr.toLowerCase().includes('20th')) {
-  //   return {
-  //     disabled: false,
-  //     reason: 'visarjan',
-  //     statusLabel: 'VISARJAN - CLOSED',
-  //   };
-  // }
-
-  // 2. Disable past dates (festival is in September 2026)
+  // 2. Disable past dates
   const now = new Date();
   const currentYear = now.getFullYear();
   const currentMonth = now.getMonth(); // 0-indexed (8 = September)
   const currentDay = now.getDate();
 
   let isPast = false;
-  if (currentYear > 2026) {
-    isPast = true;
-  } else if (currentYear === 2026) {
-    if (currentMonth > 8) {
+  if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
+    const [y, m, d] = dateStr.split('-').map(Number);
+    const dateObj = new Date(y, m - 1, d);
+    isPast = dateObj < new Date(currentYear, currentMonth, currentDay);
+  } else {
+    const dayMatch = dateStr.match(/\b(\d{1,2})\b/);
+    const dayNum = dayMatch ? parseInt(dayMatch[1], 10) : NaN;
+
+    if (currentYear > 2026) {
       isPast = true;
-    } else if (currentMonth === 8 && !isNaN(dayNum) && dayNum < currentDay) {
-      isPast = true;
+    } else if (currentYear === 2026) {
+      if (currentMonth > 8) {
+        isPast = true;
+      } else if (currentMonth === 8 && !isNaN(dayNum) && dayNum < currentDay) {
+        isPast = true;
+      }
     }
   }
 
@@ -377,23 +389,104 @@ function CheckoutForm({
 
 // ── Main PoojaBookingModal ────────────────────────────────────────────────────
 
+export interface PoojaBookingModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  event?: EventItem | null;
+  eventId?: string;
+  initialDateId?: string;
+  initialCategoryId?: string;
+  customDates?: PoojaDateOption[];
+}
+
 export default function PoojaBookingModal({
   isOpen,
   onClose,
+  event,
+  eventId,
   initialDateId,
   initialCategoryId,
-}: {
-  isOpen: boolean;
-  onClose: () => void;
-  initialDateId?: string;
-  initialCategoryId?: string;
-}) {
+  customDates,
+}: PoojaBookingModalProps) {
   const { user, isLoggedIn, login } = useAuth();
+
+  const [activeEvent, setActiveEvent] = useState<EventItem | null>(event || null);
+
+  useEffect(() => {
+    if (event) {
+      setActiveEvent(event);
+    }
+  }, [event]);
+
+  // Fetch event and its configured schedule from database when opened if not provided
+  useEffect(() => {
+    if (!isOpen) return;
+
+    if (event) {
+      setActiveEvent(event);
+      return;
+    }
+
+    let isMounted = true;
+    const fetchEventSchedule = async () => {
+      try {
+        const url = eventId ? `/api/events?id=${encodeURIComponent(eventId)}` : '/api/events';
+        const res = await fetch(url, { cache: 'no-store' });
+        const json = await res.json();
+        if (!isMounted) return;
+
+        if (json.success) {
+          if (eventId && json.data && !Array.isArray(json.data)) {
+            setActiveEvent(json.data);
+          } else if (Array.isArray(json.data)) {
+            const matched = eventId
+              ? json.data.find((e: any) => e.id === eventId)
+              : json.data.find(
+                  (e: any) =>
+                    e.id === 'evt-ganesh-chaturthi' ||
+                    e.title?.toLowerCase().includes('ganesh') ||
+                    e.enablePooja
+                ) || json.data[0];
+            if (matched) {
+              setActiveEvent(matched);
+            }
+          }
+        }
+      } catch (err) {
+        console.error('Failed to fetch event dates from DB for PoojaBookingModal:', err);
+      }
+    };
+
+    fetchEventSchedule();
+    return () => {
+      isMounted = false;
+    };
+  }, [isOpen, event, eventId]);
+
+  // Derive pooja dates dynamically from DB eventSchedule or fallback
+  const poojaDates: PoojaDateOption[] = React.useMemo(() => {
+    if (customDates && customDates.length > 0) {
+      return customDates;
+    }
+    const schedule = getEventSchedule(activeEvent);
+    if (schedule && schedule.length > 0) {
+      return schedule.map((s, idx) => ({
+        id: s.id || `day-${idx + 1}`,
+        date: s.date || `Day ${idx + 1}`,
+        day: s.day || '',
+        title: s.title || `Day ${idx + 1}`,
+        theme: s.theme || '',
+        blessing: s.blessing || s.theme || '',
+        badge: s.badge,
+      }));
+    }
+    return POOJA_DATES;
+  }, [customDates, activeEvent]);
 
   const [selectedCategoryId, setSelectedCategoryId] = useState<string>(
     initialCategoryId && initialCategoryId !== 'maha-yajaman' ? initialCategoryId : 'vishita-yajaman'
   );
-  const [selectedDateId, setSelectedDateId] = useState<string>(initialDateId || 'day-7');
+  const [selectedDateId, setSelectedDateId] = useState<string>(initialDateId || 'day-1');
   const [devoteeName, setDevoteeName] = useState('');
   const [gotram, setGotram] = useState('');
   const [familyMembers, setFamilyMembers] = useState('');
@@ -442,32 +535,38 @@ export default function PoojaBookingModal({
   }, [initialCategoryId]);
 
   useEffect(() => {
-    if (initialDateId) {
-      const targetDate = POOJA_DATES.find(d => d.id === initialDateId);
+    if (initialDateId && poojaDates.some(d => d.id === initialDateId)) {
+      const targetDate = poojaDates.find(d => d.id === initialDateId);
       if (targetDate) {
-        const status = getPoojaDateStatus(targetDate.date, getBookingCount(targetDate.date));
+        const status = getPoojaDateStatus(targetDate.date, getBookingCount(targetDate.date), targetDate.badge);
         if (!status.disabled) {
           setSelectedDateId(initialDateId);
         }
       }
     }
-  }, [initialDateId, getBookingCount]);
+  }, [initialDateId, poojaDates, getBookingCount]);
 
-  // Auto-select first available date if selected one is past, 20th, or fully booked
+  // Auto-select first available date if selected one is past, closed, or fully booked
   useEffect(() => {
-    if (isOpen) {
-      const currentSelectedDate = POOJA_DATES.find(d => d.id === selectedDateId);
+    if (isOpen && poojaDates.length > 0) {
+      const currentSelectedDate = poojaDates.find(d => d.id === selectedDateId);
       const count = currentSelectedDate ? getBookingCount(currentSelectedDate.date) : 0;
-      const status = currentSelectedDate ? getPoojaDateStatus(currentSelectedDate.date, count) : { disabled: true };
+      const status = currentSelectedDate
+        ? getPoojaDateStatus(currentSelectedDate.date, count, currentSelectedDate.badge)
+        : { disabled: true };
 
       if (status.disabled) {
-        const availableDate = POOJA_DATES.find(d => !getPoojaDateStatus(d.date, getBookingCount(d.date)).disabled);
+        const availableDate = poojaDates.find(
+          d => !getPoojaDateStatus(d.date, getBookingCount(d.date), d.badge).disabled
+        );
         if (availableDate) {
           setSelectedDateId(availableDate.id);
+        } else if (!currentSelectedDate) {
+          setSelectedDateId(poojaDates[0].id);
         }
       }
     }
-  }, [isOpen, dbCounts, selectedDateId, getBookingCount]);
+  }, [isOpen, dbCounts, selectedDateId, poojaDates, getBookingCount]);
 
   useEffect(() => {
     if (isOpen) {
@@ -557,17 +656,17 @@ export default function PoojaBookingModal({
 
   const selectedCategory = POOJA_CATEGORIES.find((c) => c.id === selectedCategoryId) || POOJA_CATEGORIES[1];
   const isArchana = selectedCategory.type === 'archana';
-  const selectedDateObj = POOJA_DATES.find((d) => d.id === selectedDateId) || POOJA_DATES[0];
+  const selectedDateObj = poojaDates.find((d) => d.id === selectedDateId) || poojaDates[0] || POOJA_DATES[0];
   const poojaAmount = selectedCategory.amount;
 
   const getCauseDescription = useCallback(() => {
     let desc = isArchana
-      ? `Archana Booking: 7 Days Daily Archana (£21) - All 7 Festival Days | Devotee: ${devoteeName}`
+      ? `Archana Booking: ${poojaDates.length} Days Daily Archana (£21) - All ${poojaDates.length} Festival Days | Devotee: ${devoteeName}`
       : `Pooja Booking: ${selectedCategory.name} (£${selectedCategory.amount}) - ${selectedDateObj.date} (${selectedDateObj.title}) | Devotee: ${devoteeName}`;
     if (gotram) desc += ` | Gotram: ${gotram}`;
     if (familyMembers) desc += ` | Priest Sankalpam: ${familyMembers}`;
     return desc;
-  }, [isArchana, selectedCategory, selectedDateObj, gotram, devoteeName, familyMembers]);
+  }, [isArchana, poojaDates, selectedCategory, selectedDateObj, gotram, devoteeName, familyMembers]);
 
   const handleDetailsSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -582,12 +681,12 @@ export default function PoojaBookingModal({
     // Double check limit and date availability before proceeding to pay
     if (!isArchana) {
       const count = getBookingCount(selectedDateObj.date);
-      const dateStatus = getPoojaDateStatus(selectedDateObj.date, count);
+      const dateStatus = getPoojaDateStatus(selectedDateObj.date, count, selectedDateObj.badge);
       if (dateStatus.disabled) {
         if (dateStatus.reason === 'past') {
           setSessionError(`Sorry, ${selectedDateObj.date} has already passed. Please choose an upcoming date.`);
         } else if (dateStatus.reason === 'visarjan') {
-          setSessionError('Pooja bookings are closed on 20th Sep for Maha Visarjan.');
+          setSessionError(`Pooja bookings are closed on ${selectedDateObj.date}.`);
         } else {
           setSessionError(`Sorry, ${selectedDateObj.date} is now fully booked. Please choose another date.`);
         }
@@ -609,13 +708,15 @@ export default function PoojaBookingModal({
           customerPhone: phone,
           description: getCauseDescription(),
           paymentMethod: 'Stripe Card',
-          eventId: 'evt-ganesh-chaturthi',
-          eventName: 'London Ganesh Mahotsav 2026',
+          eventId: activeEvent?.id || 'evt-ganesh-chaturthi',
+          eventName: activeEvent?.title || 'London Ganesh Mahotsav 2026',
           donationType: isArchana ? 'archana' : 'pooja',
           poojaCategory: selectedCategory.name,
-          poojaDate: isArchana ? 'All 7 Days (14-20 Sep)' : selectedDateObj.date,
+          poojaDate: isArchana
+            ? `All ${poojaDates.length} Days (${poojaDates[0]?.date || ''} - ${poojaDates[poojaDates.length - 1]?.date || ''})`
+            : selectedDateObj.date,
           poojaDay: isArchana ? 'Full Festival' : selectedDateObj.day,
-          poojaTitle: isArchana ? '7 Days Daily Archana' : selectedDateObj.title,
+          poojaTitle: isArchana ? `${poojaDates.length} Days Daily Archana` : selectedDateObj.title,
           gotram: gotram ? gotram.trim() : null,
           familyMembers: familyMembers ? familyMembers.trim() : null,
           specialWishes: specialWishes ? specialWishes.trim() : null,
@@ -648,7 +749,7 @@ export default function PoojaBookingModal({
       amount: poojaAmount,
       currency: 'GBP',
       cause: isArchana
-        ? `7 Days Daily Archana (£21)`
+        ? `${poojaDates.length} Days Daily Archana (£21)`
         : `${selectedCategory.name} (£${selectedCategory.amount}) - ${selectedDateObj.date} ${selectedDateObj.title}`,
       paymentMethod: 'Card',
       date: new Date().toLocaleDateString('en-GB', {
@@ -1006,7 +1107,7 @@ export default function PoojaBookingModal({
                   <span>2. Festival Timing &amp; Date</span>
                 </label>
                 <span className="text-[10px] text-[#6B3A2A] font-semibold">
-                  {isArchana ? 'All 7 Days Included' : '7 Sacred Festival Days'}
+                  {isArchana ? `All ${poojaDates.length} Days Included` : `${poojaDates.length} Sacred Festival Days`}
                 </span>
               </div>
 
@@ -1015,19 +1116,19 @@ export default function PoojaBookingModal({
                   <Sparkles className="w-4 h-4 text-[#E65C00] shrink-0 mt-0.5" />
                   <div className="space-y-0.5">
                     <h4 className="text-xs font-bold text-[#3D1A00]">
-                      7 Days Continuous Daily Archana (14th Sep – 20th Sep 2026)
+                      {poojaDates.length} Days Continuous Daily Archana ({poojaDates[0]?.date || '14th Sep'} – {poojaDates[poojaDates.length - 1]?.date || '20th Sep 2026'})
                     </h4>
                     <p className="text-[11px] text-[#6B3A2A] leading-relaxed">
-                      Your family Gotram and names will be invoked daily in the Vedic Ashtothara Sathanama Archana across all 7 days of the Mahotsav.
+                      Your family Gotram and names will be invoked daily in the Vedic Ashtothara Sathanama Archana across all {poojaDates.length} days of the Mahotsav.
                     </p>
                   </div>
                 </div>
               ) : (
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-52 overflow-y-auto pr-1">
-                  {POOJA_DATES.map((item) => {
+                  {poojaDates.map((item) => {
                     const isSelected = selectedDateId === item.id;
                     const count = getBookingCount(item.date);
-                    const status = getPoojaDateStatus(item.date, count);
+                    const status = getPoojaDateStatus(item.date, count, item.badge);
                     const isDisabled = status.disabled;
                     return (
                       <button
@@ -1063,7 +1164,7 @@ export default function PoojaBookingModal({
                           <span className={`absolute top-2 right-2 text-[8px] font-bold px-1.5 py-0.5 rounded-md ${
                             isSelected ? 'bg-white/20 text-white' : 'bg-[#E65C00]/10 text-[#E65C00]'
                           }`}>
-                            {3 - count} slots left
+                            {Math.max(0, 10 - count)} slots left
                           </span>
                         )}
                         <div>
@@ -1071,9 +1172,11 @@ export default function PoojaBookingModal({
                             <span className={`text-xs font-black font-cinzel ${isDisabled ? 'text-slate-400 line-through' : isSelected ? 'text-white' : 'text-[#3D1A00]'}`}>
                               {item.date}
                             </span>
-                            <span className={`text-[10px] font-medium ${isDisabled ? 'text-slate-400' : 'text-[#6B3A2A]'}`}>
-                              ({item.day})
-                            </span>
+                            {item.day && (
+                              <span className={`text-[10px] font-medium ${isDisabled ? 'text-slate-400' : 'text-[#6B3A2A]'}`}>
+                                ({item.day})
+                              </span>
+                            )}
                           </div>
                           <h4 className={`text-xs font-bold mt-0.5 leading-snug ${isDisabled ? 'text-slate-400' : isSelected ? 'text-white' : 'text-[#3D1A00]'}`}>
                             {item.title}
@@ -1083,9 +1186,9 @@ export default function PoojaBookingModal({
                               ? status.reason === 'past'
                                 ? 'Date Passed'
                                 : status.reason === 'visarjan'
-                                ? 'Maha Visarjan (Bookings Closed)'
-                                : 'Bookings Closed'
-                              : item.theme}
+                                ? 'Bookings Closed'
+                                : 'Fully Booked'
+                              : item.theme || item.blessing}
                           </p>
                         </div>
                       </button>

@@ -7,7 +7,7 @@ export async function register() {
   if (process.env.NEXT_RUNTIME === 'nodejs') {
     try {
       const { startEmailQueueWorker } = await import('@/lib/email-queue');
-      startEmailQueueWorker();
+      // startEmailQueueWorker();
       console.log('[INSTRUMENTATION] Background Email Queue Worker registered successfully.');
     } catch (err) {
       console.error('[INSTRUMENTATION] Failed initializing Email Queue Worker:', err);

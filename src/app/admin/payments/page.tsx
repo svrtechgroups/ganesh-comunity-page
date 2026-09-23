@@ -23,6 +23,7 @@ import {
   CheckCircle2,
   AlertTriangle,
   BadgePercent,
+  Calendar,
 } from 'lucide-react';
 
 interface PaymentItem {
@@ -112,6 +113,10 @@ export default function AdminPaymentsPage() {
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [typeFilter, setTypeFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState('all');
+  const [eventFilter, setEventFilter] = useState('all');
+  const [availableEvents, setAvailableEvents] = useState<{ id: string; title: string; date: string }[]>([]);
+  const [runningCleanup, setRunningCleanup] = useState(false);
+  const [cleanupResultMsg, setCleanupResultMsg] = useState<string | null>(null);
   const [selectedPaymentDetail, setSelectedPaymentDetail] = useState<PaymentItem | null>(null);
 
   // Pagination state
@@ -136,6 +141,7 @@ export default function AdminPaymentsPage() {
       if (debouncedSearch) params.set('search', debouncedSearch);
       if (typeFilter !== 'all') params.set('type', typeFilter);
       if (statusFilter !== 'all') params.set('status', statusFilter);
+      if (eventFilter !== 'all') params.set('eventId', eventFilter);
 
       const [resPay, resSet] = await Promise.all([
         fetch(`/api/admin/payments?${params.toString()}`, { cache: 'no-store' }),
@@ -148,6 +154,7 @@ export default function AdminPaymentsPage() {
         setPayments(dataPay.data);
         if (dataPay.stats) setStats(dataPay.stats);
         if (dataPay.pagination) setPagination(dataPay.pagination);
+        if (Array.isArray(dataPay.events)) setAvailableEvents(dataPay.events);
       }
       if (dataSet.success && dataSet.data) {
         setSettings(dataSet.data);
@@ -157,7 +164,27 @@ export default function AdminPaymentsPage() {
     } finally {
       setLoading(false);
     }
-  }, [currentPage, itemsPerPage, debouncedSearch, typeFilter, statusFilter]);
+  }, [currentPage, itemsPerPage, debouncedSearch, typeFilter, statusFilter, eventFilter]);
+
+  const handleRunPendingCleanup = async () => {
+    if (!confirm('Run 24h pending payments cleanup? All pending payments created more than 24 hours ago will be marked as Failed (unfinished/unprocessed).')) return;
+    setRunningCleanup(true);
+    setCleanupResultMsg(null);
+    try {
+      const res = await fetch('/api/cron/cleanup-pending-payments', { method: 'POST' });
+      const data = await res.json();
+      if (data.success) {
+        setCleanupResultMsg(data.message || `Cleanup complete: ${data.updatedPaymentsCount} expired payment(s) marked as Failed.`);
+        fetchPaymentsData();
+      } else {
+        alert(data.error || 'Failed to run cleanup.');
+      }
+    } catch {
+      alert('Network error while running pending payments cleanup.');
+    } finally {
+      setRunningCleanup(false);
+    }
+  };
 
   useEffect(() => {
     fetchPaymentsData();
@@ -197,6 +224,7 @@ export default function AdminPaymentsPage() {
       if (debouncedSearch) params.set('search', debouncedSearch);
       if (typeFilter !== 'all') params.set('type', typeFilter);
       if (statusFilter !== 'all') params.set('status', statusFilter);
+      if (eventFilter !== 'all') params.set('eventId', eventFilter);
 
       const res = await fetch(`/api/admin/payments?${params.toString()}`);
       const json = await res.json();
@@ -418,7 +446,17 @@ export default function AdminPaymentsPage() {
                 </p>
               </div>
 
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  onClick={handleRunPendingCleanup}
+                  disabled={runningCleanup}
+                  className="bg-amber-500/15 hover:bg-amber-500/25 text-amber-900 font-bold px-3 py-2 rounded-xl text-xs flex items-center gap-1.5 transition-colors border border-amber-500/30"
+                  title="Check and mark pending payments older than 24 hours as failed"
+                >
+                  <Clock className={`w-4 h-4 ${runningCleanup ? 'animate-spin' : ''}`} />
+                  <span>{runningCleanup ? 'Cleaning Up...' : 'Run 24h Pending Cleanup (Cron)'}</span>
+                </button>
+
                 <button
                   onClick={fetchPaymentsData}
                   disabled={loading}
@@ -440,6 +478,22 @@ export default function AdminPaymentsPage() {
               </div>
             </div>
 
+            {/* Cleanup Result Notification */}
+            {cleanupResultMsg && (
+              <div className="bg-amber-50 border border-amber-300 text-amber-900 px-4 py-3 rounded-2xl text-xs flex items-center justify-between gap-2 shadow-sm animate-in fade-in">
+                <div className="flex items-center gap-2">
+                  <CheckCircle2 className="w-4 h-4 text-amber-600 shrink-0" />
+                  <span className="font-semibold">{cleanupResultMsg}</span>
+                </div>
+                <button
+                  onClick={() => setCleanupResultMsg(null)}
+                  className="text-amber-700 hover:text-amber-950 font-bold text-xs"
+                >
+                  ✕
+                </button>
+              </div>
+            )}
+
             {/* Filter & Controls Bar */}
             <div className="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-4 bg-[#FFF8F0] p-4 rounded-2xl border border-[#E65C00]/20">
               {/* Search Bar */}
@@ -455,6 +509,27 @@ export default function AdminPaymentsPage() {
               </div>
 
               <div className="flex flex-wrap items-center gap-3">
+                {/* Event Filter */}
+                <div className="flex items-center gap-1.5 bg-white border border-[#E65C00]/30 rounded-xl px-3 py-1.5 text-xs">
+                  <Calendar className="w-3.5 h-3.5 text-[#E65C00]" />
+                  <span className="text-[#6B3A2A] font-semibold">Event:</span>
+                  <select
+                    value={eventFilter}
+                    onChange={(e) => {
+                      setEventFilter(e.target.value);
+                      setCurrentPage(1);
+                    }}
+                    className="bg-transparent text-[#3D1A00] font-bold focus:outline-none text-xs max-w-[200px] truncate"
+                  >
+                    <option value="all">All Events</option>
+                    {availableEvents.map((ev) => (
+                      <option key={ev.id} value={ev.id}>
+                        {ev.title} {ev.date ? `(${ev.date})` : ''}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
                 {/* Status Filter */}
                 <div className="flex items-center gap-1.5 bg-white border border-[#E65C00]/30 rounded-xl px-3 py-1.5 text-xs">
                   <Filter className="w-3.5 h-3.5 text-[#E65C00]" />
@@ -512,6 +587,27 @@ export default function AdminPaymentsPage() {
                 </div>
               </div>
             </div>
+
+            {/* Active Event Filter Banner */}
+            {eventFilter !== 'all' && (
+              <div className="flex items-center justify-between bg-amber-500/10 border border-amber-500/30 px-4 py-2.5 rounded-2xl text-xs">
+                <div className="flex items-center gap-2 text-amber-900 font-semibold">
+                  <Calendar className="w-4 h-4 text-[#E65C00]" />
+                  <span>
+                    Filtered by Event: <strong>{availableEvents.find((e) => e.id === eventFilter)?.title || eventFilter}</strong> (Showing only this event's revenue and ledger)
+                  </span>
+                </div>
+                <button
+                  onClick={() => {
+                    setEventFilter('all');
+                    setCurrentPage(1);
+                  }}
+                  className="bg-white hover:bg-amber-100 text-[#E65C00] font-bold px-2.5 py-1 rounded-lg border border-[#E65C00]/30 text-[11px] transition-colors"
+                >
+                  Show All Events
+                </button>
+              </div>
+            )}
 
             {/* Active Filters Pill Bar */}
             {(statusFilter !== 'all' || typeFilter !== 'all' || debouncedSearch) && (

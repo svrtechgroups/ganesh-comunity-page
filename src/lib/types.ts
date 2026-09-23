@@ -32,8 +32,20 @@ export interface EventItem {
   adultCapacity?: number;
   childCapacity?: number;
   availableDates?: string[];
+  eventSchedule?: EventScheduleDay[];
   mapUrl?: string;
   customFields?: CustomFieldDefinition[];
+}
+
+export interface EventScheduleDay {
+  id: string;
+  date: string;
+  dateLabel?: string;
+  day?: string;
+  title: string;
+  theme?: string;
+  blessing?: string;
+  badge?: string;
 }
 
 export interface LeadershipMember {

@@ -2,6 +2,8 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { EventItem } from '@/lib/types';
+import Link from 'next/link';
+
 import { 
   Plus, 
   Download, 
@@ -40,7 +42,7 @@ import {
 import { isYouTubeUrl, getYouTubeThumbnailUrl } from '@/lib/youtube';
 import MultiDateSelector from '@/components/admin/MultiDateSelector';
 import CustomFieldBuilder from '@/components/admin/CustomFieldBuilder';
-import { CustomFieldDefinition } from '@/lib/types';
+import { CustomFieldDefinition, EventItem, EventScheduleDay } from '@/lib/types';
 
 interface RSVPRecord {
   id: string;
@@ -146,6 +148,7 @@ export default function AdminEventsPage() {
   const [mapUrl, setMapUrl] = useState('');
   const [customFields, setCustomFields] = useState<CustomFieldDefinition[]>([]);
   const [availableDates, setAvailableDates] = useState<string[]>([]);
+  const [eventSchedule, setEventSchedule] = useState<EventScheduleDay[]>([]);
   const [uploadingBanner, setUploadingBanner] = useState(false);
   const [uploadingSlot, setUploadingSlot] = useState<number | null>(null);
 
@@ -174,6 +177,7 @@ export default function AdminEventsPage() {
     mapUrl: '',
     customFields: [] as CustomFieldDefinition[],
     availableDates: [] as string[],
+    eventSchedule: [] as EventScheduleDay[],
   });
   const [savingEdit, setSavingEdit] = useState(false);
   const [eventSlots, setEventSlots] = useState<(any | null)[]>([null, null, null, null]);
@@ -303,6 +307,11 @@ export default function AdminEventsPage() {
         ? evt.availableDates
         : (typeof evt.availableDates === 'string' && evt.availableDates
             ? (evt.availableDates as string).split(/[,\n]+/).map((s: string) => s.trim()).filter(Boolean)
+            : []),
+      eventSchedule: Array.isArray(evt.eventSchedule)
+        ? (evt.eventSchedule as EventScheduleDay[])
+        : (typeof evt.eventSchedule === 'string' && evt.eventSchedule
+            ? (() => { try { return JSON.parse(evt.eventSchedule as string); } catch { return []; } })()
             : []),
     });
     fetchEventFeaturedMedia(evt.id);
@@ -461,6 +470,7 @@ export default function AdminEventsPage() {
       mapUrl: mapUrl ? mapUrl.trim() : undefined,
       customFields,
       availableDates,
+      eventSchedule,
       rsvpCount: 0,
       featured: true,
     };
@@ -468,6 +478,7 @@ export default function AdminEventsPage() {
     setEvents((prev) => [newEvent, ...prev]);
     setShowAddForm(false);
     setAvailableDates([]);
+    setEventSchedule([]);
     setAdultCapacity(0);
     setChildCapacity(0);
     setMapUrl('');
@@ -750,7 +761,7 @@ export default function AdminEventsPage() {
           }`}
         >
           <BarChart3 className="w-4 h-4" />
-          <span>Per-Day RSVP Analytics ({dayAnalytics.length} Days)</span>
+          <span>Per-Day RSVP Analytics {selectedEventFilter !== 'all' ? `(${dayAnalytics.length} Days)` : ''}</span>
         </button>
 
         <button
@@ -954,8 +965,10 @@ export default function AdminEventsPage() {
                 <MultiDateSelector
                   dates={availableDates}
                   onChange={setAvailableDates}
-                  label="Select Darshan / Event Date(s) for RSVP"
-                  helperText="Pick multiple individual dates or generate a date range. Attendees will be able to select from these dates during registration."
+                  schedule={eventSchedule}
+                  onScheduleChange={setEventSchedule}
+                  label="Select Darshan / Event Date(s) for RSVP & Schedule"
+                  helperText="Pick multiple individual dates or generate a date range. You can customize deities, sacred rituals, and themes for each date directly below."
                 />
               </div>
 
@@ -1085,13 +1098,13 @@ export default function AdminEventsPage() {
                         </span>
                       </td>
                       <td className="p-4 text-right space-x-2">
-                        <button
-                          onClick={() => openEditModal(evt)}
-                          className="bg-amber-500/20 hover:bg-amber-500/30 text-mitra-gold border border-amber-500/40 px-3 py-1.5 rounded-lg font-semibold text-[11px] inline-flex items-center gap-1 transition-colors"
+                        <Link
+                          href={`/admin/events/${evt.id}/edit`}
+                          className="bg-amber-500/20 hover:bg-amber-500/30 text-mitra-gold border border-amber-500/40 px-3 py-1.5 rounded-lg font-semibold text-[11px] inline-flex items-center gap-1.5 transition-colors"
                         >
                           <Edit3 className="w-3 h-3 text-mitra-gold" />
-                          <span>Edit &amp; Media</span>
-                        </button>
+                          <span>Edit Event</span>
+                        </Link>
 
                         <button
                           onClick={() => {
@@ -1169,6 +1182,24 @@ export default function AdminEventsPage() {
             </div>
           </div>
 
+          {selectedEventFilter === 'all' ? (
+            <div className="text-center py-12 px-4 rounded-2xl border border-dashed border-slate-800 bg-slate-950/40 space-y-3">
+              <CalendarDays className="w-10 h-10 text-mitra-gold mx-auto" />
+              <h3 className="text-base font-bold text-white">Select an Event to View Per-Day Analytics</h3>
+              <p className="text-xs text-slate-400 max-w-md mx-auto">
+                Daily schedule dates and attendee booking breakdowns are configured per event. Please select a specific event from the dropdown above to view its analytics.
+              </p>
+            </div>
+          ) : dayAnalytics.length === 0 ? (
+            <div className="text-center py-12 px-4 rounded-2xl border border-dashed border-slate-800 bg-slate-950/40 space-y-3">
+              <CalendarDays className="w-10 h-10 text-slate-600 mx-auto" />
+              <h3 className="text-base font-bold text-white">No Schedule Dates Configured</h3>
+              <p className="text-xs text-slate-400 max-w-md mx-auto">
+                This event does not have any daily schedule dates configured yet. You can edit this event to add schedule dates.
+              </p>
+            </div>
+          ) : (
+            <>
           {/* Day Cards Grid */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
             {dayAnalytics.map((day, idx) => {
@@ -1295,6 +1326,8 @@ export default function AdminEventsPage() {
               </tbody>
             </table>
           </div>
+          </>
+          )}
         </div>
       )}
 
@@ -1923,8 +1956,10 @@ export default function AdminEventsPage() {
                       <MultiDateSelector
                         dates={editFormData.availableDates}
                         onChange={(dates) => setEditFormData({ ...editFormData, availableDates: dates })}
-                        label="Select Darshan / Event Date(s) for RSVP"
-                        helperText="Pick multiple individual dates or generate a date range. Attendees will be able to select from these dates during registration."
+                        schedule={editFormData.eventSchedule}
+                        onScheduleChange={(schedule) => setEditFormData({ ...editFormData, eventSchedule: schedule })}
+                        label="Select Darshan / Event Date(s) for RSVP & Schedule"
+                        helperText="Pick multiple individual dates or generate a date range. You can customize deities, sacred rituals, and themes for each date directly below."
                       />
                     </div>
 

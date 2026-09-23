@@ -204,6 +204,7 @@ export default function EventCard({ event, onRSVP }: { event: EventItem; onRSVP?
         <PoojaBookingModal
           isOpen={poojaModalOpen}
           onClose={() => setPoojaModalOpen(false)}
+          event={event}
         />
       )}
     </>

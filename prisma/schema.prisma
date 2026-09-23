@@ -35,6 +35,7 @@ model Event {
   adultCapacity        Int?     @default(0) // 0 = no separate limit (bounded by total capacity)
   childCapacity        Int?     @default(0) // 0 = no separate limit (bounded by total capacity)
   availableDates       String[] @default([])
+  eventSchedule        Json?    @default("[]")
 
   // Venue Map & Custom Form Fields:
   mapUrl       String?

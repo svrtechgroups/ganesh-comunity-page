@@ -45,8 +45,8 @@ export async function GET() {
 
     // Count occurrences by poojaDate column or parsing description string
     payments.forEach(p => {
-      if (p.poojaDate && counts[p.poojaDate] !== undefined) {
-        counts[p.poojaDate] += 1;
+      if (p.poojaDate) {
+        counts[p.poojaDate] = (counts[p.poojaDate] || 0) + 1;
         return;
       }
 

@@ -1,21 +1,84 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { MapPin, Calendar, Clock, Download, ExternalLink, Sparkles, Flame, Heart, Utensils, Star, CheckCircle, Ticket } from 'lucide-react';
-import { POOJA_DATES, getPoojaDateStatus } from '@/components/PoojaBookingModal';
+import { POOJA_DATES, getPoojaDateStatus, PoojaDateOption } from '@/components/PoojaBookingModal';
+import { EventItem } from '@/lib/types';
+import { getEventSchedule } from '@/lib/event-schedule';
 
 interface EventDetailsSectionProps {
+  event?: EventItem | null;
+  eventId?: string;
   onOpenPoojaBooking?: (dateId?: string) => void;
   onOpenDonation?: (cat?: 'Annadanam' | 'Event Donations') => void;
   onOpenRSVP?: () => void;
 }
 
 export default function EventDetailsSection({
+  event,
+  eventId,
   onOpenPoojaBooking,
   onOpenDonation,
   onOpenRSVP,
 }: EventDetailsSectionProps) {
+  const [activeEvent, setActiveEvent] = useState<EventItem | null>(event || null);
   const [dbCounts, setDbCounts] = useState<Record<string, number>>({});
+
+  useEffect(() => {
+    if (event) {
+      setActiveEvent(event);
+      return;
+    }
+    let isMounted = true;
+    const fetchEvent = async () => {
+      try {
+        const url = eventId ? `/api/events?id=${encodeURIComponent(eventId)}` : '/api/events';
+        const res = await fetch(url, { cache: 'no-store' });
+        const json = await res.json();
+        if (!isMounted) return;
+
+        if (json.success) {
+          if (eventId && json.data && !Array.isArray(json.data)) {
+            setActiveEvent(json.data);
+          } else if (Array.isArray(json.data)) {
+            const matched = eventId
+              ? json.data.find((e: any) => e.id === eventId)
+              : json.data.find(
+                  (e: any) =>
+                    e.id === 'evt-ganesh-chaturthi' ||
+                    e.title?.toLowerCase().includes('ganesh') ||
+                    e.enablePooja
+                ) || json.data[0];
+            if (matched) {
+              setActiveEvent(matched);
+            }
+          }
+        }
+      } catch (err) {
+        console.error('Failed to fetch event dates for EventDetailsSection:', err);
+      }
+    };
+    fetchEvent();
+    return () => {
+      isMounted = false;
+    };
+  }, [event, eventId]);
+
+  const scheduleDays: PoojaDateOption[] = useMemo(() => {
+    const s = getEventSchedule(activeEvent);
+    if (s && s.length > 0) {
+      return s.map((item, idx) => ({
+        id: item.id || `day-${idx + 1}`,
+        date: item.date || item.dateLabel || `Day ${idx + 1}`,
+        day: item.day || '',
+        title: item.title || `Day ${idx + 1}`,
+        theme: item.theme || '',
+        blessing: item.blessing || item.theme || '',
+        badge: item.badge,
+      }));
+    }
+    return POOJA_DATES;
+  }, [activeEvent]);
 
   useEffect(() => {
     const fetchCounts = async () => {
@@ -78,9 +141,9 @@ export default function EventDetailsSection({
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-            {POOJA_DATES.map((dayItem, idx) => {
+            {scheduleDays.map((dayItem, idx) => {
               const count = getBookingCount(dayItem.date);
-              const status = getPoojaDateStatus(dayItem.date, count);
+              const status = getPoojaDateStatus(dayItem.date, count, dayItem.badge);
               const isUnavailable = status.disabled;
               return (
                 <div
