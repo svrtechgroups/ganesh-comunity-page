@@ -108,7 +108,7 @@ export async function GET(request: Request) {
           // Find matching key in dayStatsMap (direct match or partial date label match)
           let matchedKey = dayStatsMap.has(d) ? d : null;
           if (!matchedKey) {
-            for (const [k] of dayStatsMap.entries()) {
+            for (const [k] of Array.from(dayStatsMap.entries())) {
               if (k.toLowerCase() === d.toLowerCase() || d.toLowerCase().includes(k.toLowerCase()) || k.toLowerCase().includes(d.toLowerCase())) {
                 matchedKey = k;
                 break;

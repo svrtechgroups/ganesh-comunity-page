@@ -42,7 +42,10 @@ export default function EventsPage() {
   const categories = ['All', 'Cultural Events', 'Business Networking', 'Sports', 'Women Empowerment', 'World Conferences'];
 
   const filteredEvents = events.filter((evt) => {
-    const matchesStatus = evt.status === statusFilter;
+    const matchesStatus =
+      statusFilter === 'Completed'
+        ? evt.status === 'Completed' || evt.status === 'Past'
+        : evt.status === 'Upcoming';
     const matchesCat = categoryFilter === 'All' || evt.category === categoryFilter;
     const matchesSearch =
       evt.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
