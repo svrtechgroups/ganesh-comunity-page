@@ -1,0 +1,406 @@
+{
+  "activeHomeEventId": "evt-ganesh-chaturthi",
+  "events": {
+    "evt-ganesh-chaturthi": {
+      "id": "evt-ganesh-chaturthi",
+      "title": "THE BIGGEST MAHA GANAPATHI",
+      "eventSlug": "ganesh-event-2026",
+      "targetDate": "2026-09-14T00:00:00.000Z",
+      "hero": {
+        "heroType": "3d-model",
+        "heroVariant": "3d-sanctum",
+        "modelUrl": "/assets/idols/Lord Ganesh.glb",
+        "modelScale": 2.8,
+        "proceduralFallback": "ganesha",
+        "showParticles": true,
+        "showCornerMotifs": true,
+        "showRadialAura": true,
+        "bannerImageUrl": "/assets/poster.jpg",
+        "videoUrl": "",
+        "presenterBadge": "Welcome to Mana Indian Telugu Roots Abroad (MITRA UK)",
+        "title": "THE BIGGEST MAHA GANAPATHI",
+        "subtitle": "LONDON GANESH MAHOTSAV 2026",
+        "tagline": "Streaming 3D Bappa Murti & Devotional Rays",
+        "loadingText": "ENTERING SANCTUM...",
+        "scrollCueText": "Scroll to Enter Sanctum",
+        "primaryColor": "#E65C00",
+        "accentColor": "#CC4000",
+        "backgroundColor": "#FFF8F0",
+        "primaryCta": {
+          "label": "Book Pooja / Seva",
+          "action": "pooja"
+        },
+        "secondaryCta": {
+          "label": "Make Donation",
+          "action": "donation"
+        },
+        "whatsAppUrl": "https://chat.whatsapp.com/IVqirWWzM96IBNRfhSWGEd"
+      },
+      "sections": {
+        "showCountdown": true,
+        "showEventDetails": true,
+        "showStory": true,
+        "showSpecs": true,
+        "showMediaGallery": true,
+        "showOfferings": true,
+        "showSponsors": true
+      },
+      "story": {
+        "badge": "THE DEVOTIONAL JOURNEY",
+        "quote": "“From Lalbaugcha Raja in Mumbai to Khairatabad Ganesh in Hyderabad… now London's own iconic Ganesha arrives in Slough.”",
+        "description": "Organized by MITRA UK in association with ELE Entertainments and presented by Biryanis and more!, the Maha Ganapathi Mahotsav represents a historic cultural milestone for the UK diaspora. Step into the sanctum, offer your prayers, and experience the divine presence of Bappa in Great Britain.",
+        "stats": [
+          {
+            "value": "5,000+",
+            "label": "Expected Devotees"
+          },
+          {
+            "value": "100%",
+            "label": "Eco-Friendly Clay Murti"
+          },
+          {
+            "value": "Grand Aarti",
+            "label": "Daily Vedic Celebrations"
+          }
+        ]
+      },
+      "specs": {
+        "badge": "IDOL SPECIFICATIONS & ARTISTRY",
+        "title": "THE MAHA GANAPATHI MURTI",
+        "subtitle": "Hand-sculpted by master artisans with traditional devotion, designed specifically for the historic Slough Mahotsav."
+      },
+      "updatedAt": "2026-09-24T09:10:14.852Z"
+    },
+    "evt-diwali-2026": {
+      "id": "evt-diwali-2026",
+      "title": "DIWALI FESTIVAL OF LIGHTS",
+      "eventSlug": "events/evt-diwali-2026",
+      "targetDate": "2026-11-08T00:00:00.000Z",
+      "hero": {
+        "heroType": "image",
+        "heroVariant": "image-fullscreen",
+        "modelUrl": "/assets/idols/Lord Ganesh.glb",
+        "modelScale": 2.8,
+        "proceduralFallback": "none",
+        "showParticles": true,
+        "showCornerMotifs": true,
+        "showRadialAura": true,
+        "bannerImageUrl": "/assets/diwali-banner.jpg",
+        "videoUrl": "",
+        "presenterBadge": "MITRA UK Grand Cultural Celebration",
+        "title": "DIWALI FESTIVAL OF LIGHTS",
+        "subtitle": "A NIGHT OF JOY, CULTURE & TRADITION",
+        "tagline": "Join 3,000+ Telugu families across Great Britain for grand fireworks, cultural programs & traditional feast",
+        "loadingText": "LOADING FESTIVAL...",
+        "scrollCueText": "Explore Celebrations & Passes",
+        "primaryColor": "#D97706",
+        "accentColor": "#B45309",
+        "backgroundColor": "#FFFBEB",
+        "primaryCta": {
+          "label": "Reserve Free Pass",
+          "action": "rsvp"
+        },
+        "secondaryCta": {
+          "label": "Join Community WhatsApp",
+          "action": "whatsapp"
+        },
+        "whatsAppUrl": "https://chat.whatsapp.com/IVqirWWzM96IBNRfhSWGEd"
+      },
+      "sections": {
+        "showCountdown": true,
+        "showEventDetails": true,
+        "showStory": true,
+        "showSpecs": false,
+        "showMediaGallery": true,
+        "showOfferings": true,
+        "showSponsors": true
+      },
+      "story": {
+        "badge": "THE FESTIVAL OF LIGHTS",
+        "quote": "“Celebrating the victory of light over darkness, knowledge over ignorance, and good over evil.”",
+        "description": "An unforgettable evening with traditional Telugu lamps, music, food stalls, and a stunning fireworks finale in London.",
+        "stats": [
+          {
+            "value": "3,000+",
+            "label": "Community Guests"
+          },
+          {
+            "value": "20+",
+            "label": "Food & Cultural Stalls"
+          },
+          {
+            "value": "Grand Fireworks",
+            "label": "London Sky Finale"
+          }
+        ]
+      },
+      "specs": {
+        "badge": "FESTIVAL HIGHLIGHTS",
+        "title": "LAMPS & FIREWORKS SPECTACULAR",
+        "subtitle": "London's premier South Asian family cultural festival."
+      },
+      "updatedAt": "2026-09-23T11:57:29.961Z"
+    },
+    "evt-ugadi-2027": {
+      "id": "evt-ugadi-2027",
+      "title": "Ugadi Telugu New Year Celebration 2027",
+      "eventSlug": "events/evt-ugadi-2027",
+      "targetDate": "2027-03-28T10:00:00.000Z",
+      "hero": {
+        "heroType": "3d-model",
+        "heroVariant": "3d-split",
+        "modelUrl": "/assets/idols/Lord Ganesh.glb",
+        "modelScale": 2.8,
+        "proceduralFallback": "none",
+        "showParticles": false,
+        "showCornerMotifs": false,
+        "showRadialAura": false,
+        "bannerImageUrl": "/assets/poster.jpg",
+        "presenterBadge": "Mana Indian Telugu Roots Abroad • Plava Nama Samvatsara",
+        "title": "SRI UGADI VEDUVALU 2027",
+        "subtitle": "UK TELUGU NEW YEAR EXTRAVAGANZA",
+        "tagline": "Panchanga Sravanam, Kavi Sammelanam, classical Kuchipudi recitals and community Ugadi Pachadi feast",
+        "loadingText": "ENTERING SANCTUM...",
+        "scrollCueText": "View Cultural Program",
+        "primaryColor": "#047857",
+        "accentColor": "#065F46",
+        "backgroundColor": "#F0FDF4",
+        "primaryCta": {
+          "label": "Register for Cultural Stage",
+          "action": "rsvp"
+        },
+        "secondaryCta": {
+          "label": "Sponsor Ugadi Pachadi",
+          "action": "donation"
+        },
+        "whatsAppUrl": "https://chat.whatsapp.com/IVqirWWzM96IBNRfhSWGEd"
+      },
+      "sections": {
+        "showCountdown": true,
+        "showEventDetails": true,
+        "showStory": true,
+        "showSpecs": false,
+        "showMediaGallery": true,
+        "showOfferings": true,
+        "showSponsors": true
+      },
+      "story": {
+        "badge": "TRADITION & HERITAGE",
+        "quote": "“Welcoming the Telugu New Year with sacred Panchanga blessings and the six tastes of life.”",
+        "description": "Join MITRA UK in welcoming Sri Plava Nama Samvatsara with Vedic scholars, live music, poetry forum, and authentic festive lunch.",
+        "stats": [
+          {
+            "value": "1,500+",
+            "label": "Diaspora Attendees"
+          },
+          {
+            "value": "Shadruchulu",
+            "label": "Authentic Ugadi Pachadi"
+          },
+          {
+            "value": "50+ Artists",
+            "label": "Kuchipudi & Classical Music"
+          }
+        ]
+      },
+      "specs": {
+        "badge": "FESTIVAL HIGHLIGHTS",
+        "title": "PANCHANGA SRAVANAM & KAVI SAMMELANAM",
+        "subtitle": "Vedic astrology predictions for the new year and distinguished diaspora poets."
+      },
+      "updatedAt": "2026-09-14T10:30:00.000Z"
+    },
+    "evt-business-summit-2027": {
+      "id": "evt-business-summit-2027",
+      "title": "UK-India Telugu Business & Tech Summit 2027",
+      "eventSlug": "events/evt-business-summit-2027",
+      "targetDate": "2027-05-15T09:00:00.000Z",
+      "hero": {
+        "heroType": "image",
+        "heroVariant": "image-split",
+        "bannerImageUrl": "/assets/tech-summit-banner.jpg",
+        "videoUrl": "",
+        "presenterBadge": "MITRA UK Business & Innovation Forum",
+        "title": "UK-INDIA TECH & TRADE SUMMIT",
+        "subtitle": "FOSTERING GLOBAL TELUGU ENTREPRENEURSHIP",
+        "tagline": "Connecting 500+ Telugu founders, investors, enterprise leaders & innovators across London and India",
+        "loadingText": "LOADING SUMMIT...",
+        "scrollCueText": "View Summit Tracks & Speakers",
+        "primaryColor": "#1E3A8A",
+        "accentColor": "#1D4ED8",
+        "backgroundColor": "#F8FAFC",
+        "primaryCta": {
+          "label": "Get Delegate Pass",
+          "action": "rsvp"
+        },
+        "secondaryCta": {
+          "label": "Connect on WhatsApp",
+          "action": "whatsapp"
+        },
+        "whatsAppUrl": "https://chat.whatsapp.com/IVqirWWzM96IBNRfhSWGEd"
+      },
+      "sections": {
+        "showCountdown": true,
+        "showEventDetails": true,
+        "showStory": true,
+        "showSpecs": true,
+        "showMediaGallery": true,
+        "showOfferings": false,
+        "showSponsors": true
+      },
+      "story": {
+        "badge": "INNOVATION & ENTERPRISE",
+        "quote": "“Bridging Hyderabad’s booming innovation corridor with London’s world-class financial ecosystem.”",
+        "description": "Keynotes from UK and Indian ministers, cross-border venture funds, live startup pitch arena, and curated B2B matchmaking.",
+        "stats": [
+          {
+            "value": "500+",
+            "label": "Delegates & Founders"
+          },
+          {
+            "value": "£50M+",
+            "label": "Combined Investment Capacity"
+          },
+          {
+            "value": "4 Tracks",
+            "label": "AI, FinTech, Real Estate, Health"
+          }
+        ]
+      },
+      "specs": {
+        "badge": "SUMMIT TRACKS",
+        "title": "EXECUTIVE SESSIONS & WORKSHOPS",
+        "subtitle": "Deep-dive masterclasses in international expansion, corporate taxation, and seed funding."
+      },
+      "updatedAt": "2026-09-14T10:30:00.000Z"
+    },
+    "evt-cricket-fest-2027": {
+      "id": "evt-cricket-fest-2027",
+      "title": "MITRA UK Premier Cricket Championship 2027",
+      "eventSlug": "events/evt-cricket-fest-2027",
+      "targetDate": "2027-06-20T08:30:00.000Z",
+      "hero": {
+        "heroType": "image",
+        "heroVariant": "image-card-showcase",
+        "bannerImageUrl": "/assets/cricket-banner.jpg",
+        "videoUrl": "",
+        "presenterBadge": "MITRA UK Annual Sports Carnival",
+        "title": "MITRA PREMIER LEAGUE 2027",
+        "subtitle": "ANNUAL T20 COMMUNITY CRICKET CUP",
+        "tagline": "16 Telugu diaspora cricket clubs battling for the prestigious MITRA UK Champions Trophy",
+        "loadingText": "LOADING TOURNAMENT...",
+        "scrollCueText": "View Fixtures & Team Rules",
+        "primaryColor": "#DC2626",
+        "accentColor": "#B91C1C",
+        "backgroundColor": "#FEF2F2",
+        "primaryCta": {
+          "label": "Register Your Club Team",
+          "action": "rsvp"
+        },
+        "secondaryCta": {
+          "label": "Join Captains Group",
+          "action": "whatsapp"
+        },
+        "whatsAppUrl": "https://chat.whatsapp.com/IVqirWWzM96IBNRfhSWGEd"
+      },
+      "sections": {
+        "showCountdown": true,
+        "showEventDetails": true,
+        "showStory": true,
+        "showSpecs": true,
+        "showMediaGallery": true,
+        "showOfferings": true,
+        "showSponsors": true
+      },
+      "story": {
+        "badge": "COMMUNITY SPORTS & CAMARADERIE",
+        "quote": "“Passion, sportsmanship, and Telugu community pride on London’s finest cricket turf.”",
+        "description": "Full-day festival featuring league round-robins, knockout finals, live DJ commentary, children’s play zone, and South Indian food trucks.",
+        "stats": [
+          {
+            "value": "16 Clubs",
+            "label": "Teams Across UK"
+          },
+          {
+            "value": "32 Matches",
+            "label": "T20 Action Packed"
+          },
+          {
+            "value": "£2,500",
+            "label": "Cash Prize & Trophy"
+          }
+        ]
+      },
+      "specs": {
+        "badge": "TOURNAMENT SPECS",
+        "title": "GROUND VENUE & MATCH BALL",
+        "subtitle": "ECB-standard turf wickets, certified umpires, digital scoring and live YouTube stream."
+      },
+      "updatedAt": "2026-09-14T10:30:00.000Z"
+    },
+    "evt-film-carnival-2027": {
+      "id": "evt-film-carnival-2027",
+      "title": "UK Telugu Youth Film & Music Carnival 2027",
+      "eventSlug": "events/evt-film-carnival-2027",
+      "targetDate": "2027-07-18T16:00:00.000Z",
+      "hero": {
+        "heroType": "video",
+        "heroVariant": "video-theater",
+        "bannerImageUrl": "/assets/diwali-banner.jpg",
+        "videoUrl": "",
+        "presenterBadge": "MITRA UK Youth & Media Wing",
+        "title": "UK TELUGU FILM & MUSIC CARNIVAL",
+        "subtitle": "CELEBRATING TOLLYWOOD CINEMA & YOUTH TALENT",
+        "tagline": "Short film screenings, celebrity director Q&A, Tollywood musical night, and young creator awards in Central London",
+        "loadingText": "LOADING THEATER...",
+        "scrollCueText": "View Screening Schedule",
+        "primaryColor": "#9333EA",
+        "accentColor": "#7E22CE",
+        "backgroundColor": "#FAF5FF",
+        "primaryCta": {
+          "label": "Reserve Premiere Pass",
+          "action": "rsvp"
+        },
+        "secondaryCta": {
+          "label": "Join Creators WhatsApp",
+          "action": "whatsapp"
+        },
+        "whatsAppUrl": "https://chat.whatsapp.com/IVqirWWzM96IBNRfhSWGEd"
+      },
+      "sections": {
+        "showCountdown": true,
+        "showEventDetails": true,
+        "showStory": true,
+        "showSpecs": true,
+        "showMediaGallery": true,
+        "showOfferings": true,
+        "showSponsors": true
+      },
+      "story": {
+        "badge": "CINEMA & CREATIVITY",
+        "quote": "“Empowering the next generation of Telugu filmmakers, musicians, and digital creators in the UK.”",
+        "description": "A vibrant celebration of South Indian cinema featuring short film competitions, red carpet celebrity interactions, live acoustic bands, and filmmaking masterclasses.",
+        "stats": [
+          {
+            "value": "1,000+",
+            "label": "Film Enthusiasts"
+          },
+          {
+            "value": "25+",
+            "label": "Short Films Screened"
+          },
+          {
+            "value": "£3,000",
+            "label": "Young Creator Awards"
+          }
+        ]
+      },
+      "specs": {
+        "badge": "CARNIVAL HIGHLIGHTS",
+        "title": "4K THEATER PROJECTION & SOUND",
+        "subtitle": "State of the art Dolby Atmos theater projection and live red carpet stream."
+      },
+      "updatedAt": "2026-09-14T10:45:00.000Z"
+    }
+  }
+}

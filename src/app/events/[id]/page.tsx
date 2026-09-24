@@ -20,6 +20,7 @@ import {
   Share2,
   Check,
 } from 'lucide-react';
+import EventLandingTemplate from '@/components/EventLandingTemplate';
 import Ganesha3DHero from '@/components/Ganesha3DHero';
 import RitualCountdown from '@/components/RitualCountdown';
 import EventDetailsSection from '@/components/EventDetailsSection';
@@ -62,16 +63,46 @@ export default function EventDetailPage() {
     setLoading(true);
     fetch('/api/events')
       .then((res) => res.json())
-      .then((resData) => {
+      .then(async (resData) => {
+        let found: EventItem | null = null;
         if (resData.success && Array.isArray(resData.data)) {
-          const found = resData.data.find((e: EventItem) => e.id === id) ||
-            resData.data.find((e: EventItem) => (id === 'evt-ganesh-chaturthi' || id === 'evt-101') && e.title.toLowerCase().includes('ganesh'));
-          if (found) {
-            setEvent(found);
-            setRsvpCount(found.rsvpCount || 0);
-          } else {
-            setEvent(null);
-          }
+          found = resData.data.find((e: EventItem) => e.id === id) ||
+            resData.data.find((e: EventItem) => e.id.toLowerCase() === id.toLowerCase()) ||
+            resData.data.find((e: EventItem) => (id === 'evt-ganesh-chaturthi' || id === 'evt-101') && e.title.toLowerCase().includes('ganesh')) || null;
+        }
+
+        // If not found in DB events, check template config storage
+        if (!found) {
+          try {
+            const resTpl = await fetch(`/api/config/preferences?eventId=${encodeURIComponent(id)}`);
+            const tplJson = await resTpl.json();
+            if (tplJson.success && (tplJson.templateConfig || tplJson.data)) {
+              const tpl = tplJson.templateConfig || tplJson.data;
+              found = {
+                id: tpl.id,
+                title: tpl.title,
+                category: 'Cultural Events',
+                date: tpl.targetDate ? tpl.targetDate.slice(0, 10) : '2027-01-01',
+                time: '10:00 AM',
+                venue: 'London, United Kingdom',
+                address: 'Slough / London, United Kingdom',
+                ticketPrice: 0,
+                status: 'Upcoming',
+                description: tpl.hero?.tagline || tpl.title,
+                bannerUrl: tpl.hero?.bannerImageUrl || '/assets/poster.jpg',
+                capacity: 1000,
+                rsvpCount: 250,
+                featured: true,
+              };
+            }
+          } catch {}
+        }
+
+        if (found) {
+          setEvent(found);
+          setRsvpCount(found.rsvpCount || 0);
+        } else {
+          setEvent(null);
         }
       })
       .catch((err) => {
@@ -100,7 +131,7 @@ export default function EventDetailPage() {
   }
 
   const jsonLd = generateEventJsonLd(event);
-  const isGaneshEvent = id === 'evt-ganesh-chaturthi' || id === 'evt-101' || event.title.toLowerCase().includes('ganesh');
+  const isTemplateEvent = id.startsWith('evt-') || (event.id && event.id.startsWith('evt-'));
 
   const handleICSDownload = () => {
     const icsData = `BEGIN:VCALENDAR
@@ -128,10 +159,15 @@ END:VCALENDAR`;
     rsvpCount >= event.capacity
   );
 
+  const isGaneshEvent =
+    event.id === 'evt-ganesh-chaturthi' ||
+    event.id === 'evt-101' ||
+    event.title.toLowerCase().includes('ganesh');
+
   // If viewing Ganesh Chaturthi event, render the full Home Page experience with 3D Ganesha & Puja booking!
   if (isGaneshEvent) {
     return (
-      <div className="bg-[#FFF8F0] text-[#3D1A00] min-h-screen">
+      <div className="bg-[#FFF8F0] min-h-screen">
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
@@ -189,6 +225,19 @@ END:VCALENDAR`;
           />
         )}
       </div>
+    );
+  }
+
+  // If viewing any template-enabled event, render the full Landing Template experience!
+  if (isTemplateEvent) {
+    return (
+      <>
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+        />
+        <EventLandingTemplate eventId={event.id || id} />
+      </>
     );
   }
 

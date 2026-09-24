@@ -2,24 +2,51 @@
 
 import { Award, Shield, Sparkles, HeartHandshake, Feather } from 'lucide-react';
 
-export default function IdolSpecsCard() {
+interface IdolSpecsCardProps {
+  specs?: {
+    badge?: string;
+    title?: string;
+    subtitle?: string;
+  };
+  primaryColor?: string;
+  bannerImageUrl?: string;
+}
+
+export default function IdolSpecsCard({
+  specs,
+  primaryColor = '#E65C00',
+  bannerImageUrl = '/assets/poster.jpg',
+}: IdolSpecsCardProps) {
+  const badge = specs?.badge || 'IDOL SPECIFICATIONS & ARTISTRY';
+  const title = specs?.title || 'THE MAHA GANAPATHI MURTI';
+  const subtitle =
+    specs?.subtitle ||
+    'Hand-sculpted by master artisans with traditional devotion, designed specifically for the historic Slough Mahotsav.';
+
   return (
     <section className="py-20 bg-[#FFF8F0] text-[#3D1A00] relative overflow-hidden">
       <div className="max-w-6xl mx-auto px-4 relative z-10">
         
         {/* Section Header */}
         <div className="text-center space-y-3 mb-16">
-          <div className="inline-flex items-center gap-2 bg-[#FFF0E0] border border-[#E65C00]/30 px-4 py-1 rounded-full text-xs font-extrabold text-[#E65C00] uppercase tracking-widest shadow-sm">
-            <Award className="w-4 h-4 text-[#E65C00]" />
-            <span>IDOL SPECIFICATIONS &amp; ARTISTRY</span>
+          <div
+            className="inline-flex items-center gap-2 px-4 py-1 rounded-full text-xs font-extrabold uppercase tracking-widest shadow-sm border"
+            style={{
+              backgroundColor: `${primaryColor}15`,
+              borderColor: `${primaryColor}40`,
+              color: primaryColor,
+            }}
+          >
+            <Award className="w-4 h-4" style={{ color: primaryColor }} />
+            <span>{badge}</span>
           </div>
 
           <h2 className="text-3xl sm:text-5xl font-black font-cinzel gold-foil-text tracking-wider">
-            THE MAHA GANAPATHI MURTI
+            {title}
           </h2>
 
           <p className="max-w-xl mx-auto text-xs sm:text-sm text-[#6B3A2A] leading-relaxed">
-            Hand-sculpted by master artisans with traditional devotion, designed specifically for the historic Slough Mahotsav.
+            {subtitle}
           </p>
         </div>
 

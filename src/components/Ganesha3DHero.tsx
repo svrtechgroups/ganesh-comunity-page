@@ -1,5 +1,7 @@
 'use client';
 
+import React from 'react';
+import EventHero from './EventHero';
 import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import * as THREE from 'three';
@@ -15,6 +17,10 @@ interface Ganesha3DHeroProps {
   onRegisterClick?: () => void;
 }
 
+/**
+ * Ganesha3DHero
+ * Legacy wrapper around generalized EventHero with default Ganesh 2026 3D sanctum settings.
+ */
 export default function Ganesha3DHero({
   onBookPoojaClick,
   onPoojaClick,
@@ -23,6 +29,7 @@ export default function Ganesha3DHero({
   onRSVPClick,
   onRegisterClick,
 }: Ganesha3DHeroProps) {
+  const isHomeMode = !onBookPoojaClick && !onDonateClick;
   const handlePooja = onBookPoojaClick || onPoojaClick;
   const handleRSVP = onRSVPClick || onRegisterClick;
   const mountRef = useRef<HTMLDivElement>(null);
@@ -389,38 +396,24 @@ export default function Ganesha3DHero({
 
         {/* Action CTAs */}
         <div className="flex flex-wrap items-center justify-center gap-4 pt-2">
-          {handlePooja || onDonateClick || handleRSVP ? (
-            // ── Event page: show enabled action buttons ───────────────
+          {onBookPoojaClick && onDonateClick ? (
+            // ── Event page: show Pooja + Donate buttons ──────────────────────
             <>
-              {handleRSVP && (
-                <button
-                  onClick={handleRSVP}
-                  className="gold-button px-8 py-3.5 rounded-full text-sm font-black uppercase tracking-wider flex items-center gap-2.5 hover:scale-105 transition-all shadow-xl"
-                >
-                  <Ticket className="w-5 h-5 text-white" />
-                  <span>Register / RSVP Now</span>
-                </button>
-              )}
+              <button
+                onClick={onBookPoojaClick}
+                className="gold-button px-8 py-3.5 rounded-full text-sm font-black uppercase tracking-wider flex items-center gap-2.5 hover:scale-105 transition-all"
+              >
+                <Flame className="w-5 h-5 fill-current text-white" />
+                <span>Book Pooja / Seva</span>
+              </button>
 
-              {handlePooja && (
-                <button
-                  onClick={handlePooja}
-                  className="gold-button px-8 py-3.5 rounded-full text-sm font-black uppercase tracking-wider flex items-center gap-2.5 hover:scale-105 transition-all shadow-xl"
-                >
-                  <Flame className="w-5 h-5 fill-current text-white" />
-                  <span>Make Event Payment</span>
-                </button>
-              )}
-
-              {onDonateClick && (
-                <button
-                  onClick={onDonateClick}
-                  className="maroon-button px-8 py-3.5 rounded-full text-sm font-black uppercase tracking-wider flex items-center gap-2.5 shadow-xl hover:scale-105 transition-all border border-[#E65C00]/30"
-                >
-                  <Heart className="w-5 h-5 text-[#FF9A3C] fill-current" />
-                  <span>Make a Booking</span>
-                </button>
-              )}
+              <button
+                onClick={onDonateClick}
+                className="maroon-button px-8 py-3.5 rounded-full text-sm font-black uppercase tracking-wider flex items-center gap-2.5 shadow-xl hover:scale-105 transition-all border border-[#E65C00]/30"
+              >
+                <Heart className="w-5 h-5 text-[#FF9A3C] fill-current" />
+                <span>Make Donation</span>
+              </button>
             </>
           ) : (
             // ── Home page: show WhatsApp + View Event ─────────────────────────
