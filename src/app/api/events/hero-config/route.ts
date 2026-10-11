@@ -24,7 +24,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({
       success: true,
       activeHomeEventId: featuredData.activeHomeEventId,
-      data: featuredData.templateConfig,
+      data: featuredData.preferences,
     });
   } catch (error) {
     console.error('Error fetching hero config from Config table:', error);

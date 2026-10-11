@@ -35,31 +35,61 @@ export async function POST(request: Request) {
       );
     }
 
-    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://mitra.org.uk';
+    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://mitrauk.com';
     const resolvedImageUrl = imageUrl?.trim()
       ? (imageUrl.startsWith('http') ? imageUrl.trim() : `${baseUrl}${imageUrl.startsWith('/') ? '' : '/'}${imageUrl.trim()}`)
       : null;
 
-    // Build member query
-    const where: any = {};
-    if (targetAudience === 'active') {
-      where.status = 'Active';
-    } else if (targetAudience && targetAudience !== 'all') {
-      where.tier = { contains: targetAudience, mode: 'insensitive' };
-    }
+    let members: any[] = [];
+    
+    if (targetAudience.startsWith('event_')) {
+      const eventId = targetAudience.replace('event_', '');
+      const rsvps = await prisma.eventRSVP.findMany({
+        where: { eventId },
+        select: {
+          id: true,
+          attendeeName: true,
+          attendeeEmail: true,
+        }
+      });
+      
+      // Deduplicate by email
+      const emailMap = new Map();
+      for (const rsvp of rsvps) {
+        if (!emailMap.has(rsvp.attendeeEmail.toLowerCase())) {
+          emailMap.set(rsvp.attendeeEmail.toLowerCase(), {
+            id: rsvp.id,
+            fullName: rsvp.attendeeName,
+            email: rsvp.attendeeEmail,
+            phone: '',
+            tier: 'Event Registrant',
+            status: 'Active'
+          });
+        }
+      }
+      members = Array.from(emailMap.values());
+    } else {
+      // Build member query
+      const where: any = {};
+      if (targetAudience === 'active') {
+        where.status = 'Active';
+      } else if (targetAudience && targetAudience !== 'all') {
+        where.tier = { contains: targetAudience, mode: 'insensitive' };
+      }
 
-    const members = await prisma.member.findMany({
-      where,
-      select: {
-        id: true,
-        fullName: true,
-        email: true,
-        phone: true,
-        tier: true,
-        status: true,
-      },
-      orderBy: { createdAt: 'desc' },
-    });
+      members = await prisma.member.findMany({
+        where,
+        select: {
+          id: true,
+          fullName: true,
+          email: true,
+          phone: true,
+          tier: true,
+          status: true,
+        },
+        orderBy: { createdAt: 'desc' },
+      });
+    }
 
     if (!members || members.length === 0) {
       return NextResponse.json(

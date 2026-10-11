@@ -17,7 +17,7 @@ export const INITIAL_CHARITY_CASES: CharityCase[] = [
   {
     id: 'MITRA-HELP-1093',
     name: 'Confidential Beneficiary',
-    email: 'help.welfare@mitra.org.uk',
+    email: 'help.welfare@mitrauk.com',
     phone: '+44 7700 900456',
     category: 'Women Helpline',
     details: 'Domestic support request and legal advisory referral.',

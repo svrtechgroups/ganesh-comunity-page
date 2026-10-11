@@ -130,7 +130,7 @@ function LoginForm() {
                 required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder={activeTab === 'member' ? 'member@mitra.org.uk' : 'admin@mitra.org.uk'}
+                placeholder={activeTab === 'member' ? 'member@mitrauk.com' : 'admin@mitrauk.com'}
                 className="w-full bg-white border border-[#E65C00]/30 rounded-xl pl-10 pr-4 py-2.5 text-[#3D1A00] focus:border-[#E65C00] focus:outline-none placeholder:text-[#6B3A2A]/40"
               />
             </div>

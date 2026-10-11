@@ -110,7 +110,7 @@ function CheckoutForm({
       confirmParams: {
         return_url: typeof window !== 'undefined'
           ? `${window.location.origin}/events?payment=success`
-          : 'https://mitra.org.uk/events?payment=success',
+          : 'https://mitrauk.com/events?payment=success',
         payment_method_data: {
           billing_details: {
             name: donorName,
@@ -268,7 +268,16 @@ export default function EventRSVPModal({ event, onClose, onSuccess }: EventRSVPM
   const [supportAmount, setSupportAmount] = useState<number>(10);
   const [customResponses, setCustomResponses] = useState<Record<string, any>>({});
 
-  const [step, setStep] = useState<'details' | 'payment' | 'confirmed'>('details');
+  // Guest capture state
+  const [guestName, setGuestName] = useState('');
+  const [guestEmail, setGuestEmail] = useState('');
+  const [guestPhone, setGuestPhone] = useState('');
+  const [guestSubmitting, setGuestSubmitting] = useState(false);
+  const [guestError, setGuestError] = useState<string | null>(null);
+
+  const [step, setStep] = useState<'guest-details' | 'details' | 'payment' | 'confirmed'>(
+    user ? 'details' : 'guest-details'
+  );
   const [submitting, setSubmitting] = useState(false);
   const [ticketDetails, setTicketDetails] = useState<any>(null);
   const [wasNewUser, setWasNewUser] = useState(false);
@@ -295,8 +304,51 @@ export default function EventRSVPModal({ event, onClose, onSuccess }: EventRSVPM
       if (!attendeeName && user.fullName) setAttendeeName(user.fullName);
       if (!attendeeEmail && user.email) setAttendeeEmail(user.email);
       if (!attendeePhone && user.phone) setAttendeePhone(user.phone);
+      if (step === 'guest-details') setStep('details');
+    } else if (!user && step !== 'guest-details' && step !== 'confirmed' && step !== 'payment') {
+      setStep('guest-details');
     }
-  }, [user]);
+  }, [user, step, attendeeName, attendeeEmail, attendeePhone]);
+
+  const handleGuestSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setGuestSubmitting(true);
+    setGuestError(null);
+
+    try {
+      const res = await fetch('/api/auth/guest-register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          fullName: guestName.trim(),
+          email: guestEmail.trim(),
+          phone: guestPhone.trim(),
+        }),
+      });
+
+      const data = await res.json();
+
+      if (!data.success) {
+        setGuestError(data.error || 'Could not create your account. Please try again.');
+        return;
+      }
+
+      // Silently log in
+      login(data.user);
+
+      // Pre-fill devotee details
+      setAttendeeName(guestName.trim());
+      setAttendeeEmail(guestEmail.trim());
+      setAttendeePhone(guestPhone.trim());
+
+      // Move to RSVP booking details
+      setStep('details');
+    } catch {
+      setGuestError('Network error. Please check your connection and try again.');
+    } finally {
+      setGuestSubmitting(false);
+    }
+  };
 
   const adultPrice = Number(event.ticketPrice) || 0;
   const childPrice = Number(event.childTicketPrice) || 0;
@@ -330,7 +382,7 @@ export default function EventRSVPModal({ event, onClose, onSuccess }: EventRSVPM
   };
 
   // Submit RSVP Record to DB
-  const executeRsvpCreation = async (paymentIntentId?: string) => {
+  const executeRsvpCreation = async (paymentIntentId?: string, paymentStatusOverride?: string) => {
     const validDates = selectedDates.filter((d) => !isFestivalDatePast(d));
     const datesToSend = validDates.length > 0 ? validDates : selectedDates;
 
@@ -349,7 +401,7 @@ export default function EventRSVPModal({ event, onClose, onSuccess }: EventRSVPM
         selectedDates: datesToSend,
         totalAmount,
         supportAmount: supportTotal,
-        paymentStatus: totalAmount > 0 ? 'Completed' : 'Free',
+        paymentStatus: paymentStatusOverride || (totalAmount > 0 ? 'Pending' : 'Completed'),
         paymentIntentId,
         customResponses,
       }),
@@ -406,6 +458,34 @@ export default function EventRSVPModal({ event, onClose, onSuccess }: EventRSVPM
     setSubmitting(true);
     try {
       if (totalAmount > 0) {
+        // Create pending RSVP first
+        const rsvpRes = await fetch('/api/events/rsvp', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            eventId: event.id,
+            attendeeName,
+            attendeeEmail,
+            attendeePhone,
+            travellingFrom,
+            ticketsCount: totalTickets,
+            adultsCount,
+            childrenCount,
+            selectedDates: selectedDates.filter((d) => !isFestivalDatePast(d)),
+            totalAmount,
+            supportAmount: supportTotal,
+            paymentStatus: 'Pending',
+            customResponses,
+          }),
+        });
+
+        const rsvpData = await rsvpRes.json();
+        if (!rsvpData.success) {
+          setFormError(rsvpData.error || 'Failed to initiate RSVP. Please try again.');
+          setSubmitting(false);
+          return;
+        }
+
         // Paid registration or voluntary event support contribution: Create Stripe Payment Session
         const res = await fetch('/api/payments/create-session', {
           method: 'POST',
@@ -420,6 +500,7 @@ export default function EventRSVPModal({ event, onClose, onSuccess }: EventRSVPM
             eventId: event.id,
             eventName: event.title,
             donationType: 'event_rsvp',
+            rsvpId: rsvpData.data.rsvpId,
           }),
         });
         console.log(res);
@@ -435,7 +516,7 @@ export default function EventRSVPModal({ event, onClose, onSuccess }: EventRSVPM
         setStep('payment');
       } else {
         // Free registration: Create RSVP record immediately
-        await executeRsvpCreation();
+        await executeRsvpCreation(undefined, 'Completed');
       }
     } catch (err: any) {
       setFormError(err.message || 'Failed to process RSVP. Please try again.');
@@ -467,6 +548,111 @@ export default function EventRSVPModal({ event, onClose, onSuccess }: EventRSVPM
         >
           <X className="w-5 h-5" />
         </button>
+
+        {/* ── GUEST DETAILS (not logged in) ─────────────────────────────── */}
+        {step === 'guest-details' && (
+          <form onSubmit={handleGuestSubmit} className="space-y-5">
+            {/* Header */}
+            <div className="flex items-center gap-3 border-b border-[#E65C00]/25 pb-3 pr-8">
+              <div className="p-3 bg-[#FFF0E0] text-[#E65C00] rounded-2xl shadow-sm border border-[#E65C00]/30">
+                <Ticket className="w-6 h-6 fill-current text-[#E65C00]" />
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <h2 className="text-lg sm:text-xl font-black font-cinzel text-[#3D1A00]">EVENT RSVP PASS</h2>
+                </div>
+                <p className="text-xs text-[#6B3A2A]">Quick details — no account needed</p>
+              </div>
+            </div>
+
+            {/* Info banner */}
+            <div className="bg-[#FFF0E0] border border-[#E65C00]/25 rounded-xl p-3 flex items-start gap-2.5">
+              <AlertCircle className="w-4 h-4 text-[#E65C00] shrink-0 mt-0.5" />
+              <p className="text-[11px] text-[#6B3A2A] leading-relaxed">
+                Enter your details below. We'll create your free MITRA account instantly and email your login credentials — then take you straight to your RSVP booking.
+              </p>
+            </div>
+
+            {/* Name */}
+            <div>
+              <label className="flex items-center gap-1.5 text-xs font-bold text-[#6B3A2A] mb-1.5">
+                <User className="w-3.5 h-3.5 text-[#E65C00]" />
+                <span>Full Name *</span>
+              </label>
+              <input
+                type="text"
+                required
+                placeholder="e.g. Radhika Sharma"
+                value={guestName}
+                onChange={(e) => setGuestName(e.target.value)}
+                className="w-full bg-white border border-[#E65C00]/30 rounded-xl p-2.5 text-xs text-[#3D1A00] focus:border-[#E65C00] focus:outline-none placeholder:text-[#6B3A2A]/40"
+              />
+            </div>
+
+            {/* Email + Phone */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label className="flex items-center gap-1.5 text-xs font-bold text-[#6B3A2A] mb-1.5">
+                  <Mail className="w-3.5 h-3.5 text-[#E65C00]" />
+                  <span>Email Address *</span>
+                </label>
+                <input
+                  type="email"
+                  required
+                  placeholder="devotee@example.com"
+                  value={guestEmail}
+                  onChange={(e) => setGuestEmail(e.target.value)}
+                  className="w-full bg-white border border-[#E65C00]/30 rounded-xl p-2.5 text-xs text-[#3D1A00] focus:border-[#E65C00] focus:outline-none placeholder:text-[#6B3A2A]/40"
+                />
+              </div>
+              <div>
+                <label className="flex items-center gap-1.5 text-xs font-bold text-[#6B3A2A] mb-1.5">
+                  <Phone className="w-3.5 h-3.5 text-[#E65C00]" />
+                  <span>Phone / WhatsApp *</span>
+                </label>
+                <input
+                  type="tel"
+                  required
+                  placeholder="+44 7000 000000"
+                  value={guestPhone}
+                  onChange={(e) => setGuestPhone(e.target.value)}
+                  className="w-full bg-white border border-[#E65C00]/30 rounded-xl p-2.5 text-xs text-[#3D1A00] focus:border-[#E65C00] focus:outline-none placeholder:text-[#6B3A2A]/40"
+                />
+              </div>
+            </div>
+
+            {/* Guest error */}
+            {guestError && (
+              <div className="bg-red-50 border border-red-300 text-red-700 text-xs p-3 rounded-xl flex items-start gap-2 font-semibold">
+                <AlertCircle className="w-4 h-4 text-red-600 shrink-0 mt-0.5" />
+                <span>{guestError}</span>
+              </div>
+            )}
+
+            <div className="text-[11px] text-[#6B3A2A] flex items-center justify-center gap-1.5">
+              <Lock className="w-3.5 h-3.5 text-emerald-600" />
+              <span>Your details are kept private · PCI-DSS Encrypted</span>
+            </div>
+
+            <button
+              type="submit"
+              disabled={guestSubmitting}
+              className="gold-button w-full py-3.5 rounded-full text-xs font-black uppercase tracking-wider flex items-center justify-center gap-2 shadow-xl disabled:opacity-60 disabled:cursor-not-allowed"
+            >
+              {guestSubmitting ? (
+                <>
+                  <Loader2 className="w-4 h-4 text-white animate-spin" />
+                  <span>Setting up your account...</span>
+                </>
+              ) : (
+                <>
+                  <Ticket className="w-4 h-4 fill-current text-white" />
+                  <span>Continue to RSVP Booking →</span>
+                </>
+              )}
+            </button>
+          </form>
+        )}
 
         {/* ── STEP 1: DETAILS & SELECTION ─────────────────────────────────── */}
         {step === 'details' && (
@@ -833,12 +1019,13 @@ export default function EventRSVPModal({ event, onClose, onSuccess }: EventRSVPM
 
                 <div>
                   <label className="block text-[#6B3A2A] font-bold mb-1">
-                    Travelling From (City/Town)
+                    Travelling From (City/Town) *
                   </label>
                   <div className="relative">
                     <MapPin className="w-3.5 h-3.5 text-[#E65C00] absolute left-3 top-3" />
                     <input
                       type="text"
+                      required
                       placeholder="e.g. Slough, Wembley, Reading"
                       value={travellingFrom}
                       onChange={(e) => setTravellingFrom(e.target.value)}

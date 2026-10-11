@@ -22,62 +22,55 @@ import OfferingPlaques from '@/components/OfferingPlaques';
 import SponsorRibbonBand from '@/components/SponsorRibbonBand';
 
 export default function HomeVariantHeritage() {
-  const FESTIVAL_DAYS = [
+  const HERITAGE_PILLARS = [
     {
-      day: 'Day 1 · 13th Sept',
-      title: 'Prana Pratishtha & Maha Sankalpam',
-      telugu: 'ప్రాణ ప్రతిష్ఠ & మహా సంకల్పం',
-      desc: 'Invoking divine presence into the 21-ft eco-friendly clay Ganesha with Vedic chants by 7 vedic scholars.',
-      badge: 'Sacred Consecration'
+      pillar: 'Pillar 1',
+      title: 'Veda & Stotra Chanting',
+      telugu: 'వేద పఠనం & స్తోత్రములు',
+      desc: 'Preserving sacred Vedic recitations, shloka classes for children, and authentic ritual traditions across Britain.',
+      badge: 'Spiritual Roots'
     },
     {
-      day: 'Day 2 · 14th Sept',
-      title: 'Siddhi Vinayaka & Youth Sankalpam',
-      telugu: 'సిద్ధి వినాయక పూజ',
-      desc: 'Special blessings for children and young students for academic focus and auspicious beginnings.',
-      badge: 'Youth & Family'
+      pillar: 'Pillar 2',
+      title: 'Classical Arts & Kuchipudi',
+      telugu: 'శాస్త్రీయ నృత్యం & సంగీతం',
+      desc: 'Promoting authentic Andhra & Telangana classical dance, Carnatic vocal music, and youth artist showcases.',
+      badge: 'Cultural Arts'
     },
     {
-      day: 'Day 3 · 15th Sept',
-      title: 'Vidya Ganapathi Special Archana',
-      telugu: 'విద్యా గణపతి విశేషార్చన',
-      desc: 'Pen, notebook, and textbook samprokshana with Saraswati stotram recitals for school & university students.',
-      badge: 'Academic Seva'
+      pillar: 'Pillar 3',
+      title: 'Sahiti Sammelanam & Literature',
+      telugu: 'సాహితీ సమ్మేళనం & భాషా వికాసం',
+      desc: 'Celebrating classical Telugu poetry, literary discussions, Avadhanam, and creative writing workshops.',
+      badge: 'Telugu Sahityam'
     },
     {
-      day: 'Day 4 · 16th Sept',
-      title: 'Arogya Ganapathi & Ayushya Homam',
-      telugu: 'ఆరోగ్య గణపతి & ఆయుష్య హోమం',
-      desc: 'Prayers for health, well-being, and longevity for parents and elderly community members.',
-      badge: 'Health & Healing'
+      pillar: 'Pillar 4',
+      title: 'Annadanam & Temple Seva',
+      telugu: 'మహా అన్నదానం & స్వచ్ఛంద సేవ',
+      desc: 'Serving thousands of devotees and community members with warm satvik sanctified meals during all celebrations.',
+      badge: 'Seva & Feeding'
     },
     {
-      day: 'Day 5 · 17th Sept',
-      title: 'Maha Annadanam & Classical Arts',
-      telugu: 'మహా అన్నదానం & నాట్య వేడుక',
-      desc: 'Over 8,000 devotees served sanctified satvik bhojanam alongside non-stop Kuchipudi recitals.',
-      badge: 'Annadanam Seva'
+      pillar: 'Pillar 5',
+      title: 'Folk Traditions & Janapada Kalalu',
+      telugu: 'జానపద కళలు & సంస్కృతి',
+      desc: 'Reviving rich folk traditions, Kolatam dance troupes, Dhol-tasha, and village festival festivities.',
+      badge: 'Living Folklore'
     },
     {
-      day: 'Day 6 · 18th Sept',
-      title: 'Maha Laddu Prasadam Auction',
-      telugu: 'మహా లడ్డూ ప్రసాదం వేలం',
-      desc: 'Historic community auction with proceeds supporting MITRA UK student emergency relief fund.',
-      badge: 'Divine Prasadam'
-    },
-    {
-      day: 'Day 7 · 20th Sept',
-      title: 'Utsava Ganapathi Grand Visarjan',
-      telugu: 'మహా నిమజ్జనం & శోభాయాత్ర',
-      desc: 'Spectacular dhol-tasha, kolatam, flower showers, and eco-friendly water immersion in Slough.',
-      badge: 'Grand Visarjan'
+      pillar: 'Pillar 6',
+      title: 'Year-Round Utsav Celebrations',
+      telugu: 'ఉత్సవ సంబరాలు & సమ్మేళనాలు',
+      desc: 'Uniting British Telugu families for major auspicious festivals with authentic decor, community poojas, and cultural galas.',
+      badge: 'Festivals of India'
     }
   ];
 
   return (
     <div className="bg-[#FFF8F0] text-[#3D1A00] min-h-screen selection:bg-[#E65C00] selection:text-white">
       
-      {/* ── 1. COMMEMORATIVE HERO WITH SACRED GLOW ── */}
+      {/* ── 1. HERITAGE HERO WITH SACRED GLOW ── */}
       <section className="relative overflow-hidden bg-gradient-to-b from-[#FFF8F0] via-[#FFF0E0] to-[#FFF8F0] text-[#3D1A00] pt-12 pb-20 px-4 sm:px-6 lg:px-8 border-b border-[#E65C00]/20">
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-[#E65C00]/15 via-transparent to-transparent pointer-events-none" />
 
@@ -87,70 +80,70 @@ export default function HomeVariantHeritage() {
           <div className="lg:col-span-7 space-y-6 text-center lg:text-left">
             <div className="inline-flex items-center gap-2 bg-white/80 border border-[#E65C00]/30 px-4 py-1.5 rounded-full shadow-md text-xs font-extrabold text-[#E65C00] uppercase tracking-wider">
               <Sparkles className="w-4 h-4 text-[#E65C00] animate-pulse" />
-              <span>DIVINE BLESSINGS · LONDON GANESH MAHOTSAV 2026</span>
+              <span>LIVING HERITAGE · TELUGU TRADITIONS IN THE UK</span>
             </div>
 
             <div className="space-y-2">
               <h1 className="text-4xl sm:text-6xl font-black font-cinzel leading-tight gold-foil-text drop-shadow-[0_2px_12px_rgba(230,92,0,0.15)]">
-                A HISTORIC TRIUMPH OF DEVOTION
+                A TIMELESS HERITAGE OF FAITH &amp; CULTURE
               </h1>
               <h2 className="text-lg sm:text-2xl font-bold font-cinzel text-[#3D1A00] tracking-widest uppercase">
-                21-FOOT ECO-FRIENDLY CLAY GANESHA
+                PRESERVING SACRED ROOTS FOR NEXT GENERATIONS
               </h2>
             </div>
 
             <p className="text-xs sm:text-sm text-[#6B3A2A] leading-relaxed max-w-xl mx-auto lg:mx-0">
-              MITRA UK extends our heartfelt gratitude to the 40,000+ devotees, youth volunteers, Slough Borough Council, and our generous patrons who united to create Europe&apos;s grandest Maha Ganapathi celebration.
+              MITRA UK unites over 25,000 Telugu-speaking families across Britain, preserving classical arts, sacred Vedic heritage, community annadanam, and cultural festivals.
             </p>
 
             <div className="grid grid-cols-3 gap-3 pt-2 max-w-lg mx-auto lg:mx-0 text-center">
               <div className="bg-white p-3 rounded-2xl border border-[#E65C00]/25 shadow-sm">
-                <div className="text-xl sm:text-2xl font-black font-cinzel text-[#E65C00]">40,000+</div>
-                <div className="text-[10px] text-[#6B3A2A] font-bold uppercase mt-0.5">Devotees</div>
+                <div className="text-xl sm:text-2xl font-black font-cinzel text-[#E65C00]">25,000+</div>
+                <div className="text-[10px] text-[#6B3A2A] font-bold uppercase mt-0.5">Families</div>
               </div>
               <div className="bg-white p-3 rounded-2xl border border-[#E65C00]/25 shadow-sm">
-                <div className="text-xl sm:text-2xl font-black font-cinzel text-[#E65C00]">22,000+</div>
-                <div className="text-[10px] text-[#6B3A2A] font-bold uppercase mt-0.5">Meals Served</div>
+                <div className="text-xl sm:text-2xl font-black font-cinzel text-[#E65C00]">18+</div>
+                <div className="text-[10px] text-[#6B3A2A] font-bold uppercase mt-0.5">UK Centers</div>
               </div>
               <div className="bg-white p-3 rounded-2xl border border-[#E65C00]/25 shadow-sm">
                 <div className="text-xl sm:text-2xl font-black font-cinzel text-[#E65C00]">100%</div>
-                <div className="text-[10px] text-[#6B3A2A] font-bold uppercase mt-0.5">Clay Immersion</div>
+                <div className="text-[10px] text-[#6B3A2A] font-bold uppercase mt-0.5">Volunteer Driven</div>
               </div>
             </div>
 
             <div className="flex flex-wrap items-center justify-center lg:justify-start gap-4 pt-2">
               <Link
-                href="/ganesh-event-2026"
+                href="/events"
                 className="gold-button px-7 py-3 rounded-full text-xs font-black uppercase tracking-wider flex items-center gap-2 shadow-lg hover:scale-105 transition-all"
               >
-                <Camera className="w-4 h-4" />
-                <span>View Mahotsav Photos &amp; Video</span>
+                <Calendar className="w-4 h-4" />
+                <span>Explore Events &amp; Festivals</span>
               </Link>
               <Link
-                href="/events"
+                href="/membership"
                 className="maroon-button px-7 py-3 rounded-full text-xs font-black uppercase tracking-wider flex items-center gap-2 shadow-xl hover:scale-105 transition-all border border-[#E65C00]/30"
               >
-                <Calendar className="w-4 h-4 text-[#FF9A3C]" />
-                <span>Next: Ugadi 2027</span>
+                <Users className="w-4 h-4 text-[#FF9A3C]" />
+                <span>Join Community</span>
               </Link>
             </div>
           </div>
 
-          {/* Right Commemorative Poster Showcase */}
+          {/* Right Cultural Poster Showcase */}
           <div className="lg:col-span-5 flex justify-center">
             <div className="relative group max-w-sm">
               <div className="absolute -inset-2 bg-gradient-to-r from-[#E65C00] to-[#FF7A00] rounded-3xl blur-xl opacity-30 group-hover:opacity-60 transition duration-500 pointer-events-none" />
               <div className="relative rounded-3xl overflow-hidden border-4 border-[#E65C00]/40 shadow-2xl bg-white">
                 <img
                   src="/assets/poster.jpg"
-                  alt="London Ganesh Mahotsav 2026 Poster"
+                  alt="MITRA UK Cultural Heritage Archive"
                   className="w-full h-auto object-cover"
                 />
                 <div className="p-4 bg-gradient-to-t from-[#3D1A00] to-[#3D1A00]/90 text-white text-center space-y-1">
                   <span className="text-[10px] font-bold uppercase tracking-widest text-[#FF9A3C]">
-                    Slough &amp; Langley College SL3 8GW
+                    Preserving Culture · Connecting Generations
                   </span>
-                  <p className="text-xs font-extrabold font-cinzel">London Ganesh Mahotsav 2026 Archive</p>
+                  <p className="text-xs font-extrabold font-cinzel">MITRA UK Living Heritage Archive</p>
                 </div>
               </div>
             </div>
@@ -159,23 +152,23 @@ export default function HomeVariantHeritage() {
         </div>
       </section>
 
-      {/* ── 2. SEVEN SACRED DAYS CHRONICLE ── */}
+      {/* ── 2. SIX SACRED HERITAGE PILLARS ── */}
       <section className="py-20 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-12">
         <div className="text-center max-w-3xl mx-auto space-y-3">
           <div className="inline-flex items-center gap-2 bg-[#FFF0E0] border border-[#E65C00]/30 px-4 py-1 rounded-full text-xs font-extrabold text-[#E65C00] uppercase tracking-widest">
             <Award className="w-4 h-4" />
-            <span>FESTIVAL RETROSPECTIVE</span>
+            <span>COMMUNITY PILLARS</span>
           </div>
           <h2 className="text-3xl sm:text-5xl font-black font-cinzel gold-foil-text tracking-wider">
-            7 DAYS OF DIVINE CELEBRATION
+            PILLARS OF TELUGU HERITAGE
           </h2>
           <p className="text-xs sm:text-sm text-[#6B3A2A]">
-            A daily chronicle of the rituals, spiritual poojas, cultural showcases, and the sacred eco-visarjan in Slough.
+            The enduring cultural foundations that keep Telugu language, sacred traditions, and classical arts thriving across the United Kingdom.
           </p>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {FESTIVAL_DAYS.map((item, idx) => (
+          {HERITAGE_PILLARS.map((item, idx) => (
             <div
               key={idx}
               className="temple-card temple-card-hover rounded-3xl p-6 border border-[#E65C00]/30 space-y-4 flex flex-col justify-between group"
@@ -183,7 +176,7 @@ export default function HomeVariantHeritage() {
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
                   <span className="text-[10px] font-black uppercase tracking-wider text-[#E65C00] bg-[#FFF0E0] px-2.5 py-1 rounded-full border border-[#E65C00]/20">
-                    {item.day}
+                    {item.pillar}
                   </span>
                   <span className="text-[10px] font-bold text-[#7A1620]">{item.badge}</span>
                 </div>
@@ -198,9 +191,9 @@ export default function HomeVariantHeritage() {
               </div>
 
               <div className="pt-3 border-t border-[#E65C00]/15 flex items-center justify-between text-xs">
-                <span className="text-[#3D1A00] font-bold text-[11px]">Mahotsav Archive</span>
-                <Link href="/ganesh-event-2026" className="text-[#E65C00] font-bold flex items-center gap-1 hover:underline">
-                  <span>View Photos</span>
+                <span className="text-[#3D1A00] font-bold text-[11px]">MITRA Heritage</span>
+                <Link href="/events" className="text-[#E65C00] font-bold flex items-center gap-1 hover:underline">
+                  <span>Explore Programs</span>
                   <ArrowRight className="w-3 h-3" />
                 </Link>
               </div>

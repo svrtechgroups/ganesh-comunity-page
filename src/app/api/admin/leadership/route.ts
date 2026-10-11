@@ -1,22 +1,36 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { noCacheHeaders, getErrorMessage } from '@/lib/api-utils';
+
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
-    const members = await prisma.leadershipMember.findMany({
-      orderBy: [
-        { displayOrder: 'asc' },
-        { createdAt: 'desc' },
-      ],
-    });
+    const { searchParams } = new URL(request.url);
+    const page = Math.max(1, parseInt(searchParams.get('page') || '1', 10));
+    const limitParam = searchParams.get('limit');
+    const limit = limitParam === 'all' ? 0 : Math.max(1, parseInt(limitParam || '100', 10));
+    const category = searchParams.get('category')?.trim() || '';
 
-    return NextResponse.json({ success: true, data: members });
+    const where = category ? { category: { contains: category, mode: 'insensitive' as const } } : {};
+
+    const [total, members] = await prisma.$transaction([
+      prisma.leadershipMember.count({ where }),
+      prisma.leadershipMember.findMany({
+        where,
+        orderBy: [{ displayOrder: 'asc' }, { createdAt: 'desc' }],
+        ...(limit > 0 ? { skip: (page - 1) * limit, take: limit } : {}),
+      }),
+    ]);
+
+    return NextResponse.json(
+      { success: true, data: members, pagination: { total, page, limit: limit || total, totalPages: limit > 0 ? Math.ceil(total / limit) : 1 } },
+      { headers: noCacheHeaders }
+    );
   } catch (error: unknown) {
-    const message = error instanceof Error ? error.message : 'Failed to fetch leadership';
-    return NextResponse.json({ success: false, error: message }, { status: 500 });
+    return NextResponse.json({ success: false, error: getErrorMessage(error, 'Failed to fetch leadership') }, { status: 500 });
   }
 }
 
@@ -47,8 +61,7 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ success: true, data: member }, { status: 201 });
   } catch (error: unknown) {
-    const message = error instanceof Error ? error.message : 'Failed to create leadership member';
-    return NextResponse.json({ success: false, error: message }, { status: 500 });
+    return NextResponse.json({ success: false, error: getErrorMessage(error, 'Failed to create leadership member') }, { status: 500 });
   }
 }
 
@@ -80,8 +93,7 @@ export async function PUT(request: Request) {
 
     return NextResponse.json({ success: true, data: member });
   } catch (error: unknown) {
-    const message = error instanceof Error ? error.message : 'Failed to update leadership member';
-    return NextResponse.json({ success: false, error: message }, { status: 500 });
+    return NextResponse.json({ success: false, error: getErrorMessage(error, 'Failed to update leadership member') }, { status: 500 });
   }
 }
 
@@ -98,7 +110,6 @@ export async function DELETE(request: Request) {
 
     return NextResponse.json({ success: true, message: 'Leadership member deleted successfully.' });
   } catch (error: unknown) {
-    const message = error instanceof Error ? error.message : 'Failed to delete leadership member';
-    return NextResponse.json({ success: false, error: message }, { status: 500 });
+    return NextResponse.json({ success: false, error: getErrorMessage(error, 'Failed to delete leadership member') }, { status: 500 });
   }
 }

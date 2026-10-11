@@ -1,6 +1,4 @@
 import { prisma } from '@/lib/prisma';
-import fs from 'fs';
-import path from 'path';
 import {
   PREFERENCE_PREFIX,
   PREF_HOME_ACTIVE_EVENT_ID,
@@ -132,24 +130,51 @@ function reconstructEventConfig(
     accentColor: prefs['event.hero.accentColor'] || '#CC4000',
     backgroundColor: prefs['event.hero.backgroundColor'] || '#FFF8F0',
     primaryCta: prefs['event.hero.primaryCta'] || { label: 'Register Now', action: 'rsvp' },
-    secondaryCta: prefs['event.hero.secondaryCta'] || { label: 'Learn More', action: 'link' },
+    secondaryCta: (prefs['event.hero.secondaryCta']?.label && prefs['event.hero.secondaryCta']?.label.trim().toLowerCase() !== 'learn more')
+      ? prefs['event.hero.secondaryCta']
+      : undefined,
     whatsAppUrl: prefs['event.hero.whatsAppUrl'] || '',
   };
 
   return {
     id: eventId,
     title: prefs['event.hero.title'] || eventTitle || 'MITRA UK Event',
-    eventSlug: prefs['event.eventSlug'] || eventId,
+    eventSlug: (() => {
+      const slug = prefs['event.eventSlug'];
+      if (!slug || slug === eventId || slug === 'ganesh-event-2026') {
+        return `events/${eventId}`;
+      }
+      const clean = slug.replace(/^\/+/, '');
+      return clean.startsWith('events/') ? clean : `events/${clean}`;
+    })(),
     targetDate: prefs['event.targetDate'],
     hero,
-    sections: prefs['event.sections'] || {
-      showCountdown: true,
-      showEventDetails: true,
-      showStory: true,
-      showSpecs: true,
-      showMediaGallery: true,
-      showOfferings: true,
-      showSponsors: true,
+    sections: prefs['event.sections'] || (
+      (eventId === 'evt-ganesh-chaturthi' || eventId.toLowerCase().includes('ganesh'))
+        ? {
+            showCountdown: true,
+            showEventDetails: true,
+            showStory: true,
+            showSpecs: true,
+            showMediaGallery: true,
+            showOfferings: true,
+            showSponsors: true,
+          }
+        : {
+            showCountdown: false,
+            showEventDetails: false,
+            showStory: false,
+            showSpecs: false,
+            showMediaGallery: false,
+            showOfferings: false,
+            showSponsors: false,
+          }
+    ),
+    mediaTeaser: prefs['event.mediaTeaser'] || {
+      videoUrl: prefs['event.hero.videoUrl'] || '/assets/teaser-reel.mp4',
+      sectionTitle: 'TEASER REEL & EVENT POSTERS',
+      subtitle: 'Experience the official event teaser video reel and high-resolution event artwork from our media assets.',
+      posterUrl: prefs['event.hero.bannerImageUrl'] || '/assets/poster.jpg',
     },
     story: prefs['event.story'],
     specs: prefs['event.specs'],
@@ -160,12 +185,6 @@ function reconstructEventConfig(
  * Fetch all preferences for a given eventId
  */
 export async function getPreferencesForEvent(eventId: string) {
-  // Check if seeded; if no configs exist at all, seed first
-  const count = await prisma.config.count();
-  if (count === 0) {
-    await seedConfigFromHeroJson();
-  }
-
   const rows = await prisma.config.findMany({
     where: { eventId },
   });
@@ -193,51 +212,38 @@ export async function getPreferencesForEvent(eventId: string) {
 }
 
 /**
- * Fetch all preferences for current featured event
+ * Fetch all preferences for current featured event.
+ * Returns a single flat `preferences` map (event.* rows, with any featuredEvent.* overrides applied)
+ * so the frontend can call getPreference(key) directly.
  */
 export async function getFeaturedEventPreferences() {
-  const count = await prisma.config.count();
-  if (count === 0) {
-    await seedConfigFromHeroJson();
-  }
-
-  // 1. Get active home event ID preference
+  // 1. Get active home event ID
   const activePref = await prisma.config.findFirst({
     where: { preference: PREF_HOME_ACTIVE_EVENT_ID },
   });
-  const activeHomeEventId = activePref ? activePref.value : 'evt-ganesh-chaturthi';
+  const activeHomeEventId = activePref?.value ?? null;
 
-  // 2. Get any global featuredEvent.* preferences
+  // 2. Get all event-scoped preferences for the active event
+  const eventRows = activeHomeEventId
+    ? await prisma.config.findMany({ where: { eventId: activeHomeEventId } })
+    : [];
+
+  const preferences: Record<string, any> = {};
+  for (const row of eventRows) {
+    preferences[row.preference] = parseConfigValue(row.value, row.dataType);
+  }
+
+  // 3. Get any global featuredEvent.* overrides and merge on top
   const featuredRows = await prisma.config.findMany({
     where: { prefix: PREFERENCE_PREFIX.FEATURED_EVENT },
   });
-  const featuredPreferences: Record<string, any> = {};
   for (const row of featuredRows) {
-    featuredPreferences[row.preference] = parseConfigValue(row.value, row.dataType);
-  }
-
-  // 3. Get preferences for the active featured event
-  const eventData = await getPreferencesForEvent(activeHomeEventId);
-
-  // 4. Also compose featuredEvent.* view mapping to hero
-  const mergedHeroConfig: EventHeroConfig = {
-    ...eventData.heroConfig,
-  };
-
-  // If explicit featuredEvent overrides exist, overlay them
-  if (featuredPreferences[PREFERENCES.featuredEvent.heroType]) {
-    mergedHeroConfig.heroType = featuredPreferences[PREFERENCES.featuredEvent.heroType];
-  }
-  if (featuredPreferences[PREFERENCES.featuredEvent.heroVariant]) {
-    mergedHeroConfig.heroVariant = featuredPreferences[PREFERENCES.featuredEvent.heroVariant];
+    preferences[row.preference] = parseConfigValue(row.value, row.dataType);
   }
 
   return {
     activeHomeEventId,
-    featuredPreferences,
-    eventPreferences: eventData.preferences,
-    templateConfig: eventData.templateConfig,
-    heroConfig: mergedHeroConfig,
+    preferences,
   };
 }
 
@@ -255,6 +261,9 @@ export async function saveEventPreferences(eventId: string, config: Partial<Even
   }
   if (config.sections !== undefined) {
     ops.push(setPreference(PREFERENCES.event.sections, config.sections, eventId));
+  }
+  if (config.mediaTeaser !== undefined) {
+    ops.push(setPreference(PREFERENCES.event.mediaTeaser, config.mediaTeaser, eventId));
   }
   if (config.story !== undefined) {
     ops.push(setPreference(PREFERENCES.event.story, config.story, eventId));
@@ -307,61 +316,4 @@ export async function saveEventPreferences(eventId: string, config: Partial<Even
  */
 export async function setActiveHomeEventId(eventId: string) {
   return await setPreference(PREF_HOME_ACTIVE_EVENT_ID, eventId, null, 'string');
-}
-
-/**
- * Seed initial preferences from event-hero-config.json into Config table
- */
-export async function seedConfigFromHeroJson(force = false) {
-  const count = await prisma.config.count();
-  if (count > 0 && !force) {
-    return { skipped: true, count };
-  }
-
-  const jsonPath = path.join(process.cwd(), 'src', 'data', 'event-hero-config.json');
-  if (!fs.existsSync(jsonPath)) {
-    return { skipped: true, error: 'JSON file not found' };
-  }
-
-  const content = fs.readFileSync(jsonPath, 'utf8');
-  const data = JSON.parse(content);
-
-  // 1. Seed active home event
-  const activeEventId = data.activeHomeEventId || 'evt-ganesh-chaturthi';
-  await setActiveHomeEventId(activeEventId);
-
-  // 2. Seed each event
-  let seededEventsCount = 0;
-  if (data.events) {
-    for (const [eventId, eventConfig] of Object.entries(data.events)) {
-      // Ensure Event exists in Event table first to satisfy foreign key
-      const existing = await prisma.event.findUnique({ where: { id: eventId } });
-      if (!existing) {
-        await prisma.event.create({
-          data: {
-            id: eventId,
-            title: (eventConfig as any).title || eventId,
-            description: (eventConfig as any).story?.description || (eventConfig as any).hero?.subtitle || 'Community Event',
-            date: (eventConfig as any).targetDate ? String((eventConfig as any).targetDate).slice(0, 10) : new Date().toISOString().slice(0, 10),
-            category: 'cultural',
-            venue: 'Slough Community Centre',
-            address: 'Slough, UK',
-            bannerUrl: (eventConfig as any).hero?.bannerImageUrl || '/assets/poster.jpg',
-            status: 'Upcoming',
-          },
-        });
-      }
-
-      await saveEventPreferences(eventId, eventConfig as EventTemplateConfig);
-      seededEventsCount++;
-    }
-  }
-
-  const totalConfigs = await prisma.config.count();
-  return {
-    success: true,
-    activeHomeEventId: activeEventId,
-    seededEventsCount,
-    totalConfigs,
-  };
 }

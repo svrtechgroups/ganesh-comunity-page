@@ -40,6 +40,7 @@ export const PREF_FEATURED_PRIMARY_CTA = 'featuredEvent.hero.primaryCta';
 export const PREF_FEATURED_SECONDARY_CTA = 'featuredEvent.hero.secondaryCta';
 export const PREF_FEATURED_WHATSAPP_URL = 'featuredEvent.hero.whatsAppUrl';
 export const PREF_FEATURED_SECTIONS = 'featuredEvent.sections';
+export const PREF_FEATURED_MEDIA_TEASER = 'featuredEvent.mediaTeaser';
 export const PREF_FEATURED_STORY = 'featuredEvent.story';
 export const PREF_FEATURED_SPECS = 'featuredEvent.specs';
 
@@ -67,6 +68,7 @@ export const PREF_EVENT_PRIMARY_CTA = 'event.hero.primaryCta';
 export const PREF_EVENT_SECONDARY_CTA = 'event.hero.secondaryCta';
 export const PREF_EVENT_WHATSAPP_URL = 'event.hero.whatsAppUrl';
 export const PREF_EVENT_SECTIONS = 'event.sections';
+export const PREF_EVENT_MEDIA_TEASER = 'event.mediaTeaser';
 export const PREF_EVENT_STORY = 'event.story';
 export const PREF_EVENT_SPECS = 'event.specs';
 export const PREF_EVENT_TARGET_DATE = 'event.targetDate';
@@ -103,6 +105,7 @@ export const PREFERENCES = {
     secondaryCta: PREF_FEATURED_SECONDARY_CTA,
     whatsAppUrl: PREF_FEATURED_WHATSAPP_URL,
     sections: PREF_FEATURED_SECTIONS,
+    mediaTeaser: PREF_FEATURED_MEDIA_TEASER,
     story: PREF_FEATURED_STORY,
     specs: PREF_FEATURED_SPECS,
   },
@@ -130,6 +133,7 @@ export const PREFERENCES = {
     secondaryCta: PREF_EVENT_SECONDARY_CTA,
     whatsAppUrl: PREF_EVENT_WHATSAPP_URL,
     sections: PREF_EVENT_SECTIONS,
+    mediaTeaser: PREF_EVENT_MEDIA_TEASER,
     story: PREF_EVENT_STORY,
     specs: PREF_EVENT_SPECS,
     targetDate: PREF_EVENT_TARGET_DATE,
@@ -164,6 +168,7 @@ export const FIELD_DATA_TYPES: Record<string, 'string' | 'boolean' | 'number' | 
   secondaryCta: 'json',
   whatsAppUrl: 'string',
   sections: 'json',
+  mediaTeaser: 'json',
   story: 'json',
   specs: 'json',
   targetDate: 'string',

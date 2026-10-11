@@ -40,12 +40,13 @@ export async function POST(request: Request) {
     familyMembers,
     specialWishes,
     primaryDevoteeName,
+    rsvpId,
   } = body;
 
   const normalEmail = customerEmail ? String(customerEmail).toLowerCase().trim() : '';
   const safeCustomer = customerName ? String(customerName).trim() : 'Unknown';
   const safeType = donationType ? String(donationType).toLowerCase().trim() : 'general';
-  const safeEvent = eventName || eventId || 'London Ganesh Mahotsav 2026';
+  const safeEvent = eventName || eventId || 'MITRA Community Event';
 
   if (!amount || !customerName || !customerEmail) {
     await logger.warn('payments/create-session', `Validation failed: Missing required fields for user "${safeCustomer}" <${normalEmail}>`, {
@@ -195,6 +196,7 @@ export async function POST(request: Request) {
         familyMembers: familyMembers || '',
         primaryDevoteeName: primaryDevoteeName || safeCustomer,
         source: 'mitra-website',
+        rsvpId: rsvpId || '',
       },
       receipt_email: normalEmail,
     });
@@ -239,6 +241,18 @@ export async function POST(request: Request) {
       });
     } catch (dbErr: unknown) {
       await logger.error('payments/create-session', `Failed to persist pending payment record for PI ${paymentIntent.id}`, dbErr);
+    }
+
+    // ── Update RSVP record if provided ───────────────────────────────────────
+    if (rsvpId) {
+      try {
+        await prisma.eventRSVP.update({
+          where: { id: rsvpId },
+          data: { paymentIntentId: paymentIntent.id },
+        });
+      } catch (err) {
+        console.error('[create-session] Failed to update RSVP with PaymentIntent ID:', err);
+      }
     }
 
     return NextResponse.json({

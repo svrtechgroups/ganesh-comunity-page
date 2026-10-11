@@ -153,7 +153,7 @@ export default function ContactPage() {
               </div>
               <div className="flex items-center gap-3">
                 <Mail className="w-5 h-5 text-mitra-red shrink-0" />
-                <a href="mailto:info@mitra.org.uk" className="font-semibold text-mitra-red dark:text-mitra-gold">contactus@mitrauk.com</a>
+                <a href="mailto:info@mitrauk.com" className="font-semibold text-mitra-red dark:text-mitra-gold">contactus@mitrauk.com</a>
               </div>
               <div className="flex items-center gap-3">
                 <Phone className="w-5 h-5 text-mitra-red shrink-0" />

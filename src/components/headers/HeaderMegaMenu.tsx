@@ -95,7 +95,7 @@ export default function HeaderMegaMenu({ previewMode = false }: HeaderProps) {
               Events
             </Link>
             <Link 
-              href="/ganesh-event-2026" 
+              href="/events/evt-ganesh-chaturthi" 
               className="px-3 py-1.5 rounded-lg text-[#E65C00] font-black flex items-center gap-1 hover:bg-[#FFF0E0] transition-colors"
             >
               <Sparkles className="w-3.5 h-3.5" />
@@ -197,7 +197,7 @@ export default function HeaderMegaMenu({ previewMode = false }: HeaderProps) {
               </div>
               <ul className="space-y-2.5 text-xs">
                 <li>
-                  <Link href="/ganesh-event-2026" onClick={() => setMegaOpen(false)} className="flex items-center justify-between p-2 rounded-xl hover:bg-[#FFF0E0] hover:text-[#E65C00] transition-colors bg-[#FFF0E0]/60">
+                  <Link href="/events/evt-ganesh-chaturthi" onClick={() => setMegaOpen(false)} className="flex items-center justify-between p-2 rounded-xl hover:bg-[#FFF0E0] hover:text-[#E65C00] transition-colors bg-[#FFF0E0]/60">
                     <div>
                       <div className="font-black text-[#E65C00]">London Ganesh Mahotsav 2026</div>
                       <p className="text-[11px] text-[#6B3A2A]">13th – 19th Sept 2026 · Slough Campus</p>

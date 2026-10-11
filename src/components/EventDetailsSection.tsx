@@ -3,8 +3,11 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { MapPin, Calendar, Clock, Download, ExternalLink, Sparkles, Flame, Heart, Utensils, Star, CheckCircle, Ticket } from 'lucide-react';
 import { POOJA_DATES, getPoojaDateStatus, PoojaDateOption } from '@/components/PoojaBookingModal';
-import { EventItem } from '@/lib/types';
+import { EventItem, CustomScheduleConfig } from '@/lib/types';
 import { getEventSchedule } from '@/lib/event-schedule';
+import { useEvent, isGaneshEvent } from '@/hooks/useEvent';
+
+
 
 interface EventDetailsSectionProps {
   event?: EventItem | null;
@@ -14,81 +17,12 @@ interface EventDetailsSectionProps {
   primaryColor?: string;
   accentColor?: string;
   backgroundColor?: string;
+  customSchedule?: CustomScheduleConfig | null;
   onOpenPoojaBooking?: (dateId?: string) => void;
   onOpenDonation?: (cat?: 'Annadanam' | 'Event Donations') => void;
   onOpenRsvp?: () => void;
   onOpenRSVP?: () => void;
 }
-
-const EVENT_SCHEDULES: Record<
-  string,
-  {
-    headerBadge: string;
-    title: string;
-    subtitle: string;
-    venueName: string;
-    venueAddress: string;
-    mapsUrl: string;
-    items: { time: string; event: string; desc: string }[];
-  }
-> = {
-  'evt-diwali-2026': {
-    headerBadge: 'DIWALI 2026 PROGRAM & TIMINGS',
-    title: 'FESTIVAL SCHEDULE & ATTRACTIONS',
-    subtitle: 'Byron Hall, Harrow Leisure Centre, Christchurch Ave, Harrow HA3 5BD, London.',
-    venueName: 'Byron Hall, Harrow Leisure Centre',
-    venueAddress: 'Christchurch Ave, Harrow HA3 5BD, London (Near Harrow-on-the-Hill)',
-    mapsUrl: 'https://maps.google.com/?q=Byron+Hall+Harrow+Leisure+Centre+HA3+5BD',
-    items: [
-      { time: '05:00 PM – 06:30 PM', event: 'Traditional Deepotsav', desc: 'Auspicious lighting of 1,008 clay diyas and welcome mangala harathi.' },
-      { time: '06:30 PM – 08:30 PM', event: 'Telugu Cultural Showcase', desc: 'Live Telugu classical & contemporary dance recitals, musical orchestras, and comedy skit.' },
-      { time: '08:30 PM – 09:30 PM', event: 'Community Mahaprasadam Feast', desc: 'Authentic South Indian festival dinner counters and live jalebi / sweet stations.' },
-      { time: '09:30 PM – 10:00 PM', event: 'London Sky Fireworks Finale', desc: 'Spectacular choreographed fireworks display illuminating the London night sky.' },
-    ],
-  },
-  'evt-ugadi-2027': {
-    headerBadge: 'UGADI 2027 CELEBRATIONS',
-    title: 'TELUGU NEW YEAR ITINERARY',
-    subtitle: 'Beck Theatre, Grange Rd, Hayes UB3 2UE, Greater London.',
-    venueName: 'Beck Theatre',
-    venueAddress: 'Grange Rd, Hayes UB3 2UE, Greater London · Free patron parking on-site',
-    mapsUrl: 'https://maps.google.com/?q=Beck+Theatre+Hayes+UB3+2UE',
-    items: [
-      { time: '10:00 AM – 11:30 AM', event: 'Plava Nama Panchanga Sravanam', desc: 'Vedic blessings, planetary forecasts, and auspicious year readings by Vedic scholars.' },
-      { time: '11:30 AM – 01:00 PM', event: 'Kavi Sammelanam & Literary Forum', desc: 'Telugu poetry contest, classical Avadhanam showcases, and children’s Telugu recitation.' },
-      { time: '01:00 PM – 02:30 PM', event: 'Ugadi Pachadi & Festive Bhojanam', desc: 'Traditional 6-taste Shadruchulu Ugadi Pachadi followed by a sumptuous Telugu banana leaf feast.' },
-      { time: '02:30 PM – 06:00 PM', event: 'Youth Cultural Stage & Awards', desc: 'Kuchipudi, folk dances, MITRA community leadership awards, and musical drama.' },
-    ],
-  },
-  'evt-business-summit-2027': {
-    headerBadge: 'UK-INDIA SUMMIT AGENDA',
-    title: 'EXECUTIVE TIMELINE & TRACKS',
-    subtitle: 'QEII Centre, Broad Sanctuary, Westminster, London SW1P 3EE.',
-    venueName: 'QEII Centre, Westminster',
-    venueAddress: 'Broad Sanctuary, Westminster, London SW1P 3EE · 2 mins from Westminster Station',
-    mapsUrl: 'https://maps.google.com/?q=QEII+Centre+Westminster+London+SW1P+3EE',
-    items: [
-      { time: '09:00 AM – 10:00 AM', event: 'Delegate Badge Collection & Networking Breakfast', desc: 'Meet fellow Telugu entrepreneurs, venture capitalists, and diaspora leaders.' },
-      { time: '10:00 AM – 12:30 PM', event: 'Keynote & AI / FinTech Innovation Panels', desc: 'Cross-border enterprise expansion between Hyderabad IT corridor and the City of London.' },
-      { time: '01:30 PM – 03:30 PM', event: 'Start-Up Pitch Arena & Investor Sessions', desc: '10 curated early-stage startups pitching live to angel networks and UK/India VC funds.' },
-      { time: '03:30 PM – 05:30 PM', event: 'B2B Trade Matchmaking & High Tea Gala', desc: 'Structured one-to-one networking tables, bilateral partnership signings, and closing remarks.' },
-    ],
-  },
-  'evt-cricket-fest-2027': {
-    headerBadge: 'MITRA PREMIER LEAGUE 2027',
-    title: 'TOURNAMENT FIXTURES & TIMELINE',
-    subtitle: 'Merchant Taylors Ground, Sandy Lodge, Northwood HA6 2HT, Hertfordshire.',
-    venueName: 'Merchant Taylors Ground',
-    venueAddress: 'Sandy Lodge, Northwood HA6 2HT, Hertfordshire (Moor Park Underground Station)',
-    mapsUrl: 'https://maps.google.com/?q=Merchant+Taylors+School+Northwood+HA6+2HT',
-    items: [
-      { time: '08:30 AM – 11:30 AM', event: 'Group Stage Matches', desc: '16 Telugu diaspora cricket clubs battling in 4 simultaneous groups across international-grade pitches.' },
-      { time: '11:30 AM – 02:00 PM', event: 'Quarter-Finals & Food Stalls', desc: 'Knockout showdowns, family entertainment area, bouncy castles, and authentic Biryani counters.' },
-      { time: '02:30 PM – 05:00 PM', event: 'Semi-Finals & DJ Commentary', desc: 'High-octane T20 clashes accompanied by live Telugu DJ beats and crowd interaction.' },
-      { time: '05:30 PM – 07:30 PM', event: 'Grand Final & Trophy Presentation', desc: 'Championship final match followed by prize distribution by prominent diaspora dignitaries.' },
-    ],
-  },
-};
 
 export default function EventDetailsSection({
   event,
@@ -98,57 +32,19 @@ export default function EventDetailsSection({
   primaryColor = '#E65C00',
   accentColor = '#CC4000',
   backgroundColor = '#FFF8F0',
+  customSchedule = null,
   onOpenPoojaBooking,
   onOpenDonation,
   onOpenRsvp,
   onOpenRSVP,
 }: EventDetailsSectionProps) {
-  const [activeEvent, setActiveEvent] = useState<EventItem | null>(event || null);
+  // Replaces 40 lines of manual useState + useEffect fetch
+  const { event: activeEvent } = useEvent(eventId, event);
   const [dbCounts, setDbCounts] = useState<Record<string, number>>({});
   const handleRsvp = onOpenRSVP || onOpenRsvp;
 
-  const isGanesh = eventId === 'evt-ganesh-chaturthi' || eventTitle?.toLowerCase().includes('ganesh');
-  const customSchedule = eventId ? EVENT_SCHEDULES[eventId] : null;
-
-  useEffect(() => {
-    if (event) {
-      setActiveEvent(event);
-      return;
-    }
-    let isMounted = true;
-    const fetchEvent = async () => {
-      try {
-        const url = eventId ? `/api/events?id=${encodeURIComponent(eventId)}` : '/api/events';
-        const res = await fetch(url, { cache: 'no-store' });
-        const json = await res.json();
-        if (!isMounted) return;
-
-        if (json.success) {
-          if (eventId && json.data && !Array.isArray(json.data)) {
-            setActiveEvent(json.data);
-          } else if (Array.isArray(json.data)) {
-            const matched = eventId
-              ? json.data.find((e: any) => e.id === eventId)
-              : json.data.find(
-                  (e: any) =>
-                    e.id === 'evt-ganesh-chaturthi' ||
-                    e.title?.toLowerCase().includes('ganesh') ||
-                    e.enablePooja
-                ) || json.data[0];
-            if (matched) {
-              setActiveEvent(matched);
-            }
-          }
-        }
-      } catch (err) {
-        console.error('Failed to fetch event dates for EventDetailsSection:', err);
-      }
-    };
-    fetchEvent();
-    return () => {
-      isMounted = false;
-    };
-  }, [event, eventId]);
+  // Replaces the inline multi-condition isGanesh derivation
+  const isGanesh = isGaneshEvent(activeEvent || eventId, eventTitle);
 
   const scheduleDays: PoojaDateOption[] = useMemo(() => {
     const s = getEventSchedule(activeEvent);
@@ -163,8 +59,8 @@ export default function EventDetailsSection({
         badge: item.badge,
       }));
     }
-    return POOJA_DATES;
-  }, [activeEvent]);
+    return isGanesh ? POOJA_DATES : [];
+  }, [activeEvent, isGanesh]);
 
   useEffect(() => {
     const fetchCounts = async () => {
@@ -190,17 +86,52 @@ export default function EventDetailsSection({
     { time: 'Sunday: 11:00 AM – 5:00 PM', event: 'Weekend Darshan, Cultural Fest & Mahaprasadam', desc: 'Grand daytime Darshan, Kuchipudi classical dance, bhajans, and community food distribution.' },
   ];
 
-  if (!isGanesh && customSchedule) {
+  if (!isGanesh) {
+    const headerBadge = customSchedule?.headerBadge || `${activeEvent?.category ? activeEvent.category.toUpperCase() : 'COMMUNITY EVENT'} • PROGRAM & SCHEDULE`;
+    const title = customSchedule?.title || activeEvent?.title || eventTitle || 'EVENT SCHEDULE & TIMINGS';
+    const subtitle = customSchedule?.subtitle || activeEvent?.description || 'Join us for this special occasion with family, friends, and community organized by MITRA UK.';
+    
+    // Resolve schedule items
+    let timelineItems: { time: string; event: string; desc: string }[] = [];
+    if (customSchedule?.items && customSchedule.items.length > 0) {
+      timelineItems = customSchedule.items;
+    } else if (activeEvent?.eventSchedule) {
+      let raw: any = activeEvent.eventSchedule;
+      if (typeof raw === 'string') {
+        try { raw = JSON.parse(raw); } catch { raw = []; }
+      }
+      if (Array.isArray(raw) && raw.length > 0) {
+        timelineItems = raw.map((item: any, idx: number) => ({
+          time: item.time || item.dateLabel || item.date || `Stage ${idx + 1}`,
+          event: item.event || item.title || `Stage ${idx + 1}`,
+          desc: item.desc || item.description || item.theme || item.blessing || '',
+        }));
+      }
+    }
+
+
+
+    const venueName = customSchedule?.venueName || activeEvent?.venue || 'Event Venue';
+    const venueAddress = customSchedule?.venueAddress || activeEvent?.address || 'London / United Kingdom';
+    const mapsUrl = customSchedule?.mapsUrl || (
+      activeEvent?.mapUrl && !activeEvent.mapUrl.includes('embed')
+        ? activeEvent.mapUrl
+        : `https://maps.google.com/?q=${encodeURIComponent(`${venueName} ${venueAddress}`)}`
+    );
+    const mapEmbedUrl = activeEvent?.mapUrl && activeEvent.mapUrl.includes('embed')
+      ? activeEvent.mapUrl
+      : `https://maps.google.com/maps?q=${encodeURIComponent(`${venueName} ${venueAddress}`)}&t=&z=15&ie=UTF8&iwloc=&output=embed`;
+
     return (
       <section
         className="py-20 border-b transition-colors duration-300"
         style={{
-          backgroundColor: backgroundColor,
+          backgroundColor: backgroundColor || '#FFF8F0',
           borderColor: `${primaryColor}30`,
           color: '#3D1A00',
         }}
       >
-        <div className="max-w-6xl mx-auto px-4 space-y-16">
+        <div className="max-w-6xl mx-auto px-4 space-y-12">
           {/* Section Header */}
           <div className="text-center space-y-3">
             <div
@@ -212,82 +143,234 @@ export default function EventDetailsSection({
               }}
             >
               <Calendar className="w-4 h-4" />
-              <span>{customSchedule.headerBadge}</span>
+              <span>{headerBadge}</span>
             </div>
 
-            <h2 className="text-3xl sm:text-5xl font-black font-cinzel gold-foil-text tracking-wider">
-              {customSchedule.title}
+            <h2 className="text-3xl sm:text-5xl font-black font-cinzel tracking-wider" style={{ color: primaryColor }}>
+              {title}
             </h2>
 
-            <p className="max-w-2xl mx-auto text-xs sm:text-sm text-slate-600 dark:text-slate-300 leading-relaxed">
-              {customSchedule.subtitle}
+            <p className="max-w-2xl mx-auto text-xs sm:text-sm text-slate-600 dark:text-slate-300 leading-relaxed whitespace-pre-line">
+              {subtitle}
             </p>
           </div>
 
-          {/* Schedule Timeline Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-            {customSchedule.items.map((item, idx) => (
+          {/* Quick Info Badges Strip */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div
+              className="p-4 rounded-2xl border flex items-center gap-3 bg-white dark:bg-slate-900 shadow-sm"
+              style={{ borderColor: `${primaryColor}25` }}
+            >
               <div
-                key={idx}
-                className="temple-card rounded-3xl p-6 border-2 flex flex-col justify-between space-y-4 bg-white dark:bg-slate-900 shadow-sm"
-                style={{ borderColor: `${primaryColor}30` }}
+                className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0"
+                style={{ backgroundColor: `${primaryColor}15`, color: primaryColor }}
               >
-                <div className="flex items-center justify-between">
-                  <span
-                    className="px-3 py-1 rounded-xl text-xs font-black uppercase tracking-wider"
-                    style={{
-                      backgroundColor: `${primaryColor}15`,
-                      color: primaryColor,
-                    }}
-                  >
-                    {item.time}
-                  </span>
-                  <span className="text-xs text-slate-400 font-bold">STAGE {idx + 1}</span>
-                </div>
-                <div className="space-y-1">
-                  <h4 className="text-base font-bold text-slate-900 dark:text-white">{item.event}</h4>
-                  <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed">{item.desc}</p>
-                </div>
+                <Calendar className="w-5 h-5" />
               </div>
-            ))}
-          </div>
-
-          {/* Venue & Action Card */}
-          <div
-            className="temple-card rounded-3xl p-8 border-2 flex flex-col md:flex-row items-center justify-between gap-6 bg-white dark:bg-slate-900 shadow-sm"
-            style={{ borderColor: `${primaryColor}30` }}
-          >
-            <div className="space-y-2 text-center md:text-left">
-              <div
-                className="flex items-center justify-center md:justify-start gap-2 font-black text-sm uppercase tracking-wider"
-                style={{ color: primaryColor }}
-              >
-                <MapPin className="w-5 h-5" />
-                <span>{customSchedule.venueName}</span>
+              <div className="min-w-0">
+                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Date &amp; Time</span>
+                <span className="text-xs font-bold text-slate-800 dark:text-white truncate block">
+                  {activeEvent?.date || targetDate?.slice(0, 10) || 'Date TBA'} {activeEvent?.time ? `• ${activeEvent.time}` : ''}
+                </span>
               </div>
-              <p className="text-xs text-slate-600 dark:text-slate-300">{customSchedule.venueAddress}</p>
             </div>
 
-            <div className="flex flex-wrap gap-3">
-              {handleRsvp && (
-                <button
-                  onClick={handleRsvp}
-                  className="px-6 py-3 rounded-full text-xs font-black uppercase tracking-wider text-white shadow-md transition-opacity hover:opacity-95"
-                  style={{ backgroundColor: primaryColor }}
-                >
-                  Confirm Attendance / RSVP
-                </button>
-              )}
-              <a
-                href={customSchedule.mapsUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="px-6 py-3 rounded-full text-xs font-black uppercase tracking-wider flex items-center gap-2 border bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-white"
-                style={{ borderColor: `${primaryColor}40` }}
+            <div
+              className="p-4 rounded-2xl border flex items-center gap-3 bg-white dark:bg-slate-900 shadow-sm"
+              style={{ borderColor: `${primaryColor}25` }}
+            >
+              <div
+                className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0"
+                style={{ backgroundColor: `${primaryColor}15`, color: primaryColor }}
               >
-                <span>Get Directions</span>
-                <ExternalLink className="w-4 h-4" />
-              </a>
+                <MapPin className="w-5 h-5" />
+              </div>
+              <div className="min-w-0">
+                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Venue</span>
+                <span className="text-xs font-bold text-slate-800 dark:text-white truncate block">
+                  {venueName}
+                </span>
+              </div>
+            </div>
+
+            <div
+              className="p-4 rounded-2xl border flex items-center gap-3 bg-white dark:bg-slate-900 shadow-sm"
+              style={{ borderColor: `${primaryColor}25` }}
+            >
+              <div
+                className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0"
+                style={{ backgroundColor: `${primaryColor}15`, color: primaryColor }}
+              >
+                <Ticket className="w-5 h-5" />
+              </div>
+              <div className="min-w-0">
+                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Admission</span>
+                <span className="text-xs font-bold text-slate-800 dark:text-white truncate block">
+                  {activeEvent?.ticketPrice === 0 ? 'Free Entry' : `Adult £${activeEvent?.ticketPrice || 0}`}
+                  {activeEvent?.childTicketPrice !== undefined && activeEvent.childTicketPrice !== null
+                    ? ` • Child ${activeEvent.childTicketPrice === 0 ? 'Free' : `£${activeEvent.childTicketPrice}`}`
+                    : ''}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {/* Schedule Timeline Grid */}
+          <div className="space-y-4">
+            <h3 className="text-lg font-bold font-cinzel flex items-center gap-2 uppercase tracking-wider" style={{ color: primaryColor }}>
+              <Clock className="w-5 h-5" />
+              <span>Program Timeline &amp; Highlights</span>
+            </h3>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+              {timelineItems.map((item, idx) => (
+                <div
+                  key={idx}
+                  className="rounded-3xl p-6 border-2 flex flex-col justify-between space-y-4 bg-white dark:bg-slate-900 shadow-sm transition-transform hover:scale-[1.01]"
+                  style={{ borderColor: `${primaryColor}25` }}
+                >
+                  <div className="flex items-center justify-between">
+                    <span
+                      className="px-3 py-1 rounded-xl text-xs font-black uppercase tracking-wider"
+                      style={{
+                        backgroundColor: `${primaryColor}15`,
+                        color: primaryColor,
+                      }}
+                    >
+                      {item.time}
+                    </span>
+                    <span className="text-xs text-slate-400 font-bold">STAGE {idx + 1}</span>
+                  </div>
+                  <div className="space-y-1">
+                    <h4 className="text-base font-bold text-slate-900 dark:text-white">{item.event}</h4>
+                    <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed">{item.desc}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Pooja / Booking Cards (Only if activeEvent has Pooja enabled and booking handler passed) */}
+          {activeEvent?.enablePooja && onOpenPoojaBooking && scheduleDays.length > 0 && (
+            <div className="space-y-4 pt-4 border-t" style={{ borderColor: `${primaryColor}20` }}>
+              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
+                <div>
+                  <span className="text-xs font-black uppercase tracking-widest block" style={{ color: primaryColor }}>
+                    POOJA &amp; SEVA CALENDAR
+                  </span>
+                  <h3 className="text-xl font-bold font-cinzel text-slate-900 dark:text-white">
+                    SELECT PARTICIPATION DATE
+                  </h3>
+                </div>
+                <span className="text-xs text-slate-500">
+                  Book sacred sevas and community blessings
+                </span>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                {scheduleDays.map((dayItem, idx) => (
+                  <div
+                    key={dayItem.id || idx}
+                    className="p-5 rounded-2xl border-2 bg-white dark:bg-slate-900 shadow-sm flex flex-col justify-between space-y-3"
+                    style={{ borderColor: `${primaryColor}25` }}
+                  >
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <span className="text-[10px] font-bold uppercase tracking-wider block" style={{ color: primaryColor }}>
+                          {dayItem.day || `Day ${idx + 1}`}
+                        </span>
+                        <h4 className="text-sm font-bold text-slate-900 dark:text-white">
+                          {dayItem.date}
+                        </h4>
+                      </div>
+                      {dayItem.badge && (
+                        <span className="text-[9px] font-black px-2 py-0.5 rounded-full uppercase text-white shadow-sm" style={{ backgroundColor: primaryColor }}>
+                          {dayItem.badge}
+                        </span>
+                      )}
+                    </div>
+                    <div className="space-y-1">
+                      <p className="text-xs font-semibold text-slate-800 dark:text-slate-200">{dayItem.title}</p>
+                      {dayItem.theme && (
+                        <p className="text-[11px] text-slate-500 dark:text-slate-400 italic">{dayItem.theme}</p>
+                      )}
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => onOpenPoojaBooking(dayItem.id)}
+                      className="w-full py-2 rounded-xl text-xs font-bold uppercase tracking-wider text-white shadow-sm transition-opacity hover:opacity-90"
+                      style={{ backgroundColor: primaryColor }}
+                    >
+                      Book Seva / Payment
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Venue & Location Interactive Card */}
+          <div
+            className="rounded-3xl p-6 sm:p-8 border-2 bg-white dark:bg-slate-900 shadow-sm space-y-6"
+            style={{ borderColor: `${primaryColor}30` }}
+          >
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+              <div className="space-y-2">
+                <div
+                  className="flex items-center gap-2 font-black text-sm uppercase tracking-wider"
+                  style={{ color: primaryColor }}
+                >
+                  <MapPin className="w-5 h-5 shrink-0" />
+                  <span>{venueName}</span>
+                </div>
+                <p className="text-xs text-slate-600 dark:text-slate-300 max-w-xl">
+                  {venueAddress}
+                </p>
+              </div>
+
+              <div className="flex flex-wrap gap-3">
+                {handleRsvp && (
+                  <button
+                    onClick={handleRsvp}
+                    className="px-6 py-3 rounded-full text-xs font-black uppercase tracking-wider text-white shadow-md transition-opacity hover:opacity-95"
+                    style={{ backgroundColor: primaryColor }}
+                  >
+                    Confirm Attendance / RSVP
+                  </button>
+                )}
+                {onOpenPoojaBooking && activeEvent?.enablePooja && (
+                  <button
+                    onClick={() => onOpenPoojaBooking()}
+                    className="px-6 py-3 rounded-full text-xs font-black uppercase tracking-wider border text-slate-800 dark:text-white hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                    style={{ borderColor: `${primaryColor}40` }}
+                  >
+                    Make Event Payment
+                  </button>
+                )}
+                <a
+                  href={mapsUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="px-6 py-3 rounded-full text-xs font-black uppercase tracking-wider flex items-center gap-2 border bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-white hover:bg-slate-200 transition-colors"
+                  style={{ borderColor: `${primaryColor}40` }}
+                >
+                  <span>Get Directions</span>
+                  <ExternalLink className="w-4 h-4" />
+                </a>
+              </div>
+            </div>
+
+            {/* Embedded Google Map */}
+            <div className="rounded-2xl overflow-hidden border h-64 sm:h-72 w-full relative bg-slate-100" style={{ borderColor: `${primaryColor}20` }}>
+              <iframe
+                title="Event Venue Map"
+                src={mapEmbedUrl}
+                width="100%"
+                height="100%"
+                style={{ border: 0 }}
+                allowFullScreen={false}
+                loading="lazy"
+              />
             </div>
           </div>
         </div>

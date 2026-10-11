@@ -5,9 +5,7 @@ import {
   setPreference,
   saveEventPreferences,
   setActiveHomeEventId,
-  seedConfigFromHeroJson,
 } from '@/lib/config-preferences';
-import { PREFERENCES, PREF_HOME_ACTIVE_EVENT_ID } from '@/constants/preferences';
 
 export const dynamic = 'force-dynamic';
 
@@ -16,12 +14,6 @@ export async function GET(req: NextRequest) {
     const { searchParams } = new URL(req.url);
     const eventId = searchParams.get('eventId');
     const isFeatured = searchParams.get('featured') === 'true';
-    const doSeed = searchParams.get('seed') === 'true';
-
-    if (doSeed) {
-      const seedResult = await seedConfigFromHeroJson(true);
-      return NextResponse.json({ success: true, seed: seedResult });
-    }
 
     if (eventId) {
       const data = await getPreferencesForEvent(eventId);
@@ -34,15 +26,12 @@ export async function GET(req: NextRequest) {
       });
     }
 
-    if (isFeatured || !eventId) {
+    if (isFeatured) {
       const data = await getFeaturedEventPreferences();
       return NextResponse.json({
         success: true,
         activeHomeEventId: data.activeHomeEventId,
-        preferences: data.featuredPreferences,
-        eventPreferences: data.eventPreferences,
-        heroConfig: data.heroConfig,
-        templateConfig: data.templateConfig,
+        preferences: data.preferences,
       });
     }
 
@@ -63,13 +52,7 @@ export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
 
-    // 1. Seed request
-    if (body.action === 'seed') {
-      const result = await seedConfigFromHeroJson(body.force === true);
-      return NextResponse.json({ success: true, result });
-    }
-
-    // 2. Set active home event ID
+    // 1. Set active home event ID
     if (body.action === 'setActiveHomeEvent' || body.activeHomeEventId) {
       const targetEventId = body.activeHomeEventId || body.eventId;
       if (!targetEventId) {
@@ -79,7 +62,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: true, activeHomeEventId: targetEventId });
     }
 
-    // 3. Set single preference
+    // 2. Set single preference
     if (body.preference) {
       const result = await setPreference(
         body.preference,
@@ -90,7 +73,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: true, config: result });
     }
 
-    // 4. Save entire event template/hero config
+    // 3. Save entire event template/hero config
     if (body.eventId && body.config) {
       const result = await saveEventPreferences(body.eventId, body.config);
       return NextResponse.json({ success: true, ...result });

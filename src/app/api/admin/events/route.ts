@@ -1,5 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { noCacheHeaders, getErrorMessage } from '@/lib/api-utils';
+
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -9,47 +11,52 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
     const id = searchParams.get('id');
 
+    // Single event fetch — include mediaItems only here
     if (id) {
       const event = await prisma.event.findUnique({
         where: { id },
-        include: {
-          mediaItems: true,
-        },
+        include: { mediaItems: true },
       });
-
       if (!event) {
         return NextResponse.json({ success: false, error: 'Event not found' }, { status: 404 });
       }
-
-      return NextResponse.json(
-        { success: true, source: 'prisma', data: event },
-        {
-          headers: {
-            'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0',
-            Pragma: 'no-cache',
-            Expires: '0',
-          },
-        }
-      );
+      return NextResponse.json({ success: true, source: 'prisma', data: event }, { headers: noCacheHeaders });
     }
 
-    const events = await prisma.event.findMany({
-      orderBy: { createdAt: 'desc' },
-    });
+    // List fetch — no mediaItems (reduces payload size significantly)
+    const page = Math.max(1, parseInt(searchParams.get('page') || '1', 10));
+    const limitParam = searchParams.get('limit');
+    const limit = limitParam === 'all' ? 0 : Math.max(1, parseInt(limitParam || '50', 10));
+    const search = searchParams.get('search')?.trim() || '';
+    const category = searchParams.get('category')?.trim() || '';
+    const status = searchParams.get('status')?.trim() || '';
+
+    const where = {
+      ...(search ? { OR: [
+        { title: { contains: search, mode: 'insensitive' as const } },
+        { description: { contains: search, mode: 'insensitive' as const } },
+        { venue: { contains: search, mode: 'insensitive' as const } },
+      ]} : {}),
+      ...(category ? { category: { contains: category, mode: 'insensitive' as const } } : {}),
+      ...(status ? { status: { equals: status, mode: 'insensitive' as const } } : {}),
+    };
+
+    const [total, events] = await prisma.$transaction([
+      prisma.event.count({ where }),
+      prisma.event.findMany({
+        where,
+        orderBy: { createdAt: 'desc' },
+        ...(limit > 0 ? { skip: (page - 1) * limit, take: limit } : {}),
+      }),
+    ]);
+
     return NextResponse.json(
-      { success: true, source: 'prisma', data: events },
-      {
-        headers: {
-          'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0',
-          Pragma: 'no-cache',
-          Expires: '0',
-        },
-      }
+      { success: true, source: 'prisma', data: events, pagination: { total, page, limit: limit || total, totalPages: limit > 0 ? Math.ceil(total / limit) : 1 } },
+      { headers: noCacheHeaders }
     );
   } catch (error: unknown) {
-    const message = error instanceof Error ? error.message : 'Database error fetching admin events';
     console.error('[API ADMIN EVENTS GET ERROR]:', error);
-    return NextResponse.json({ success: false, error: message, data: [] }, { status: 500 });
+    return NextResponse.json({ success: false, error: getErrorMessage(error, 'Database error fetching admin events'), data: [] }, { status: 500 });
   }
 }
 
@@ -139,9 +146,8 @@ export async function POST(request: Request) {
     });
     return NextResponse.json({ success: true, source: 'prisma', data: newEvent });
   } catch (err: unknown) {
-    const errorMessage = err instanceof Error ? err.message : 'Failed to create event in database';
     console.error('[API ADMIN EVENTS POST ERROR]:', err);
-    return NextResponse.json({ success: false, error: errorMessage }, { status: 500 });
+    return NextResponse.json({ success: false, error: getErrorMessage(err, 'Failed to create event in database') }, { status: 500 });
   }
 }
 
@@ -275,15 +281,10 @@ export async function PUT(request: Request) {
       },
     });
 
-    return NextResponse.json({
-      success: true,
-      data: updatedEvent,
-      message: 'Event updated successfully.',
-    });
+    return NextResponse.json({ success: true, data: updatedEvent, message: 'Event updated successfully.' });
   } catch (err: unknown) {
-    const errorMessage = err instanceof Error ? err.message : 'Failed to update event in database';
     console.error('[API ADMIN EVENTS PUT ERROR]:', err);
-    return NextResponse.json({ success: false, error: errorMessage }, { status: 500 });
+    return NextResponse.json({ success: false, error: getErrorMessage(err, 'Failed to update event in database') }, { status: 500 });
   }
 }
 

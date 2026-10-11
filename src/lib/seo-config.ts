@@ -1,12 +1,13 @@
 import { Metadata } from 'next';
 import { EventItem, BlogPost } from './types';
+import siteData from '@/data/site-metadata.json';
 
 export const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL || 'https://www.mitrauk.com';
 
 export function constructMetadata({
-  title = 'Mana Indian Telugu Roots Abroad (MITRA) | Official Website',
-  description = 'The premier UK non-profit organization promoting Telugu language, culture, arts, community welfare, student counselling, and high-impact charitable programs across Great Britain.',
-  image = '/assets/organizers-poster.jpg',
+  title = siteData.title,
+  description = siteData.description,
+  image = siteData.defaultImage,
   canonical = '/',
   noIndex = false,
 }: {
@@ -23,17 +24,8 @@ export function constructMetadata({
   return {
     title: `${title} | MITRA`,
     description,
-    keywords: [
-      'Mana Indian Telugu Roots Abroad',
-      'MITRA',
-      'Telugu Community UK',
-      'London Telugu Events',
-      'Ugadi Celebrations UK',
-      'Telugu Charity UK',
-      'Kuchipudi Dance London',
-      'Telugu Student Help London',
-    ],
-    authors: [{ name: 'Mana Indian Telugu Roots Abroad IT Committee' }],
+    keywords: siteData.keywords,
+    authors: siteData.authors,
     metadataBase: new URL(BASE_URL),
     alternates: {
       canonical,
@@ -42,7 +34,7 @@ export function constructMetadata({
       title,
       description,
       url: canonical,
-      siteName: 'Mana Indian Telugu Roots Abroad (MITRA)',
+      siteName: siteData.siteName,
       images: [
         {
           url: absoluteImageUrl,
@@ -60,7 +52,7 @@ export function constructMetadata({
       title,
       description,
       images: [absoluteImageUrl],
-      creator: '@mitra_official',
+      creator: siteData.twitterCreator,
     },
     robots: noIndex
       ? { index: false, follow: false }
@@ -72,28 +64,18 @@ export function generateOrganizationJsonLd() {
   return {
     '@context': 'https://schema.org',
     '@type': 'NGO',
-    name: 'Mana Indian Telugu Roots Abroad',
-    alternateName: 'MITRA',
+    name: siteData.organization.name,
+    alternateName: siteData.organization.alternateName,
     url: BASE_URL,
     logo: `${BASE_URL}/logo.png`,
-    sameAs: [
-      'https://twitter.com/mitra_official',
-      'https://linkedin.com/company/mitra-official',
-      'https://facebook.com/ukteluguassociation',
-      'https://youtube.com/@mitraofficial',
-    ],
+    sameAs: siteData.organization.sameAs,
     address: {
       '@type': 'PostalAddress',
-      streetAddress: 'Chiswick Park, 566 Chiswick High Rd',
-      addressLocality: 'London',
-      postalCode: 'W4 5YA',
-      addressCountry: 'GB',
+      ...siteData.organization.address,
     },
     contactPoint: {
       '@type': 'ContactPoint',
-      telephone: '+44-20-8123-4567',
-      contactType: 'customer service',
-      email: 'info@mitra.org.uk',
+      ...siteData.organization.contactPoint,
     },
   };
 }

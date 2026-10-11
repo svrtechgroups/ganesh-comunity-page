@@ -127,3 +127,393 @@
 ::-webkit-scrollbar-thumb:hover {
   background: linear-gradient(180deg, #FF7A00, #E65C00);
 }
+
+/* ═══════════════════════════════════════════════════════════════════════
+   ADMIN PORTAL THEME OVERRIDES (Aligns Admin with Regular Website Theme)
+   Warm Ivory (#FFF8F0), Saffron (#E65C00), Maroon (#7A1620), Bronze (#3D1A00)
+   ═══════════════════════════════════════════════════════════════════════ */
+.admin-theme {
+  background-color: #FFF8F0 !important;
+  color: #3D1A00 !important;
+}
+
+/* Card & Surface Containers with warm soft elevation */
+.admin-theme .bg-slate-950,
+.admin-theme .bg-slate-950\/70,
+.admin-theme .bg-slate-950\/80,
+.admin-theme .bg-slate-950\/90,
+.admin-theme .bg-slate-900,
+.admin-theme .bg-slate-900\/40,
+.admin-theme .bg-slate-900\/50,
+.admin-theme .bg-slate-900\/60,
+.admin-theme .bg-slate-900\/70,
+.admin-theme .bg-slate-900\/80 {
+  background-color: #FFFFFF !important;
+  border-color: rgba(230, 92, 0, 0.18) !important;
+  box-shadow: 0 4px 20px -2px rgba(61, 26, 0, 0.05), 0 1px 3px rgba(230, 92, 0, 0.07) !important;
+}
+
+.admin-theme .bg-slate-800,
+.admin-theme .bg-slate-800\/50,
+.admin-theme .bg-slate-800\/60,
+.admin-theme .bg-slate-800\/70,
+.admin-theme .bg-slate-800\/80 {
+  background-color: #FFF5EB !important;
+  border-color: rgba(230, 92, 0, 0.2) !important;
+}
+
+/* Universal Borders in Admin */
+.admin-theme .border-slate-800,
+.admin-theme .border-slate-700,
+.admin-theme .border-slate-800\/80,
+.admin-theme .border-slate-800\/50,
+.admin-theme .border-slate-600 {
+  border-color: rgba(230, 92, 0, 0.18) !important;
+}
+
+/* Shadows in Admin: Warm and organic, eliminating harsh dark shadows */
+.admin-theme .shadow-sm {
+  box-shadow: 0 1px 3px rgba(61, 26, 0, 0.06), 0 1px 2px rgba(230, 92, 0, 0.04) !important;
+}
+
+.admin-theme .shadow,
+.admin-theme .shadow-md {
+  box-shadow: 0 4px 14px -1px rgba(61, 26, 0, 0.07), 0 2px 4px rgba(230, 92, 0, 0.05) !important;
+}
+
+.admin-theme .shadow-lg,
+.admin-theme .shadow-xl {
+  box-shadow: 0 10px 28px -4px rgba(61, 26, 0, 0.09), 0 3px 8px rgba(230, 92, 0, 0.06) !important;
+}
+
+/* Typography & Headings */
+.admin-theme h1,
+.admin-theme h2,
+.admin-theme h3,
+.admin-theme h4 {
+  color: #3D1A00 !important;
+}
+
+/* Content Text on light surfaces (excluding colored buttons/badges) */
+.admin-theme :not(button):not(a):not(span[class*="bg-"]):not(div[class*="bg-gradient"]):not([class*="bg-emerald"]):not([class*="bg-amber"]):not([class*="bg-mitra"]):not([class*="bg-\[\#"]):not([class*="bg-purple"]):not([class*="bg-blue"]) > .text-white,
+.admin-theme :not(button):not(a):not(span[class*="bg-"]):not(div[class*="bg-gradient"]):not([class*="bg-emerald"]):not([class*="bg-amber"]):not([class*="bg-mitra"]):not([class*="bg-\[\#"]):not([class*="bg-purple"]):not([class*="bg-blue"]) > .text-slate-100,
+.admin-theme :not(button):not(a):not(span[class*="bg-"]):not(div[class*="bg-gradient"]):not([class*="bg-emerald"]):not([class*="bg-amber"]):not([class*="bg-mitra"]):not([class*="bg-\[\#"]):not([class*="bg-purple"]):not([class*="bg-blue"]) > .text-slate-200 {
+  color: #3D1A00 !important;
+}
+
+.admin-theme .text-slate-300,
+.admin-theme .text-slate-400,
+.admin-theme .text-slate-500 {
+  color: #6B3A2A !important;
+}
+
+.admin-theme .text-mitra-gold {
+  color: #CC4000 !important;
+}
+
+/* High Contrast Colored Text on Light Surfaces */
+.admin-theme .text-amber-300 {
+  color: #B45309 !important;
+}
+.admin-theme .text-amber-400 {
+  color: #92400E !important;
+}
+.admin-theme .text-emerald-400 {
+  color: #047857 !important;
+}
+.admin-theme .text-emerald-300 {
+  color: #065F46 !important;
+}
+.admin-theme .text-purple-300,
+.admin-theme .text-purple-400 {
+  color: #6D28D9 !important;
+}
+.admin-theme .text-blue-400 {
+  color: #1D4ED8 !important;
+}
+
+.admin-theme .border-mitra-gold,
+.admin-theme .border-mitra-gold\/40,
+.admin-theme .border-mitra-gold\/50,
+.admin-theme .border-mitra-gold\/30 {
+  border-color: rgba(230, 92, 0, 0.35) !important;
+}
+
+/* ─── HIGHLIGHT & PRIMARY BUTTONS ─── */
+/* Saffron / Mitra Red Action Button */
+.admin-theme .bg-mitra-red,
+.admin-theme button.bg-mitra-red,
+.admin-theme a.bg-mitra-red,
+.admin-theme .gold-button {
+  background: linear-gradient(135deg, #FF7A00 0%, #E65C00 60%, #CC4000 100%) !important;
+  color: #FFFFFF !important;
+  border: 1px solid rgba(255, 255, 255, 0.25) !important;
+  box-shadow: 0 4px 14px rgba(230, 92, 0, 0.32), 0 1px 2px rgba(230, 92, 0, 0.2) !important;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+.admin-theme .bg-mitra-red:hover,
+.admin-theme button.bg-mitra-red:hover,
+.admin-theme a.bg-mitra-red:hover,
+.admin-theme .gold-button:hover {
+  background: linear-gradient(135deg, #FF8C1A 0%, #FF6600 60%, #E65C00 100%) !important;
+  box-shadow: 0 6px 20px rgba(230, 92, 0, 0.42), 0 2px 4px rgba(230, 92, 0, 0.25) !important;
+  transform: translateY(-1px) !important;
+}
+.admin-theme .bg-mitra-red *,
+.admin-theme button.bg-mitra-red *,
+.admin-theme a.bg-mitra-red *,
+.admin-theme .gold-button * {
+  color: #FFFFFF !important;
+}
+
+/* Saffron / Amber Gradient Highlight Buttons (e.g. Save Changes) */
+.admin-theme button[class*="from-amber-500"],
+.admin-theme a[class*="from-amber-500"],
+.admin-theme button[class*="from-amber-600"],
+.admin-theme [class*="bg-gradient-to-r"][class*="from-amber"] {
+  background: linear-gradient(135deg, #FF8C1A 0%, #E65C00 60%, #B84300 100%) !important;
+  color: #FFFFFF !important;
+  border: 1px solid rgba(255, 255, 255, 0.25) !important;
+  box-shadow: 0 4px 14px rgba(230, 92, 0, 0.35), 0 1px 2px rgba(230, 92, 0, 0.2) !important;
+  font-weight: 800 !important;
+}
+.admin-theme button[class*="from-amber-500"]:hover,
+.admin-theme a[class*="from-amber-500"]:hover,
+.admin-theme button[class*="from-amber-600"]:hover,
+.admin-theme [class*="bg-gradient-to-r"][class*="from-amber"]:hover {
+  background: linear-gradient(135deg, #FFA03A 0%, #FF6D00 60%, #E65C00 100%) !important;
+  box-shadow: 0 6px 22px rgba(230, 92, 0, 0.45) !important;
+  transform: translateY(-1px) !important;
+}
+.admin-theme button[class*="from-amber-500"] *,
+.admin-theme a[class*="from-amber-500"] *,
+.admin-theme button[class*="from-amber-600"] *,
+.admin-theme [class*="bg-gradient-to-r"][class*="from-amber"] * {
+  color: #FFFFFF !important;
+}
+
+/* Amber / Golden Action Buttons (e.g. Create Member Accounts / OTP) */
+.admin-theme button.bg-amber-600,
+.admin-theme a.bg-amber-600 {
+  background: linear-gradient(135deg, #D97706 0%, #B45309 100%) !important;
+  color: #FFFFFF !important;
+  box-shadow: 0 4px 14px rgba(180, 83, 9, 0.28) !important;
+  border: 1px solid rgba(255, 255, 255, 0.15) !important;
+}
+.admin-theme button.bg-amber-600:hover,
+.admin-theme a.bg-amber-600:hover {
+  background: linear-gradient(135deg, #F59E0B 0%, #D97706 100%) !important;
+  box-shadow: 0 6px 18px rgba(180, 83, 9, 0.38) !important;
+  transform: translateY(-1px) !important;
+}
+.admin-theme button.bg-amber-600 *,
+.admin-theme a.bg-amber-600 * {
+  color: #FFFFFF !important;
+}
+
+/* Emerald / Green Action Buttons (e.g. Export CSV) */
+.admin-theme button.bg-emerald-600,
+.admin-theme a.bg-emerald-600 {
+  background: linear-gradient(135deg, #059669 0%, #047857 100%) !important;
+  color: #FFFFFF !important;
+  box-shadow: 0 4px 14px rgba(5, 150, 105, 0.28) !important;
+  border: 1px solid rgba(255, 255, 255, 0.15) !important;
+}
+.admin-theme button.bg-emerald-600:hover,
+.admin-theme a.bg-emerald-600:hover {
+  background: linear-gradient(135deg, #10B981 0%, #059669 100%) !important;
+  box-shadow: 0 6px 18px rgba(5, 150, 105, 0.38) !important;
+  transform: translateY(-1px) !important;
+}
+.admin-theme button.bg-emerald-600 *,
+.admin-theme a.bg-emerald-600 * {
+  color: #FFFFFF !important;
+}
+
+/* Maroon Highlight Buttons (e.g. Payments Ledger Link) */
+.admin-theme a.bg-\[\#7A1620\],
+.admin-theme button.bg-\[\#7A1620\],
+.admin-theme .maroon-button {
+  background: linear-gradient(135deg, #8B1A24 0%, #7A1620 60%, #5C0B13 100%) !important;
+  color: #F4C542 !important;
+  border: 1px solid rgba(244, 197, 66, 0.45) !important;
+  box-shadow: 0 4px 14px rgba(122, 22, 32, 0.28) !important;
+}
+.admin-theme a.bg-\[\#7A1620\]:hover,
+.admin-theme button.bg-\[\#7A1620\]:hover,
+.admin-theme .maroon-button:hover {
+  background: linear-gradient(135deg, #9C1F2E 0%, #8B1A24 60%, #7A1620 100%) !important;
+  box-shadow: 0 6px 20px rgba(122, 22, 32, 0.38) !important;
+  border-color: rgba(244, 197, 66, 0.7) !important;
+  transform: translateY(-1px) !important;
+}
+.admin-theme a.bg-\[\#7A1620\] *,
+.admin-theme button.bg-\[\#7A1620\] *,
+.admin-theme .maroon-button * {
+  color: #F4C542 !important;
+}
+
+/* Secondary & Utility Buttons */
+.admin-theme button.bg-slate-800,
+.admin-theme a.bg-slate-800 {
+  background-color: #FFFFFF !important;
+  color: #7A1620 !important;
+  border: 1px solid rgba(230, 92, 0, 0.25) !important;
+  box-shadow: 0 2px 6px rgba(61, 26, 0, 0.04) !important;
+  font-weight: 700 !important;
+}
+.admin-theme button.bg-slate-800:hover,
+.admin-theme a.bg-slate-800:hover {
+  background-color: #FFF5EB !important;
+  color: #E65C00 !important;
+  border-color: #E65C00 !important;
+  box-shadow: 0 4px 12px rgba(230, 92, 0, 0.12) !important;
+  transform: translateY(-1px) !important;
+}
+
+/* Active Sidebar Navigation Item */
+.admin-theme aside a.bg-\[\#E65C00\] {
+  background: linear-gradient(135deg, #FF7A00 0%, #E65C00 100%) !important;
+  color: #FFFFFF !important;
+  box-shadow: 0 4px 14px rgba(230, 92, 0, 0.35) !important;
+}
+.admin-theme aside a.bg-\[\#E65C00\] * {
+  color: #FFFFFF !important;
+}
+
+/* Navigation Tabs */
+.admin-theme .border-b .border-mitra-gold,
+.admin-theme .border-b .border-amber-500 {
+  border-color: #E65C00 !important;
+  color: #E65C00 !important;
+  font-weight: 800 !important;
+}
+.admin-theme .border-b button:hover {
+  color: #E65C00 !important;
+}
+
+/* Active Filter Pills */
+.admin-theme .bg-mitra-gold.text-black {
+  background: #E65C00 !important;
+  color: #FFFFFF !important;
+  box-shadow: 0 2px 8px rgba(230, 92, 0, 0.3) !important;
+}
+.admin-theme .bg-emerald-500.text-black {
+  background: #059669 !important;
+  color: #FFFFFF !important;
+  box-shadow: 0 2px 8px rgba(5, 150, 105, 0.3) !important;
+}
+.admin-theme .bg-purple-500.text-white {
+  background: #7C3AED !important;
+  color: #FFFFFF !important;
+  box-shadow: 0 2px 8px rgba(124, 58, 237, 0.3) !important;
+}
+.admin-theme .bg-blue-500.text-white {
+  background: #2563EB !important;
+  color: #FFFFFF !important;
+  box-shadow: 0 2px 8px rgba(37, 99, 235, 0.3) !important;
+}
+
+/* Inputs, Selects & Textareas */
+.admin-theme input:not([type="checkbox"]):not([type="radio"]),
+.admin-theme select,
+.admin-theme textarea {
+  background-color: #FFFFFF !important;
+  color: #3D1A00 !important;
+  border: 1px solid rgba(230, 92, 0, 0.28) !important;
+  border-radius: 0.75rem !important;
+  box-shadow: 0 1px 3px rgba(61, 26, 0, 0.04) !important;
+}
+
+.admin-theme input::placeholder,
+.admin-theme textarea::placeholder {
+  color: rgba(107, 58, 42, 0.5) !important;
+}
+
+.admin-theme input:focus,
+.admin-theme select:focus,
+.admin-theme textarea:focus {
+  border-color: #E65C00 !important;
+  outline: none !important;
+  box-shadow: 0 0 0 3px rgba(230, 92, 0, 0.15) !important;
+}
+
+.admin-theme select option {
+  background-color: #FFFFFF !important;
+  color: #3D1A00 !important;
+}
+
+/* Tables */
+.admin-theme table {
+  background-color: #FFFFFF !important;
+}
+
+.admin-theme table thead,
+.admin-theme table thead tr {
+  background-color: #FFF0E0 !important;
+  border-bottom: 2px solid rgba(230, 92, 0, 0.25) !important;
+}
+
+.admin-theme table th {
+  color: #7A1620 !important;
+  font-weight: 800 !important;
+  border-bottom: 2px solid rgba(230, 92, 0, 0.2) !important;
+}
+
+.admin-theme table tbody tr {
+  border-bottom: 1px solid rgba(230, 92, 0, 0.1) !important;
+  background-color: #FFFFFF !important;
+}
+
+.admin-theme table tbody tr:hover,
+.admin-theme tr.hover\:bg-slate-900\/50:hover,
+.admin-theme tr:hover {
+  background-color: #FFF9F3 !important;
+}
+
+.admin-theme table td {
+  color: #3D1A00 !important;
+}
+
+/* Badges & Alerts */
+.admin-theme .bg-emerald-950,
+.admin-theme .bg-emerald-950\/80,
+.admin-theme .bg-emerald-950\/60 {
+  background-color: #ECFDF5 !important;
+  border-color: #A7F3D0 !important;
+  color: #065F46 !important;
+}
+
+.admin-theme .bg-rose-950,
+.admin-theme .bg-rose-950\/80,
+.admin-theme .bg-rose-950\/60 {
+  background-color: #FFF1F2 !important;
+  border-color: #FECDD3 !important;
+  color: #9F1239 !important;
+}
+
+.admin-theme .bg-amber-500\/10,
+.admin-theme .bg-amber-500\/20,
+.admin-theme .bg-amber-950,
+.admin-theme .bg-amber-950\/60 {
+  background-color: #FFFBEB !important;
+  border-color: #FDE68A !important;
+  color: #92400E !important;
+}
+
+.admin-theme .bg-blue-500\/10,
+.admin-theme .bg-blue-500\/20 {
+  background-color: #F0F9FF !important;
+  border-color: #BAE6FD !important;
+  color: #0369A1 !important;
+}
+
+/* Modals */
+.admin-theme .fixed .bg-slate-950,
+.admin-theme .fixed .bg-slate-900 {
+  background-color: #FFFFFF !important;
+  box-shadow: 0 20px 45px -10px rgba(61, 26, 0, 0.2), 0 0 1px rgba(230, 92, 0, 0.25) !important;
+  border: 1px solid rgba(230, 92, 0, 0.25) !important;
+}
+
+

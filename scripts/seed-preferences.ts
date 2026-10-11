@@ -1,6 +1,4 @@
 import { PrismaClient } from '@prisma/client';
-import fs from 'fs';
-import path from 'path';
 
 const prisma = new PrismaClient();
 
@@ -23,14 +21,77 @@ function serializeConfigValue(value: any): { value: string; dataType: string } {
   return { value: String(value ?? ''), dataType: 'string' };
 }
 
+const DEFAULT_SEED_DATA = {
+  activeHomeEventId: 'evt-ganesh-chaturthi',
+  events: {
+    'evt-ganesh-chaturthi': {
+      id: 'evt-ganesh-chaturthi',
+      title: 'THE BIGGEST MAHA GANAPATHI',
+      eventSlug: 'events/evt-ganesh-chaturthi',
+      targetDate: '2026-09-14T00:00:00.000Z',
+      hero: {
+        heroType: '3d-model',
+        heroVariant: '3d-sanctum',
+        modelUrl: '/assets/idols/Lord Ganesh.glb',
+        modelScale: 2.8,
+        proceduralFallback: 'ganesha',
+        showParticles: true,
+        showCornerMotifs: true,
+        showRadialAura: true,
+        bannerImageUrl: '/assets/poster.jpg',
+        videoUrl: '',
+        presenterBadge: 'Welcome to Mana Indian Telugu Roots Abroad (MITRA UK)',
+        title: 'THE BIGGEST MAHA GANAPATHI',
+        subtitle: 'LONDON GANESH MAHOTSAV 2026',
+        tagline: 'Streaming 3D Bappa Murti & Devotional Rays',
+        loadingText: 'ENTERING SANCTUM...',
+        scrollCueText: 'Scroll to Enter Sanctum',
+        primaryColor: '#E65C00',
+        accentColor: '#CC4000',
+        backgroundColor: '#FFF8F0',
+        primaryCta: {
+          label: 'Book Pooja / Seva',
+          action: 'pooja',
+        },
+        secondaryCta: {
+          label: 'Make Donation',
+          action: 'donation',
+        },
+        whatsAppUrl: 'https://chat.whatsapp.com/IVqirWWzM96IBNRfhSWGEd',
+      },
+      sections: {
+        showCountdown: true,
+        showEventDetails: true,
+        showStory: true,
+        showSpecs: true,
+        showMediaGallery: true,
+        showOfferings: true,
+        showSponsors: true,
+      },
+      story: {
+        badge: 'THE DEVOTIONAL JOURNEY',
+        quote: '“From Lalbaugcha Raja in Mumbai to Khairatabad Ganesh in Hyderabad… now London\'s own iconic Ganesha arrives in Slough.”',
+        description: 'Organized by MITRA UK in association with ELE Entertainments and presented by Biryanis and more!, the Maha Ganapathi Mahotsav represents a historic cultural milestone for the UK diaspora. Step into the sanctum, offer your prayers, and experience the divine presence of Bappa in Great Britain.',
+        stats: [
+          { value: '5,000+', label: 'Expected Devotees' },
+          { value: '100%', label: 'Eco-Friendly Clay Murti' },
+          { value: 'Grand Aarti', label: 'Daily Vedic Celebrations' },
+        ],
+      },
+      specs: {
+        badge: 'IDOL SPECIFICATIONS & ARTISTRY',
+        title: 'THE MAHA GANAPATHI MURTI',
+        subtitle: 'Hand-sculpted by master artisans with traditional devotion, designed specifically for the historic Slough Mahotsav.',
+      },
+    },
+  },
+};
+
 async function main() {
-  console.log('--- Starting Preferences Seed ---');
-  const jsonPath = path.join(process.cwd(), 'src', 'data', 'event-hero-config.json');
-  const raw = fs.readFileSync(jsonPath, 'utf-8');
-  const data = JSON.parse(raw);
+  console.log('--- Starting Preferences Seed (Pure DB) ---');
 
   // 1. Seed active home event
-  const activeEventId = data.activeHomeEventId || 'evt-ganesh-chaturthi';
+  const activeEventId = DEFAULT_SEED_DATA.activeHomeEventId || 'evt-ganesh-chaturthi';
   const homeKey = `global:home.activeHomeEventId`;
   await prisma.config.upsert({
     where: { configKey: homeKey },
@@ -52,7 +113,7 @@ async function main() {
 
   // 2. Seed events
   let totalSaved = 1;
-  const events = data.events || {};
+  const events = DEFAULT_SEED_DATA.events || {};
   for (const [eventId, eventConfig] of Object.entries(events as Record<string, any>)) {
     // Ensure event in DB
     const existing = await prisma.event.findUnique({ where: { id: eventId } });

@@ -27,7 +27,7 @@ export default function AdminSettingsPage() {
   const [formData, setFormData] = useState<SiteSettings>({
     siteTitle: 'Mana Indian Telugu Roots Abroad (MITRA)',
     tagline: 'Serving and Connecting the Telugu Community in the United Kingdom',
-    contactEmail: 'info@mitra.org.uk',
+    contactEmail: 'info@mitrauk.com',
     contactPhone: '+44 20 8123 4567',
     address: 'MITRA Centre, Chiswick Park, 566 Chiswick High Rd, London W4 5YA, United Kingdom',
     twitterUrl: 'https://twitter.com/mitra_official',

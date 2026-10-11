@@ -1,8 +1,9 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import dynamic from 'next/dynamic';
 import Link from 'next/link';
-import { ArrowLeft, Flame, Heart, Calendar, Loader2 } from 'lucide-react';
+import { ArrowLeft, Ticket, Loader2, Image as ImageIcon } from 'lucide-react';
 import EventHero from '@/components/EventHero';
 import EventDetailsSection from '@/components/EventDetailsSection';
 import RitualCountdown from '@/components/RitualCountdown';
@@ -11,14 +12,28 @@ import IdolSpecsCard from '@/components/IdolSpecsCard';
 import MediaTeaserSection from '@/components/MediaTeaserSection';
 import OfferingPlaques from '@/components/OfferingPlaques';
 import SponsorRibbonBand from '@/components/SponsorRibbonBand';
-import PoojaBookingModal from '@/components/PoojaBookingModal';
-import DonationModal from '@/components/DonationModal';
-import NotifyMeModal from '@/components/NotifyMeModal';
 import { EventTemplateConfig } from '@/types/event-template';
+
+// Heavy modals: lazy-loaded on demand to reduce initial page bundle size
+const PoojaBookingModal = dynamic(() => import('@/components/PoojaBookingModal'), {
+  ssr: false,
+  loading: () => <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60"><Loader2 className="w-8 h-8 text-orange-400 animate-spin" /></div>,
+});
+const DonationModal = dynamic(() => import('@/components/DonationModal'), {
+  ssr: false,
+  loading: () => <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60"><Loader2 className="w-8 h-8 text-orange-400 animate-spin" /></div>,
+});
+const NotifyMeModal = dynamic(() => import('@/components/NotifyMeModal'), { ssr: false });
+const EventRSVPModal = dynamic(() => import('@/components/EventRSVPModal'), {
+  ssr: false,
+  loading: () => <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60"><Loader2 className="w-8 h-8 text-orange-400 animate-spin" /></div>,
+});
+
 
 export interface EventLandingTemplateProps {
   eventId?: string;
   config?: EventTemplateConfig;
+  event?: any;
 }
 
 const DEFAULT_GANESH_CONFIG: EventTemplateConfig = {
@@ -65,6 +80,7 @@ const DEFAULT_GANESH_CONFIG: EventTemplateConfig = {
 export default function EventLandingTemplate({
   eventId = 'evt-ganesh-chaturthi',
   config: initialConfig,
+  event: initialEvent,
 }: EventLandingTemplateProps) {
   const [templateConfig, setTemplateConfig] = useState<EventTemplateConfig>(
     initialConfig || DEFAULT_GANESH_CONFIG
@@ -75,17 +91,19 @@ export default function EventLandingTemplate({
   const [donateModalOpen, setDonateModalOpen] = useState(false);
   const [donationCategory, setDonationCategory] = useState<'Annadanam' | 'Event Donations'>('Annadanam');
   const [notifyModalOpen, setNotifyModalOpen] = useState(false);
+  const [rsvpModalOpen, setRsvpModalOpen] = useState(false);
+  const [dbEvent, setDbEvent] = useState<any>(initialEvent || null);
+  const [rsvpCount, setRsvpCount] = useState<number>(initialEvent?.rsvpCount || 0);
 
   // Load custom template config from JSON storage if eventId is provided
   useEffect(() => {
     if (initialConfig) {
       setTemplateConfig(initialConfig);
       setLoading(false);
-      return;
     }
 
     if (eventId) {
-      if (eventId !== 'evt-ganesh-chaturthi') {
+      if (eventId !== 'evt-ganesh-chaturthi' && !initialConfig) {
         setLoading(true);
       }
       fetch(`/api/config/preferences?eventId=${encodeURIComponent(eventId)}`)
@@ -101,8 +119,20 @@ export default function EventLandingTemplate({
         .finally(() => {
           setLoading(false);
         });
+
+      if (!initialEvent) {
+        fetch(`/api/events?id=${encodeURIComponent(eventId)}`)
+          .then((res) => res.json())
+          .then((json) => {
+            if (json.success && json.data) {
+              setDbEvent(json.data);
+              setRsvpCount(json.data.rsvpCount || 0);
+            }
+          })
+          .catch(() => {});
+      }
     }
-  }, [eventId, initialConfig]);
+  }, [eventId, initialConfig, initialEvent]);
 
   const openPoojaBooking = (dateId?: string) => {
     setSelectedPoojaDateId(dateId);
@@ -115,7 +145,7 @@ export default function EventLandingTemplate({
   };
 
   const openRsvp = () => {
-    setNotifyModalOpen(true);
+    setRsvpModalOpen(true);
   };
 
   if (loading) {
@@ -149,35 +179,13 @@ export default function EventLandingTemplate({
           </Link>
 
           <div className="flex items-center gap-4">
-            {sections.showCountdown && (
-              <a
-                href="#ritual-clock"
-                className="hidden sm:inline-flex items-center gap-1 text-[#6B3A2A] font-semibold hover:text-[#E65C00] transition-colors"
-              >
-                <Calendar className="w-3.5 h-3.5 text-[#E65C00]" />
-                <span>Countdown</span>
-              </a>
-            )}
-
-            {sections.showEventDetails && (
-              <a
-                href="#event-details"
-                className="inline-flex items-center gap-1 text-[#6B3A2A] font-semibold hover:text-[#E65C00] transition-colors"
-              >
-                <Flame className="w-3.5 h-3.5 text-[#E65C00]" />
-                <span>Schedule</span>
-              </a>
-            )}
-
-            {hero.secondaryCta && (
-              <button
-                onClick={() => openDonation('Annadanam')}
-                className="inline-flex items-center gap-1 bg-[#E65C00]/10 hover:bg-[#E65C00]/20 text-[#E65C00] px-3 py-1 rounded-full font-bold transition-colors"
-              >
-                <Heart className="w-3.5 h-3.5 fill-[#E65C00]" />
-                <span>{hero.secondaryCta.label}</span>
-              </button>
-            )}
+            <button
+              onClick={openRsvp}
+              className="gold-button px-4 py-1.5 rounded-full text-xs font-black uppercase tracking-wider flex items-center gap-1.5 shadow-md hover:scale-105 transition-all"
+            >
+              <Ticket className="w-3.5 h-3.5" />
+              <span>RSVP</span>
+            </button>
           </div>
         </div>
       </div>
@@ -192,28 +200,27 @@ export default function EventLandingTemplate({
         onRsvpClick={openRsvp}
         onNotifyClick={openRsvp}
       />
-
-      {/* 2. EVENT DETAILS & SCHEDULE */}
-      {sections.showEventDetails && (
-        <div id="event-details">
-          <EventDetailsSection
-            eventId={templateConfig.id}
-            eventTitle={templateConfig.title}
-            targetDate={templateConfig.targetDate}
-            primaryColor={hero.primaryColor}
-            accentColor={hero.accentColor}
-            backgroundColor={hero.backgroundColor}
-            onOpenPoojaBooking={openPoojaBooking}
-            onOpenDonation={openDonation}
-            onOpenRsvp={openRsvp}
-          />
-        </div>
-      )}
-
-      {/* 3. RITUAL COUNTDOWN CLOCK */}
+      {/* MEDIA GALLERY LINK BANNER */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        <Link href={`/media?event=${templateConfig.id || eventId}`} className="bg-gradient-to-r from-slate-900 to-slate-800 rounded-3xl p-6 flex flex-col sm:flex-row items-center justify-between shadow-xl border border-slate-700/50 gap-4 group hover:border-mitra-gold/50 transition-colors">
+          <div className="space-y-1 text-center sm:text-left">
+            <h3 className="text-lg font-bold text-white flex items-center justify-center sm:justify-start gap-2">
+              <ImageIcon className="w-5 h-5 text-mitra-gold" />
+              Official Event Media Gallery
+            </h3>
+            <p className="text-sm text-slate-300">
+              View high-resolution photos, video reels, and highlights from this event.
+            </p>
+          </div>
+          <div className="shrink-0 bg-mitra-red hover:bg-[#c22026] text-white px-6 py-2.5 rounded-xl font-bold shadow-md transition-all flex items-center gap-2 group-hover:scale-105">
+            <ImageIcon className="w-4 h-4" />
+            <span>View Gallery</span>
+          </div>
+        </Link>
+      </div>      {/* 3. RITUAL COUNTDOWN CLOCK */}
       {sections.showCountdown && (
         <RitualCountdown
-          targetDate={templateConfig.targetDate}
+          targetDate={dbEvent?.date||templateConfig.targetDate}
           eventTitle={templateConfig.title}
           primaryColor={hero.primaryColor}
           accentColor={hero.accentColor}
@@ -243,7 +250,13 @@ export default function EventLandingTemplate({
 
       {/* 6. MEDIA & TEASER GALLERY */}
       {sections.showMediaGallery && (
-        <MediaTeaserSection eventId={templateConfig.id} />
+        <MediaTeaserSection
+          eventId={templateConfig.id}
+          videoUrl={templateConfig.mediaTeaser?.videoUrl || hero.videoUrl}
+          sectionTitle={templateConfig.mediaTeaser?.sectionTitle}
+          subtitle={templateConfig.mediaTeaser?.subtitle}
+          posterUrl={templateConfig.mediaTeaser?.posterUrl || hero.bannerImageUrl}
+        />
       )}
 
       {/* 7. COMMUNITY OFFERINGS & PARTICIPATION */}
@@ -263,12 +276,39 @@ export default function EventLandingTemplate({
         isOpen={donateModalOpen}
         onClose={() => setDonateModalOpen(false)}
         initialCategory={donationCategory}
+        eventId={templateConfig.id}
+        eventName={templateConfig.title}
       />
 
       <NotifyMeModal
         isOpen={notifyModalOpen}
         onClose={() => setNotifyModalOpen(false)}
       />
+
+      {rsvpModalOpen && (
+        <EventRSVPModal
+          event={{
+            id: dbEvent?.id || templateConfig.id || eventId,
+            title: dbEvent?.title || templateConfig.title,
+            date: dbEvent?.date || (templateConfig.targetDate ? templateConfig.targetDate.slice(0, 10) : '2026-09-26'),
+            time: dbEvent?.time || '09:00 AM',
+            venue: dbEvent?.venue || 'London / United Kingdom',
+            ticketPrice: dbEvent?.ticketPrice ?? 0,
+            childTicketPrice: dbEvent?.childTicketPrice ?? 0,
+            capacity: dbEvent?.capacity ?? 500,
+            rsvpCount: rsvpCount,
+            enforceCapacityLimit: dbEvent?.enforceCapacityLimit ?? false,
+            enableRsvp: dbEvent?.enableRsvp ?? true,
+            availableDates: dbEvent?.availableDates || [],
+            eventSchedule: dbEvent?.eventSchedule || [],
+            adultCapacity: dbEvent?.adultCapacity ?? 0,
+            childCapacity: dbEvent?.childCapacity ?? 0,
+            customFields: dbEvent?.customFields || [],
+          }}
+          onClose={() => setRsvpModalOpen(false)}
+          onSuccess={() => setRsvpCount((prev) => prev + 1)}
+        />
+      )}
     </div>
   );
 }

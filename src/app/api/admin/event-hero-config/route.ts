@@ -13,33 +13,14 @@ import { prisma } from '@/lib/prisma';
 
 export const dynamic = 'force-dynamic';
 
-const CONFIG_PATH = path.join(process.cwd(), 'src', 'data', 'event-hero-config.json');
-
-function readStorageConfig(): EventHeroStorageConfig {
-  try {
-    if (fs.existsSync(CONFIG_PATH)) {
-      const raw = fs.readFileSync(CONFIG_PATH, 'utf-8');
-      return JSON.parse(raw);
-    }
-  } catch (e) {
-    console.error('Failed to read event-hero-config.json:', e);
+// Cleanup: remove legacy JSON file from filesystem if it exists
+try {
+  const legacyJsonPath = path.join(process.cwd(), 'src', 'data', 'event-hero-config.json');
+  if (fs.existsSync(legacyJsonPath)) {
+    fs.unlinkSync(legacyJsonPath);
   }
-  return {
-    activeHomeEventId: 'evt-ganesh-chaturthi',
-    events: {},
-  };
-}
-
-function writeStorageConfig(config: EventHeroStorageConfig) {
-  try {
-    const dir = path.dirname(CONFIG_PATH);
-    if (!fs.existsSync(dir)) {
-      fs.mkdirSync(dir, { recursive: true });
-    }
-    fs.writeFileSync(CONFIG_PATH, JSON.stringify(config, null, 2), 'utf-8');
-  } catch (e) {
-    console.error('Failed to write backup JSON:', e);
-  }
+} catch (e) {
+  // Ignore
 }
 
 export async function GET(req: Request) {
@@ -49,8 +30,8 @@ export async function GET(req: Request) {
   }
 
   try {
-    // Read all events from Event table and construct from Config
-    const events = await prisma.event.findMany({ select: { id: true } });
+    // Read all events from Event table and construct from Config table
+    const events = await prisma.event.findMany({ select: { id: true, title: true } });
     const featured = await getFeaturedEventPreferences();
     const eventMap: Record<string, EventTemplateConfig> = {};
 
@@ -60,7 +41,7 @@ export async function GET(req: Request) {
     }
 
     const storageData: EventHeroStorageConfig = {
-      activeHomeEventId: featured.activeHomeEventId,
+      activeHomeEventId: featured.activeHomeEventId || '',
       events: eventMap,
     };
 
@@ -69,12 +50,11 @@ export async function GET(req: Request) {
       data: storageData,
     });
   } catch (err) {
-    console.warn('Falling back to file storage on GET:', err);
-    const storage = readStorageConfig();
+    console.error('Failed to load event hero config from DB:', err);
     return NextResponse.json({
-      success: true,
-      data: storage,
-    });
+      success: false,
+      error: 'Failed to load configuration from database.',
+    }, { status: 500 });
   }
 }
 
@@ -86,11 +66,9 @@ export async function POST(req: NextRequest) {
 
   try {
     const body = await req.json();
-    const storage = readStorageConfig();
 
     // 1. Update activeHomeEventId in DB
     if (body.activeHomeEventId) {
-      storage.activeHomeEventId = body.activeHomeEventId;
       await setActiveHomeEventId(body.activeHomeEventId);
     }
 
@@ -100,27 +78,34 @@ export async function POST(req: NextRequest) {
         ...body.event,
         updatedAt: new Date().toISOString(),
       };
-      storage.events[body.event.id] = eventToSave;
       await saveEventPreferences(body.event.id, eventToSave);
     }
 
     // 3. Update full events map if provided directly
     if (body.events) {
-      storage.events = {
-        ...storage.events,
-        ...body.events,
-      };
       for (const [evtId, cfg] of Object.entries(body.events)) {
         await saveEventPreferences(evtId, cfg as EventTemplateConfig);
       }
     }
 
-    // Keep JSON file synced as backup
-    writeStorageConfig(storage);
+    // Read fresh state directly from DB
+    const events = await prisma.event.findMany({ select: { id: true } });
+    const featured = await getFeaturedEventPreferences();
+    const eventMap: Record<string, EventTemplateConfig> = {};
+
+    for (const ev of events) {
+      const prefData = await getPreferencesForEvent(ev.id);
+      eventMap[ev.id] = prefData.templateConfig;
+    }
+
+    const updatedData: EventHeroStorageConfig = {
+      activeHomeEventId: featured.activeHomeEventId || '',
+      events: eventMap,
+    };
 
     return NextResponse.json({
       success: true,
-      data: storage,
+      data: updatedData,
       message: 'Event hero configuration saved successfully to database.',
     });
   } catch (err) {

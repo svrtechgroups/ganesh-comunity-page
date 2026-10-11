@@ -2,13 +2,13 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { Prisma } from '@prisma/client';
 import { getEventSchedule } from '@/lib/event-schedule';
+import { noCacheHeaders, getErrorMessage } from '@/lib/api-utils';
+
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
 export async function GET(request: Request) {
-  const timestamp = new Date().toISOString();
-
   try {
     const { searchParams } = new URL(request.url);
     const eventId = searchParams.get('eventId')?.trim() || 'all';
@@ -18,80 +18,44 @@ export async function GET(request: Request) {
     const limit = searchParams.get('limit') === 'all' ? 0 : Math.max(1, parseInt(searchParams.get('limit') || '10', 10));
     const exportAll = searchParams.get('exportAll') === 'true';
 
-    console.log(`[ADMIN RSVPS API] [${timestamp}] GET query: eventId="${eventId}", selectedDate="${selectedDate}", search="${search}", page=${page}, limit=${limit}`);
-
     // Base condition for the event (used for analytics calculation)
     const isSingleEventSelected = Boolean(eventId && eventId !== 'all');
-    const eventWhere: Prisma.EventRSVPWhereInput = isSingleEventSelected ? { eventId } : {};
+    const eventWhere: Prisma.EventRSVPWhereInput = isSingleEventSelected
+      ? { eventId, paymentStatus: { in: ['Completed', 'Free'] } }
+      : { paymentStatus: { in: ['Completed', 'Free'] } };
 
-    // 1. Fetch RSVPs and Event details (if single event is selected)
-    const [allEventRSVPs, targetEvent] = await Promise.all([
-      prisma.eventRSVP.findMany({
-        where: eventWhere,
-        select: {
-          id: true,
-          ticketsCount: true,
-          adultsCount: true,
-          childrenCount: true,
-          selectedDates: true,
-          createdAt: true,
-        },
-      }),
-      isSingleEventSelected
-        ? prisma.event.findUnique({
-            where: { id: eventId },
-            select: {
-              id: true,
-              title: true,
-              date: true,
-              eventSchedule: true,
-              availableDates: true,
-            },
-          })
-        : Promise.resolve(null),
-    ]);
+    // 1. Fetch Event details and Stats
+    const targetEvent = isSingleEventSelected
+      ? await prisma.event.findUnique({
+          where: { id: eventId },
+          select: { id: true, title: true, date: true, eventSchedule: true, availableDates: true },
+        })
+      : null;
 
-    let totalRSVPs = allEventRSVPs.length;
+    let totalRSVPs = 0;
     let totalPasses = 0;
     let totalAdults = 0;
     let totalChildren = 0;
-
-    // Day Analytics: ONLY computed and visible when a single event is selected
-    let dayAnalytics: {
-      date: string;
-      title: string;
-      bookingsCount: number;
-      totalPasses: number;
-      adultsCount: number;
-      childrenCount: number;
-    }[] = [];
+    let dayAnalytics: any[] = [];
 
     if (isSingleEventSelected && targetEvent) {
-      const scheduleDays = getEventSchedule(targetEvent);
-      const dayStatsMap = new Map<string, {
-        date: string;
-        title: string;
-        bookingsCount: number;
-        totalPasses: number;
-        adultsCount: number;
-        childrenCount: number;
-      }>();
-
-      // Initialize with dates from DB schedule for this event
-      scheduleDays.forEach((f) => {
-        const key = f.dateLabel || f.date;
-        dayStatsMap.set(key, {
-          date: key,
-          title: f.title,
-          bookingsCount: 0,
-          totalPasses: 0,
-          adultsCount: 0,
-          childrenCount: 0,
-        });
+      // If single event, we need the raw rows for day-by-day grouping
+      const eventRSVPs = await prisma.eventRSVP.findMany({
+        where: eventWhere,
+        select: { ticketsCount: true, adultsCount: true, childrenCount: true, selectedDates: true },
       });
 
-      // Populate day stats from actual RSVPs
-      for (const r of allEventRSVPs) {
+      totalRSVPs = eventRSVPs.length;
+      
+      const scheduleDays = getEventSchedule(targetEvent);
+      const dayStatsMap = new Map<string, any>();
+
+      scheduleDays.forEach((f) => {
+        const key = f.dateLabel || f.date;
+        dayStatsMap.set(key, { date: key, title: f.title, bookingsCount: 0, totalPasses: 0, adultsCount: 0, childrenCount: 0 });
+      });
+
+      for (const r of eventRSVPs) {
         const tickets = r.ticketsCount || (r.adultsCount + r.childrenCount) || 1;
         const adults = r.adultsCount ?? 1;
         const children = r.childrenCount ?? 0;
@@ -100,12 +64,8 @@ export async function GET(request: Request) {
         totalAdults += adults;
         totalChildren += children;
 
-        const dates = Array.isArray(r.selectedDates) && r.selectedDates.length > 0
-          ? r.selectedDates
-          : [];
-
+        const dates = Array.isArray(r.selectedDates) && r.selectedDates.length > 0 ? r.selectedDates : [];
         for (const d of dates) {
-          // Find matching key in dayStatsMap (direct match or partial date label match)
           let matchedKey = dayStatsMap.has(d) ? d : null;
           if (!matchedKey) {
             for (const [k] of Array.from(dayStatsMap.entries())) {
@@ -115,19 +75,10 @@ export async function GET(request: Request) {
               }
             }
           }
-
           if (!matchedKey) {
             matchedKey = d;
-            dayStatsMap.set(d, {
-              date: d,
-              title: `${targetEvent.title} - ${d}`,
-              bookingsCount: 0,
-              totalPasses: 0,
-              adultsCount: 0,
-              childrenCount: 0,
-            });
+            dayStatsMap.set(d, { date: d, title: `${targetEvent.title} - ${d}`, bookingsCount: 0, totalPasses: 0, adultsCount: 0, childrenCount: 0 });
           }
-
           const curr = dayStatsMap.get(matchedKey)!;
           curr.bookingsCount += 1;
           curr.totalPasses += tickets;
@@ -135,23 +86,32 @@ export async function GET(request: Request) {
           curr.childrenCount += children;
         }
       }
-
       dayAnalytics = Array.from(dayStatsMap.values());
     } else {
-      // If no single event is selected, just sum totals
-      for (const r of allEventRSVPs) {
-        const tickets = r.ticketsCount || (r.adultsCount + r.childrenCount) || 1;
-        const adults = r.adultsCount ?? 1;
-        const children = r.childrenCount ?? 0;
-
-        totalPasses += tickets;
-        totalAdults += adults;
-        totalChildren += children;
+      // No single event selected: use pure DB aggregate (fixes 1.7 double-query loading all records into memory)
+      const agg = await prisma.eventRSVP.aggregate({
+        where: { paymentStatus: { in: ['Completed', 'Free'] } },
+        _count: { id: true },
+        _sum: { ticketsCount: true, adultsCount: true, childrenCount: true },
+      });
+      totalRSVPs = agg._count.id;
+      totalPasses = agg._sum.ticketsCount || 0;
+      totalAdults = agg._sum.adultsCount || 0;
+      totalChildren = agg._sum.childrenCount || 0;
+      
+      // Fallback: if ticketsCount wasn't populated but adults+children were, sum them
+      if (totalPasses === 0 && (totalAdults > 0 || totalChildren > 0)) {
+        totalPasses = totalAdults + totalChildren;
       }
+      // Ultimate fallback if all counts are 0
+      if (totalPasses === 0 && totalRSVPs > 0) totalPasses = totalRSVPs;
     }
 
+
     // 2. Build Prisma Filter Where Clause for Attendee Table Query
-    const whereConditions: Prisma.EventRSVPWhereInput[] = [];
+    const whereConditions: Prisma.EventRSVPWhereInput[] = [
+      { paymentStatus: { in: ['Completed', 'Free'] } }
+    ];
 
     if (eventId && eventId !== 'all') {
       whereConditions.push({ eventId });
@@ -194,6 +154,7 @@ export async function GET(request: Request) {
               title: true,
               date: true,
               venue: true,
+              customFields: true,
             },
           },
         },
@@ -209,6 +170,7 @@ export async function GET(request: Request) {
               title: true,
               date: true,
               venue: true,
+              customFields: true,
             },
           },
         },
@@ -218,9 +180,13 @@ export async function GET(request: Request) {
       });
     }
 
-    // 5. Enrich RSVPs with Member account status
+    // 5. Enrich RSVPs with Member account status and Payment info
     const attendeeEmails = rsvps.map((r) => r.attendeeEmail.toLowerCase().trim()).filter(Boolean);
+    const paymentIntentIds = rsvps.map((r) => r.paymentIntentId).filter(Boolean) as string[];
+
     let memberEmailSet = new Set<string>();
+    let memberMap = new Map<string, any>();
+    let paymentMap = new Map<string, any>();
 
     if (attendeeEmails.length > 0) {
       try {
@@ -230,16 +196,43 @@ export async function GET(request: Request) {
           },
           select: { email: true, id: true, tier: true, status: true },
         });
-        existingMembers.forEach((m) => memberEmailSet.add(m.email.toLowerCase().trim()));
+
+        existingMembers.forEach((m) => {
+          memberEmailSet.add(m.email.toLowerCase().trim());
+          memberMap.set(m.email.toLowerCase().trim(), m);
+        });
       } catch (e) {
         console.warn('[ADMIN RSVPS] Error querying member status:', e);
       }
     }
 
-    const enrichedRsvps = rsvps.map((r) => ({
-      ...r,
-      isMember: memberEmailSet.has(r.attendeeEmail.toLowerCase().trim()),
-    }));
+    if (paymentIntentIds.length > 0) {
+      try {
+        const payments = await prisma.payment.findMany({
+          where: { stripePaymentIntentId: { in: paymentIntentIds } },
+          select: { id: true, stripePaymentIntentId: true, memberId: true },
+        });
+        payments.forEach((p) => {
+          if (p.stripePaymentIntentId) {
+            paymentMap.set(p.stripePaymentIntentId, p);
+          }
+        });
+      } catch (e) {
+        console.warn('[ADMIN RSVPS] Error querying payments:', e);
+      }
+    }
+
+    const enrichedRsvps = rsvps.map((r) => {
+      const email = r.attendeeEmail.toLowerCase().trim();
+      const payment = r.paymentIntentId ? paymentMap.get(r.paymentIntentId) : null;
+      return {
+        ...r,
+        isMember: memberEmailSet.has(email),
+        memberId: memberEmailSet.has(email) ? memberMap.get(email)?.id : null,
+        paymentId: payment ? payment.id : null,
+        paymentMemberId: payment ? payment.memberId : null,
+      };
+    });
 
     const effectiveLimit = limit === 0 ? totalFiltered : limit;
     const totalPages = effectiveLimit > 0 ? Math.max(1, Math.ceil(totalFiltered / effectiveLimit)) : 1;

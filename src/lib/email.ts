@@ -46,13 +46,13 @@ interface EmailLayoutOptions {
 
 export function renderEmailLayout({
   pageTitle,
-  badgeText = 'London Ganesh Mahotsav 2026',
+  badgeText = 'MITRA UK Community',
   children,
   footerNote = 'If you did not make this request, you can safely ignore this email.',
   isAlert = false,
 }: EmailLayoutOptions) {
   const currentYear = new Date().getFullYear();
-  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://mitra.org.uk';
+  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://www.mitrauk.com';
   const logoUrl = `${baseUrl}/assets/poster.jpg`;
 
   const borderColor = isAlert ? 'rgba(239, 68, 68, 0.35)' : '#EAD8C7';
@@ -118,7 +118,7 @@ export function renderEmailLayout({
               MITRA UK · Mana Indian Telugu Roots Abroad
             </p>
             <p style="color: #6B5E55; font-size: 11px; margin: 0 0 8px;">
-              Slough &amp; London Community Hub · <a href="${baseUrl}" style="color: #EA580C; text-decoration: none; font-weight: 700;">mitra.org.uk</a>
+              Slough &amp; London Community Hub · <a href="${baseUrl}" style="color: #EA580C; text-decoration: none; font-weight: 700;">mitrauk.com</a>
             </p>
             <p style="color: #8C7E74; font-size: 10.5px; margin: 0; line-height: 1.5;">
               ${footerNote}<br/>
@@ -154,8 +154,8 @@ export const sendOTP = async (to: string, code: string, type: 'REGISTER' | 'FORG
     <p style="color: #4A3B32; font-size: 13.5px; line-height: 1.7; margin: 0 0 24px;">
       ${
         isRegister
-          ? 'Thank you for registering with <strong>MITRA UK</strong>. Please enter the one-time verification code below to verify your email and activate your devotee account:'
-          : 'We received a request to reset your password for your <strong>MITRA UK</strong> devotee account. Please use the one-time verification code below to continue:'
+          ? 'Thank you for registering with <strong>MITRA UK</strong>. Please enter the one-time verification code below to verify your email and activate your MITRA account:'
+          : 'We received a request to reset your password for your <strong>MITRA UK</strong> MITRA account. Please use the one-time verification code below to continue:'
       }
     </p>
 
@@ -201,11 +201,11 @@ export const sendGuestWelcomeEmail = async (
   tempPassword: string
 ) => {
   const subject = '🙏 Welcome to MITRA UK — Your Account Login Details';
-  const loginUrl = `${process.env.NEXT_PUBLIC_BASE_URL || 'https://mitra.org.uk'}/login`;
+  const loginUrl = `${process.env.NEXT_PUBLIC_BASE_URL || 'https://mitrauk.com'}/login`;
 
   const body = `
     <h2 style="font-family: 'Cinzel', Georgia, serif; color: #8B1D0E; font-size: 18px; font-weight: 800; margin: 0 0 14px; text-transform: uppercase; letter-spacing: 0.8px;">
-      Devotee Account Created
+      MITRA Account Created
     </h2>
     <p style="color: #2D231E; font-size: 15px; margin: 0 0 14px;">
       Namaste <strong style="color: #C2410C;">${fullName}</strong> 🙏,
@@ -292,7 +292,7 @@ export const sendPaymentFailureAlert = async (details: PaymentFailureDetails) =>
   const timeStr = details.timestamp || new Date().toUTCString();
 
   const subject = `🚨 Payment Failure Alert: ${amountStr} ${currencyStr} from ${devoteeName}`;
-  const adminUrl = `${process.env.NEXT_PUBLIC_BASE_URL || 'https://mitra.org.uk'}/admin/payments`;
+  const adminUrl = `${process.env.NEXT_PUBLIC_BASE_URL || 'https://mitrauk.com'}/admin/payments`;
 
   const body = `
     <!-- Top Alert Box (Light Rose & Red) -->
@@ -410,9 +410,9 @@ export const sendEventRegistrationConfirmationEmail = async (
     recipientEmail,
     recipientName,
     eventName,
-    eventDate = 'Sunday, 18 October 2026',
-    eventTime = '4:30 PM onwards',
-    eventVenue = 'Thurrock Rugby Football Club, Oakfield, Long Lane, Grays, Essex, RM16 2QH',
+    eventDate = '',
+    eventTime = '',
+    eventVenue = '',
     eventAddress = '',
     totalAmount = 0,
     supportAmount = 0,
@@ -424,22 +424,15 @@ export const sendEventRegistrationConfirmationEmail = async (
     rsvpId,
   } = params;
 
-  const isBathukamma =
-    eventName.toLowerCase().includes('bathukamma') ||
-    eventName.toLowerCase().includes('grays');
-
-  const subject = isBathukamma
-    ? '🌸 Registration & Payment Confirmed — MITRA Grays Bathukamma 2026'
-    : `🎟️ Registration & Payment Confirmed — ${eventName}`;
-
-  const badgeText = isBathukamma ? 'MITRA Grays Bathukamma 2026' : eventName;
+  const subject = `🎟️ Registration & Payment Confirmed — ${eventName || 'MITRA UK Event'}`;
+  const badgeText = eventName || 'MITRA UK Event';
 
   // Render Venue & Schedule
-  const displayDate = isBathukamma ? 'Sunday, 18 October 2026' : (eventDate || 'Sunday, 18 October 2026');
-  const displayTime = isBathukamma ? '4:30 PM onwards' : (eventTime || '4:30 PM onwards');
-  const displayVenue = isBathukamma
-    ? 'Thurrock Rugby Football Club, Oakfield, Long Lane, Grays, Essex, RM16 2QH'
-    : `${eventVenue}${eventAddress ? `, ${eventAddress}` : ''}`;
+  const displayDate = eventDate || 'Date to be confirmed';
+  const displayTime = eventTime || 'Time to be confirmed';
+  const displayVenue = eventVenue
+    ? `${eventVenue}${eventAddress ? `, ${eventAddress}` : ''}`
+    : (eventAddress || 'Venue details to be announced');
 
   const body = `
     <!-- Top Welcome Message -->
@@ -448,11 +441,7 @@ export const sendEventRegistrationConfirmationEmail = async (
     </p>
 
     <p style="color: #2D231E; font-size: 14.5px; line-height: 1.7; margin: 0 0 22px;">
-      ${
-        isBathukamma
-          ? 'Thank you for registering and making your payment for <strong>MITRA Grays Bathukamma 2026</strong>. We’re delighted to confirm your registration and look forward to welcoming you and your family.'
-          : `Thank you for registering and making your payment for <strong>${eventName}</strong>. We’re delighted to confirm your registration and look forward to welcoming you and your family.`
-      }
+      Thank you for registering and making your payment for <strong>${eventName || 'MITRA UK Event'}</strong>. We’re delighted to confirm your registration and look forward to welcoming you and your family.
     </p>
 
     <!-- Event Schedule & Location Card -->
@@ -564,11 +553,7 @@ export const sendEventRegistrationConfirmationEmail = async (
 
     <!-- Celebration Note -->
     <p style="color: #2D231E; font-size: 14px; line-height: 1.7; margin: 0 0 16px;">
-      ${
-        isBathukamma
-          ? 'Get ready for a wonderful evening celebrating flowers, culture and togetherness, with family fun, DJ, food and traditional Bathukamma celebrations.'
-          : 'Get ready for a memorable cultural gathering with our vibrant diaspora community, wonderful traditions, authentic food, and festive celebrations.'
-      }
+      Get ready for a wonderful event celebrating culture, community and togetherness, with family fun, entertainment, delicious food and festive celebrations.
     </p>
 
     <p style="color: #2D231E; font-size: 14px; line-height: 1.7; margin: 0 0 24px;">
@@ -581,7 +566,7 @@ export const sendEventRegistrationConfirmationEmail = async (
         Warm regards,
       </p>
       <p style="color: #C2410C; font-size: 14px; font-weight: 800; margin: 0 0 2px;">
-        ${isBathukamma ? 'Team MITRA Grays' : 'Team MITRA UK'}
+        Team MITRA UK
       </p>
       <p style="color: #7C2D12; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px; margin: 0;">
         Mana Indian Telugu Roots Abroad

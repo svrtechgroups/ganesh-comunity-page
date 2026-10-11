@@ -1,3 +1,14 @@
+const fs = require('fs');
+const path = require('path');
+
+// Auto-clean removed legacy JSON configuration
+const legacyConfigPath = path.join(__dirname, 'src', 'data', 'event-hero-config.json');
+if (fs.existsSync(legacyConfigPath)) {
+  try {
+    fs.unlinkSync(legacyConfigPath);
+  } catch (e) {}
+}
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
@@ -33,6 +44,15 @@ const nextConfig = {
             value: 'camera=(), microphone=(), geolocation=()',
           },
         ],
+      },
+    ];
+  },
+  async redirects() {
+    return [
+      {
+        source: '/ganesh-event-2026',
+        destination: '/events/evt-ganesh-chaturthi',
+        permanent: false,
       },
     ];
   },

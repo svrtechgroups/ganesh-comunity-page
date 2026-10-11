@@ -17,7 +17,7 @@ export default function AboutPage() {
           Uniting & Serving the UK Telugu Community
         </h1>
         <p className="text-sm text-slate-600 dark:text-slate-300 leading-relaxed">
-          Mana Indian Telugu Roots Abroad (MITRA) is a non-profit, non-religious community organization incorporated in the United Kingdom to preserve Telugu language, promote traditional arts, and assist international students and families.
+          Mana Indian Telugu Roots Abroad (MITRA) is a non-religious community organization incorporated in the United Kingdom to preserve Telugu language, promote traditional arts, and assist international students and families.
         </p>
       </div>
 
@@ -39,7 +39,7 @@ export default function AboutPage() {
           </div>
           <h2 className="text-2xl font-bold text-slate-900 dark:text-white">Our Vision</h2>
           <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed">
-            To be the premier cultural and community catalyst in Europe for the Telugu diaspora—recognized for excellence in arts patronage, youth mentorship, student welfare, domestic helpline support, and international non-profit partnerships.
+            To be the premier cultural and community catalyst in Europe for the Telugu diaspora—recognized for excellence in arts patronage, youth mentorship, student welfare, domestic helpline support, and international partnerships.
           </p>
         </div>
       </div>
@@ -53,7 +53,7 @@ export default function AboutPage() {
           </h2>
         </div>
         <p className="text-xs text-slate-600 dark:text-slate-300">
-          MITRA operates under strict non-profit governance standards in compliance with UK charity regulations. Download our constitution and policy documents below:
+          MITRA operates under strict governance standards in compliance with UK charity regulations. Download our constitution and policy documents below:
         </p>
 
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">

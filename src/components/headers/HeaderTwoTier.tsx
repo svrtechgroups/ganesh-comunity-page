@@ -224,7 +224,7 @@ export default function HeaderTwoTier({ previewMode = false }: HeaderProps) {
               <Search className="w-4 h-4" />
             </Link>
             <Link
-              href="/ganesh-event-2026"
+              href="/events/evt-ganesh-chaturthi"
               className="bg-gradient-to-r from-[#E65C00] to-[#FF7A00] text-white px-4 py-2 rounded-full text-xs font-black shadow-md hover:shadow-lg hover:scale-105 transition-all flex items-center gap-1.5"
             >
               <Sparkles className="w-3.5 h-3.5" />

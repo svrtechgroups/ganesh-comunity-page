@@ -69,7 +69,7 @@ export async function POST(request: Request) {
           </tr>
           <tr>
             <td style="padding: 18px 24px; border-top: 1px solid rgba(212,175,55,0.2); text-align: center; background: #080403;">
-              <p style="color: #7D6A4F; font-size: 11px; margin: 0;">MITRA UK Sponsorship Portal · <a href="https://mitra.org.uk" style="color: #D4AF37; text-decoration: none;">mitra.org.uk</a></p>
+              <p style="color: #7D6A4F; font-size: 11px; margin: 0;">MITRA UK Sponsorship Portal · <a href="https://mitrauk.com" style="color: #D4AF37; text-decoration: none;">mitrauk.com</a></p>
             </td>
           </tr>
         </table>
@@ -123,7 +123,7 @@ export async function POST(request: Request) {
           </tr>
           <tr>
             <td style="padding: 18px 24px; border-top: 1px solid rgba(212,175,55,0.2); text-align: center; background: #080403;">
-              <p style="color: #7D6A4F; font-size: 11px; margin: 0;">MITRA UK · <a href="https://mitra.org.uk" style="color: #D4AF37; text-decoration: none;">mitra.org.uk</a></p>
+              <p style="color: #7D6A4F; font-size: 11px; margin: 0;">MITRA UK · <a href="https://mitrauk.com" style="color: #D4AF37; text-decoration: none;">mitrauk.com</a></p>
             </td>
           </tr>
         </table>

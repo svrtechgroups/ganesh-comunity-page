@@ -33,7 +33,7 @@ export const HEADER_VARIANTS: HeaderVariantMeta[] = [
   },
   {
     id: 'grouped',
-    title: 'Smart Grouped Navigation (Corporate & Non-Profit)',
+    title: 'Smart Grouped Navigation (Corporate )',
     tagline: 'Consolidates 8 links into 5 intuitive dropdown categories',
     badge: 'Cleanest & Most Organized',
     description: 'Reorganises sub-pages logically: "About Us" contains Mission, Guinness Record & Leadership; "Community" contains Sponsors, Telugu Business Directory & Media. Fits in one single ultra-clean row.',

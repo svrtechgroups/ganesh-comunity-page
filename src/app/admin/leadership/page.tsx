@@ -409,7 +409,7 @@ export default function AdminLeadershipPage() {
                   <label className="block text-slate-300 font-bold mb-1">Email Address</label>
                   <input
                     type="email"
-                    placeholder="president@mitra.org.uk"
+                    placeholder="president@mitrauk.com"
                     value={formData.email}
                     onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                     className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3.5 py-2.5 text-white focus:border-mitra-gold focus:outline-none"

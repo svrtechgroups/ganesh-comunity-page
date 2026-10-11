@@ -56,6 +56,19 @@ interface MediaItem {
 
 import { getYouTubeEmbedUrl, getYouTubeThumbnailUrl, isYouTubeUrl } from '@/lib/youtube';
 
+const isExternalAlbum = (url: string) => {
+  if (!url) return false;
+  const lowerUrl = url.toLowerCase();
+  return lowerUrl.includes('photos.app.goo.gl') || 
+         lowerUrl.includes('photos.google.com') || 
+         lowerUrl.includes('drive.google.com') ||
+         lowerUrl.includes('dropbox.com') ||
+         lowerUrl.includes('onedrive') ||
+         lowerUrl.includes('sharepoint.com') ||
+         lowerUrl.includes('icloud.com');
+};
+
+
 function MediaContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -204,52 +217,7 @@ function MediaContent() {
             </button>
           </div>
 
-          {/* Event Hero Header Card */}
-          <div className="relative rounded-3xl overflow-hidden border border-slate-200 dark:border-slate-800 shadow-xl bg-slate-950 text-white min-h-[260px] flex flex-col justify-end p-6 sm:p-10">
-            <img
-              src={currentEvent.featuredMediaUrl || currentEvent.bannerUrl || '/assets/poster.jpg'}
-              alt={currentEvent.title}
-              className="absolute inset-0 w-full h-full object-cover opacity-35"
-              onError={(e) => {
-                (e.target as HTMLImageElement).src = '/assets/poster.jpg';
-              }}
-            />
-            <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/70 to-transparent" />
 
-            <div className="relative z-10 space-y-3 max-w-3xl">
-              <div className="flex flex-wrap items-center gap-2">
-                <span className="bg-mitra-red text-white text-[11px] font-black px-3 py-0.5 rounded-full uppercase tracking-wider shadow">
-                  {currentEvent.category}
-                </span>
-                {currentEvent.status && (
-                  <span className="bg-white/10 backdrop-blur-md text-mitra-gold border border-mitra-gold/30 text-[11px] font-bold px-3 py-0.5 rounded-full">
-                    {currentEvent.status}
-                  </span>
-                )}
-              </div>
-
-              <h2 className="text-2xl sm:text-4xl font-black text-white leading-tight">
-                {currentEvent.title}
-              </h2>
-
-              <div className="flex flex-wrap items-center gap-4 text-xs text-slate-300 pt-1 font-medium">
-                <span className="flex items-center gap-1.5 text-mitra-gold">
-                  <Calendar className="w-4 h-4" />
-                  <span>{currentEvent.date}</span>
-                </span>
-                <span className="flex items-center gap-1.5 text-slate-300">
-                  <MapPin className="w-4 h-4 text-rose-400" />
-                  <span>{currentEvent.venue}</span>
-                </span>
-              </div>
-
-              {currentEvent.description && (
-                <p className="text-xs sm:text-sm text-slate-300 line-clamp-2 pt-1">
-                  {currentEvent.description}
-                </p>
-              )}
-            </div>
-          </div>
 
           {/* Media Category Filter Tabs */}
           <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-3">
@@ -367,16 +335,23 @@ function MediaContent() {
                 }
 
                 // IMAGE CARD
+                const isExt = isExternalAlbum(item.url);
                 const photoIndex = eventPhotos.findIndex((p) => p.id === item.id);
                 return (
                   <div
                     key={item.id}
-                    onClick={() => setActivePhotoIndex(photoIndex >= 0 ? photoIndex : 0)}
+                    onClick={() => {
+                      if (isExt) {
+                        window.open(item.url, '_blank');
+                      } else {
+                        setActivePhotoIndex(photoIndex >= 0 ? photoIndex : 0);
+                      }
+                    }}
                     className="group cursor-pointer bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl overflow-hidden shadow-md hover:shadow-xl hover:border-mitra-gold/50 transition-all flex flex-col"
                   >
                     <div className="relative aspect-[4/3] bg-slate-950 overflow-hidden shrink-0">
                       <img
-                        src={item.url || item.coverImage || '/assets/poster.jpg'}
+                        src={item.coverImage || (isExt ? '/assets/poster.jpg' : item.url) || '/assets/poster.jpg'}
                         alt={item.title}
                         className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                         onError={(e) => {
@@ -385,18 +360,24 @@ function MediaContent() {
                       />
                       <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-60 group-hover:opacity-90 transition-opacity" />
 
-                      {item.isFeatured && (
-                        <div className="absolute top-3 left-3">
-                          <span className="inline-flex items-center gap-1 bg-mitra-gold text-mitra-navy text-[10px] font-black px-2.5 py-1 rounded-full shadow">
+                      <div className="absolute top-3 left-3 flex items-center gap-2">
+                        {isExt && (
+                          <span className="inline-flex items-center gap-1.5 bg-blue-600 text-white text-[10px] font-black px-2.5 py-1.5 rounded-full shadow-lg border border-blue-400 uppercase tracking-widest">
+                            <BookOpen className="w-3 h-3" />
+                            <span>Media Album</span>
+                          </span>
+                        )}
+                        {item.isFeatured && (
+                          <span className="inline-flex items-center gap-1 bg-mitra-gold text-mitra-navy text-[10px] font-black px-2.5 py-1.5 rounded-full shadow-lg">
                             <Sparkles className="w-3 h-3" />
                             <span>Featured Highlight</span>
                           </span>
-                        </div>
-                      )}
+                        )}
+                      </div>
 
                       <div className="absolute bottom-3 left-3 right-3 text-white">
                         <span className="text-[10px] text-mitra-gold font-bold block">
-                          Click to enlarge
+                          {isExt ? 'Open External Album ↗' : 'Click to enlarge'}
                         </span>
                         <h4 className="text-xs font-bold truncate">{item.title}</h4>
                       </div>

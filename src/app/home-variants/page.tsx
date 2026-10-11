@@ -66,15 +66,15 @@ export default function HomeVariantsShowcasePage() {
         <div className="max-w-6xl mx-auto relative z-10 text-center space-y-4">
           <div className="inline-flex items-center gap-2 bg-white/10 border border-white/20 backdrop-blur-md px-4 py-1.5 rounded-full text-xs font-bold uppercase tracking-wider text-[#FFD8A8]">
             <Sparkles className="w-3.5 h-3.5 text-[#FFD8A8]" />
-            <span>MITRA UK · Post-Event Home Page Showcase</span>
+            <span>MITRA UK · Homepage Variations Showcase</span>
           </div>
 
           <h1 className="text-3xl sm:text-5xl font-extrabold font-cinzel tracking-wide leading-tight">
-            Preview 4 Post-Event Home Pages
+            Preview 4 Home Page Experiences
           </h1>
 
           <p className="text-xs sm:text-sm text-[#FFF0DD]/90 max-w-3xl mx-auto leading-relaxed">
-            Four distinct, beautifully crafted post-event home page concepts designed with the authentic warm saffron and ivory temple aesthetic of MITRA UK, complete with the site&apos;s official navigation header.
+            Four distinct, beautifully crafted home page concepts designed with the authentic warm saffron and ivory aesthetic of MITRA UK, showcasing culture, living heritage, welfare, and our diaspora business network.
           </p>
         </div>
       </section>

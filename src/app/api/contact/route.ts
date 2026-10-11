@@ -10,7 +10,7 @@ export async function POST(request: Request) {
     }
 
     const subject = `📩 New Contact Message: ${department} — ${name}`;
-    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://mitra.org.uk';
+    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://mitrauk.com';
     const logoUrl = `${baseUrl}/assets/poster.jpg`;
 
     const html = `
@@ -57,7 +57,7 @@ ${message}
           </tr>
           <tr>
             <td style="padding: 20px 24px; border-top: 1px solid #EAD8C7; text-align: center; background: #FAF5EE;">
-              <p style="color: #8C7E74; font-size: 11px; margin: 0;">MITRA UK Contact Notification · <a href="${baseUrl}" style="color: #EA580C; text-decoration: none; font-weight: 700;">mitra.org.uk</a></p>
+              <p style="color: #8C7E74; font-size: 11px; margin: 0;">MITRA UK Contact Notification · <a href="${baseUrl}" style="color: #EA580C; text-decoration: none; font-weight: 700;">mitrauk.com</a></p>
             </td>
           </tr>
         </table>

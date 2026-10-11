@@ -299,7 +299,7 @@ async function main() {
       id: 'default-settings',
       siteTitle: 'Mana Indian Telugu Roots Abroad (MITRA)',
       tagline: 'Serving and Connecting the Telugu Community in the United Kingdom',
-      contactEmail: 'info@mitra.org.uk',
+      contactEmail: 'info@mitrauk.com',
       contactPhone: '+44 20 8123 4567',
       address: 'MITRA Centre, Chiswick Park, 566 Chiswick High Rd, London W4 5YA, United Kingdom',
       twitterUrl: 'https://twitter.com/mitra_official',
@@ -320,7 +320,7 @@ async function main() {
       {
         id: 'MITRA-MEM-5001',
         fullName: 'Mahesh Babu G',
-        email: 'member@mitra.org.uk',
+        email: 'member@mitrauk.com',
         phone: '+44 7890 123456',
         tier: 'Life Member',
         role: 'Executive',
@@ -380,7 +380,7 @@ async function main() {
       {
         id: 'MITRA-HELP-1093',
         applicantName: 'Confidential Beneficiary',
-        contactEmail: 'help.welfare@mitra.org.uk',
+        contactEmail: 'help.welfare@mitrauk.com',
         contactPhone: '+44 7700 900456',
         category: 'Women Helpline',
         description: 'Domestic support request and legal advisory referral.',
@@ -557,7 +557,7 @@ async function main() {
   await prisma.adminUser.create({
     data: {
       username: 'admin',
-      email: 'admin@mitra.org.uk',
+      email: 'admin@mitrauk.com',
       passwordHash: 'admin123',
       role: 'SuperAdmin',
     },
@@ -572,7 +572,7 @@ async function main() {
         currency: 'GBP',
         status: 'Completed',
         customerName: 'Mahesh Babu G',
-        customerEmail: 'member@mitra.org.uk',
+        customerEmail: 'member@mitrauk.com',
         customerPhone: '+44 7890 123456',
         description: 'Donation — Ganesh Mahotsav 2026 Seva Fund',
         paymentMethod: 'Stripe Card',
@@ -584,7 +584,7 @@ async function main() {
         currency: 'GBP',
         status: 'Completed',
         customerName: 'Mahesh Babu G',
-        customerEmail: 'member@mitra.org.uk',
+        customerEmail: 'member@mitrauk.com',
         customerPhone: '+44 7890 123456',
         description: 'Pooja Booking — Ganesh Chaturthi Morning Slot',
         paymentMethod: 'Stripe ApplePay',

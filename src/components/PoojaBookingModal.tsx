@@ -277,7 +277,7 @@ function CheckoutForm({
       confirmParams: {
         return_url: typeof window !== 'undefined'
           ? `${window.location.origin}/ganesh-event-2026?payment=success`
-          : 'https://mitra.org.uk/ganesh-event-2026?payment=success',
+          : 'https://mitrauk.com/ganesh-event-2026?payment=success',
         payment_method_data: {
           billing_details: {
             name: devoteeName,

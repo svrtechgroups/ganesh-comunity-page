@@ -234,3 +234,17 @@ export interface SponsorItem {
   createdAt?: string | Date;
   updatedAt?: string | Date;
 }
+
+/**
+ * Config for overriding the schedule section in EventDetailsSection
+ * for non-Ganesh events.
+ */
+export interface CustomScheduleConfig {
+  headerBadge?: string;
+  title?: string;
+  subtitle?: string;
+  items?: { time: string; event: string; desc: string }[];
+  venueName?: string;
+  venueAddress?: string;
+  mapsUrl?: string;
+}

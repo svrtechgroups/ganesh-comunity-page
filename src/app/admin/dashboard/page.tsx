@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import { useAdminGlobalEvent } from '../layout';
 import Link from 'next/link';
 import {
   Users,
@@ -106,7 +107,7 @@ interface DashboardData {
   timestamp: string;
   selectedEventId?: string;
   selectedEventTitle?: string | null;
-  events?: { id: string; title: string; date: string; category?: string }[];
+  events?: { id: string; title: string; date: string; category?: string; enablePooja?: boolean }[];
   kpiSummary: KPISummary;
   dailyBreakdown: DailyBreakdownItem[];
   donationBreakdown: DonationBreakdownItem[];
@@ -122,7 +123,7 @@ export default function AdminDashboardPage() {
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [selectedEventId, setSelectedEventId] = useState<string>('all');
+  const { globalEventId: selectedEventId, setGlobalEventId: setSelectedEventId } = useAdminGlobalEvent();
   const [feedFilter, setFeedFilter] = useState<'all' | 'payment' | 'rsvp' | 'member'>('all');
   const [lastRefreshedAt, setLastRefreshedAt] = useState<string>('');
 
@@ -242,38 +243,38 @@ export default function AdminDashboardPage() {
   const paidPoojaPercent = totalPoojasCombined > 0 ? Math.round((kpi.totalPaidPoojas / totalPoojasCombined) * 100) : 0;
   const freePoojaPercent = totalPoojasCombined > 0 ? 100 - paidPoojaPercent : 0;
 
+  const currentEvent = data?.events?.find(e => e.id === selectedEventId);
+  const isPoojaEnabled = selectedEventId === 'all' || currentEvent?.enablePooja !== false;
+
   return (
     <div className="space-y-8">
       {/* ── 1. HEADER & ACTION CONTROLS ────────────────────────────────────── */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-800 pb-5">
-        <div>
-          <div className="flex items-center gap-2 mb-1">
-            <span className="bg-emerald-500/20 text-emerald-400 text-[10px] font-black px-2.5 py-0.5 rounded-full uppercase border border-emerald-500/40 flex items-center gap-1.5">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-              100% Real-Time DB Sync
+        <div className="flex items-center gap-2">
+          <span className="bg-emerald-500/20 text-emerald-400 text-[10px] font-black px-2.5 py-0.5 rounded-full uppercase border border-emerald-500/40 flex items-center gap-1.5">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+            Live Sync
+          </span>
+          {lastRefreshedAt && (
+            <span className="text-[11px] text-slate-500 font-mono">
+              Updated {lastRefreshedAt}
             </span>
-            {lastRefreshedAt && (
-              <span className="text-[11px] text-slate-500 font-mono">
-                Updated {lastRefreshedAt}
-              </span>
-            )}
-          </div>
-          
+          )}
         </div>
 
         <div className="flex flex-wrap items-center gap-2.5">
           {/* Event Selector Dropdown */}
-          <div className="flex items-center gap-2 bg-slate-950 border border-mitra-gold/40 rounded-xl px-3 py-1.5 shadow-md">
-            <Calendar className="w-4 h-4 text-mitra-gold shrink-0" />
-            <span className="text-[11px] font-bold text-slate-400 hidden sm:inline">Event:</span>
+          <div className="flex items-center gap-2 bg-white border border-[#E65C00]/30 rounded-xl px-3 py-1.5 shadow-sm">
+            <Calendar className="w-4 h-4 text-[#E65C00] shrink-0" />
+            <span className="text-[11px] font-bold text-[#6B3A2A] hidden sm:inline">Event:</span>
             <select
               value={selectedEventId}
               onChange={(e) => setSelectedEventId(e.target.value)}
-              className="bg-transparent text-white text-xs font-black focus:outline-none max-w-[220px] truncate cursor-pointer"
+              className="bg-transparent text-[#3D1A00] text-xs font-black focus:outline-none max-w-[220px] truncate cursor-pointer"
             >
-              <option value="all" className="bg-slate-900 text-white">All Events (Global View)</option>
+              <option value="all">All Events</option>
               {(data?.events || []).map((ev) => (
-                <option key={ev.id} value={ev.id} className="bg-slate-900 text-white">
+                <option key={ev.id} value={ev.id}>
                   {ev.title} {ev.date ? `(${ev.date})` : ''}
                 </option>
               ))}
@@ -283,36 +284,36 @@ export default function AdminDashboardPage() {
           <button
             onClick={() => fetchDashboardData(true)}
             disabled={refreshing || loading}
-            className="bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold px-3 py-2 rounded-xl text-xs flex items-center gap-1.5 border border-slate-700 transition-colors shadow-sm disabled:opacity-50"
-            title="Refresh database metrics"
+            className="bg-white hover:bg-[#FFF0E0] text-[#7A1620] hover:text-[#E65C00] font-bold px-3 py-2 rounded-xl text-xs flex items-center gap-1.5 border border-[#E65C00]/25 transition-all shadow-sm hover:shadow hover:border-[#E65C00]/50 disabled:opacity-50"
+            title="Refresh metrics"
           >
-            <RefreshCw className={`w-3.5 h-3.5 text-mitra-gold ${refreshing ? 'animate-spin' : ''}`} />
-            <span>{refreshing ? 'Syncing DB...' : 'Refresh'}</span>
+            <RefreshCw className={`w-3.5 h-3.5 text-[#E65C00] ${refreshing ? 'animate-spin' : ''}`} />
+            <span>{refreshing ? 'Syncing...' : 'Refresh'}</span>
           </button>
 
           <button
             onClick={exportExecutiveSummary}
             disabled={loading || !data}
-            className="bg-slate-800 hover:bg-slate-700 text-mitra-gold font-bold px-3 py-2 rounded-xl text-xs flex items-center gap-1.5 border border-mitra-gold/30 transition-colors shadow-sm"
+            className="bg-white hover:bg-[#FFF0E0] text-[#E65C00] font-bold px-3 py-2 rounded-xl text-xs flex items-center gap-1.5 border border-[#E65C00]/30 transition-all shadow-sm hover:shadow"
           >
-            <Download className="w-3.5 h-3.5 text-mitra-gold" />
-            <span>Export Summary CSV</span>
+            <Download className="w-3.5 h-3.5 text-[#E65C00]" />
+            <span>Export CSV</span>
           </button>
 
           <Link
             href="/admin/payments"
-            className="bg-[#7A1620] hover:bg-[#9C1F2E] text-[#F4C542] border border-[#D4AF37]/50 font-bold px-3.5 py-2 rounded-xl text-xs flex items-center gap-1.5 shadow transition-all"
+            className="bg-[#7A1620] hover:bg-[#9C1F2E] text-[#F4C542] border border-[#F4C542]/40 font-bold px-3.5 py-2 rounded-xl text-xs flex items-center gap-1.5 shadow-sm hover:shadow-md transition-all"
           >
             <CreditCard className="w-3.5 h-3.5 text-[#F4C542]" />
-            <span>Payments Ledger</span>
+            <span>Payments</span>
           </Link>
 
           <Link
             href="/admin/events"
-            className="bg-mitra-red hover:bg-mitra-red-dark text-white font-bold px-3.5 py-2 rounded-xl text-xs flex items-center gap-1.5 shadow transition-all"
+            className="bg-[#E65C00] hover:bg-[#FF7A00] text-white font-bold px-3.5 py-2 rounded-xl text-xs flex items-center gap-1.5 shadow-sm hover:shadow-md transition-all"
           >
-            <Plus className="w-3.5 h-3.5" />
-            <span>Manage Events</span>
+            <Plus className="w-3.5 h-3.5 text-white" />
+            <span>Events</span>
           </Link>
         </div>
       </div>
@@ -326,19 +327,19 @@ export default function AdminDashboardPage() {
             </div>
             <div>
               <span className="text-[10px] uppercase font-extrabold tracking-wider text-amber-400 block">
-                Filtered Event View
+                Filtered View
               </span>
               <h3 className="text-sm sm:text-base font-black text-white">
                 {data?.selectedEventTitle || (data?.events || []).find((e) => e.id === selectedEventId)?.title || selectedEventId}
               </h3>
               <p className="text-[11px] text-slate-300">
-                Displaying conversions, revenue, pooja sevas, passes, and transactions exclusively for this event.
+                Displaying metrics and RSVPs for this event.
               </p>
             </div>
           </div>
           <button
             onClick={() => setSelectedEventId('all')}
-            className="self-start sm:self-auto bg-slate-900 hover:bg-slate-800 text-mitra-gold font-bold px-3.5 py-1.5 rounded-xl text-xs border border-mitra-gold/40 transition-colors shadow"
+            className="self-start sm:self-auto bg-[#E65C00] hover:bg-[#FF7A00] text-white font-bold px-4 py-2 rounded-xl text-xs shadow-sm hover:shadow-md transition-all"
           >
             Show All Events
           </button>
@@ -349,113 +350,156 @@ export default function AdminDashboardPage() {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
         
         {/* KPI 1: Real Community Devotees & Users */}
-        <div className="bg-slate-950 p-5 rounded-2xl border border-slate-800 space-y-2 hover:border-mitra-gold/50 transition-all shadow-md group">
+        <div className="bg-white p-5 rounded-2xl border border-[#E65C00]/20 space-y-2 hover:border-[#E65C00]/50 transition-all shadow-sm group">
           <div className="flex items-center justify-between">
-            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
+            <span className="text-[11px] font-bold uppercase tracking-wider text-[#6B3A2A]">
               Total Users 
             </span>
-            <div className="p-2 bg-blue-500/10 text-blue-400 rounded-xl border border-blue-500/20 group-hover:bg-blue-500 group-hover:text-black transition-colors">
+            <div className="p-2 bg-blue-50 text-blue-600 rounded-xl border border-blue-200 shadow-xs">
               <Users className="w-4 h-4" />
             </div>
           </div>
           <div className="space-y-0.5">
-            <div className="text-3xl font-black text-white font-cinzel">
+            <div className="text-3xl font-black text-[#3D1A00]">
               {loading ? '...' : kpi.totalRealUsers}
             </div>
-            <p className="text-[11px] text-blue-400 font-semibold flex items-center gap-1">
+            <p className="text-[11px] text-blue-700 font-semibold flex items-center gap-1">
               <span>{kpi.registeredMembersCount} Registered Members</span>
-              <span className="text-slate-500">·</span>
-              <span className="text-emerald-400">{kpi.activeMembersCount} Active</span>
+              <span className="text-[#8C6D62]">·</span>
+              <span className="text-emerald-700">{kpi.activeMembersCount} Active</span>
             </p>
           </div>
-          <div className="pt-2 border-t border-slate-800/80 flex items-center justify-between text-[10px] text-slate-400">
-            <span>Deduplicated across DB</span>
-            <Link href="/admin/members" className="text-mitra-gold hover:underline flex items-center gap-0.5">
-              <span>View Roster</span>
+          <div className="pt-2 border-t border-[#E65C00]/15 flex items-center justify-between text-[10px] text-[#8C6D62]">
+            <span>Community DB</span>
+            <Link href="/admin/members" className="text-[#E65C00] font-bold hover:underline flex items-center gap-0.5">
+              <span>View Users</span>
               <ArrowUpRight className="w-3 h-3" />
             </Link>
           </div>
         </div>
 
-        {/* KPI 2: Sacred Poojas (Paid vs Free Summary) */}
-        <div className="bg-slate-950 p-5 rounded-2xl border border-amber-500/30 space-y-2 hover:border-amber-400 transition-all shadow-md group bg-gradient-to-b from-amber-950/10 to-transparent">
+        {/* KPI 2: Poojas */}
+        {isPoojaEnabled && (
+        <div className="bg-white p-5 rounded-2xl border border-[#E65C00]/20 space-y-2 hover:border-[#E65C00]/50 transition-all shadow-sm group">
           <div className="flex items-center justify-between">
-            <span className="text-[11px] font-bold uppercase tracking-wider text-amber-400">
-              Sacred Poojas &amp; Sevas
+            <span className="text-[11px] font-bold uppercase tracking-wider text-[#E65C00]">
+              Poojas &amp; Sevas
             </span>
-            <div className="p-2 bg-amber-500/10 text-amber-400 rounded-xl border border-amber-500/30 group-hover:bg-amber-400 group-hover:text-black transition-colors">
-              <Flame className="w-4 h-4 fill-current text-amber-400 group-hover:text-black" />
+            <div className="p-2 bg-[#FFF0E0] text-[#E65C00] rounded-xl border border-[#E65C00]/30 shadow-xs">
+              <Flame className="w-4 h-4 fill-current text-[#E65C00]" />
             </div>
           </div>
           <div className="space-y-0.5">
-            <div className="text-3xl font-black text-amber-400 font-cinzel">
-              {loading ? '...' : `${kpi.totalPaidPoojas} Paid · ${kpi.totalFreePoojas} Free`}
+            <div className="flex items-baseline gap-2">
+              <span className="text-2xl sm:text-3xl font-black text-[#E65C00]">
+                {loading ? '...' : kpi.totalPaidPoojas}
+                <span className="text-xs sm:text-sm font-bold text-[#6B3A2A] uppercase ml-1 tracking-wider">Paid</span>
+              </span>
+              <span className="text-lg text-[#E65C00]/40 font-normal">·</span>
+              <span className="text-2xl sm:text-3xl font-black text-[#E65C00]">
+                {loading ? '...' : kpi.totalFreePoojas}
+                <span className="text-xs sm:text-sm font-bold text-[#6B3A2A] uppercase ml-1 tracking-wider">Free</span>
+              </span>
             </div>
-            <p className="text-[11px] text-amber-300/90 font-semibold">
-              £{kpi.totalPaidPoojaRevenue.toFixed(2)} Paid Seva Revenue
+            <p className="text-[11px] text-[#B45309] font-bold">
+              £{kpi.totalPaidPoojaRevenue.toFixed(2)} Seva Revenue
             </p>
           </div>
-          <div className="pt-2 border-t border-slate-800/80 flex items-center justify-between text-[10px] text-slate-400">
-            <span>{kpi.totalFreePasses} Devotee Darshan Passes</span>
-            <span className="text-amber-400 font-bold">{totalPoojasCombined} Total Sevas</span>
+          <div className="pt-2 border-t border-[#E65C00]/15 flex items-center justify-between text-[10px] text-[#8C6D62]">
+            <span>{kpi.totalFreePasses} Darshan Passes</span>
+            <span className="text-[#E65C00] font-bold">{totalPoojasCombined} Total Bookings</span>
           </div>
         </div>
+        )}
 
-        {/* KPI 3: Total Completed Donations Revenue */}
-        <div className="bg-slate-950 p-5 rounded-2xl border border-emerald-500/30 space-y-2 hover:border-emerald-400 transition-all shadow-md group bg-gradient-to-b from-emerald-950/10 to-transparent">
+        {/* KPI 2 Alternate: Demographics (Adults vs Kids) */}
+        {!isPoojaEnabled && (
+        <div className="bg-white p-5 rounded-2xl border border-[#E65C00]/20 space-y-2 hover:border-[#E65C00]/50 transition-all shadow-sm group">
           <div className="flex items-center justify-between">
-            <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-400">
-              Completed Seva &amp; Booking Revenue
+            <span className="text-[11px] font-bold uppercase tracking-wider text-purple-800">
+              Passes Breakdown
             </span>
-            <div className="p-2 bg-emerald-500/10 text-emerald-400 rounded-xl border border-emerald-500/30 group-hover:bg-emerald-400 group-hover:text-black transition-colors">
+            <div className="p-2 bg-purple-50 text-purple-600 rounded-xl border border-purple-200 shadow-xs">
+              <Users className="w-4 h-4" />
+            </div>
+          </div>
+          <div className="space-y-0.5">
+            <div className="flex items-baseline gap-2">
+              <span className="text-2xl sm:text-3xl font-black text-purple-700">
+                {loading ? '...' : kpi.totalAdultsCount}
+                <span className="text-xs sm:text-sm font-bold text-slate-500 uppercase ml-1 tracking-wider">Adults</span>
+              </span>
+              <span className="text-lg text-slate-300 font-normal">·</span>
+              <span className="text-2xl sm:text-3xl font-black text-purple-700">
+                {loading ? '...' : kpi.totalChildrenCount}
+                <span className="text-xs sm:text-sm font-bold text-slate-500 uppercase ml-1 tracking-wider">Kids</span>
+              </span>
+            </div>
+            <p className="text-[11px] text-purple-700 font-bold">
+              {kpi.totalPassesIssued} Total Passes Issued
+            </p>
+          </div>
+          <div className="pt-2 border-t border-[#E65C00]/15 flex items-center justify-between text-[10px] text-[#8C6D62]">
+            <span>Attendee Demographics</span>
+          </div>
+        </div>
+        )}
+
+        {/* KPI 3: Total Completed Revenue */}
+        <div className="bg-white p-5 rounded-2xl border border-[#E65C00]/20 space-y-2 hover:border-[#E65C00]/50 transition-all shadow-sm group">
+          <div className="flex items-center justify-between">
+            <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-800">
+              Completed Revenue
+            </span>
+            <div className="p-2 bg-emerald-50 text-emerald-600 rounded-xl border border-emerald-200 shadow-xs">
               <Heart className="w-4 h-4" />
             </div>
           </div>
           <div className="space-y-0.5">
-            <div className="text-3xl font-black text-emerald-400 font-cinzel">
+            <div className="text-3xl font-black text-emerald-700">
               {loading ? '...' : `£${kpi.completedRevenue.toFixed(2)}`}
             </div>
-            <p className="text-[11px] text-emerald-300 font-semibold flex items-center gap-1">
+            <p className="text-[11px] text-emerald-700 font-semibold flex items-center gap-1">
               <span>{kpi.completedCount} Completed</span>
               {kpi.pendingCount > 0 && (
                 <>
-                  <span className="text-slate-500">·</span>
-                  <span className="text-amber-400">{kpi.pendingCount} Pending (£{kpi.pendingRevenue.toFixed(2)})</span>
+                  <span className="text-[#8C6D62]">·</span>
+                  <span className="text-amber-700 font-bold">{kpi.pendingCount} Pending (£{kpi.pendingRevenue.toFixed(2)})</span>
                 </>
               )}
             </p>
           </div>
-          <div className="pt-2 border-t border-slate-800/80 flex items-center justify-between text-[10px] text-slate-400">
-            <span>Stripe PCI-DSS Ledger</span>
-            <Link href="/admin/payments" className="text-mitra-gold hover:underline flex items-center gap-0.5">
-              <span>Manage Ledger</span>
+          <div className="pt-2 border-t border-[#E65C00]/15 flex items-center justify-between text-[10px] text-[#8C6D62]">
+            <span>Stripe Ledger</span>
+            <Link href="/admin/payments" className="text-[#E65C00] font-bold hover:underline flex items-center gap-0.5">
+              <span>Payments</span>
               <ArrowUpRight className="w-3 h-3" />
             </Link>
           </div>
         </div>
 
-        {/* KPI 4: Total RSVPs & Passes Issued */}
-        <div className="bg-slate-950 p-5 rounded-2xl border border-purple-500/30 space-y-2 hover:border-purple-400 transition-all shadow-md group bg-gradient-to-b from-purple-950/10 to-transparent">
+        {/* KPI 4: Total RSVPs & Passes */}
+        <div className="bg-white p-5 rounded-2xl border border-[#E65C00]/20 space-y-2 hover:border-[#E65C00]/50 transition-all shadow-sm group">
           <div className="flex items-center justify-between">
-            <span className="text-[11px] font-bold uppercase tracking-wider text-purple-400">
-              RSVP Bookings &amp; Passes
+            <span className="text-[11px] font-bold uppercase tracking-wider text-purple-800">
+              RSVPs &amp; Passes
             </span>
-            <div className="p-2 bg-purple-500/10 text-purple-400 rounded-xl border border-purple-500/30 group-hover:bg-purple-400 group-hover:text-black transition-colors">
+            <div className="p-2 bg-purple-50 text-purple-600 rounded-xl border border-purple-200 shadow-xs">
               <Calendar className="w-4 h-4" />
             </div>
           </div>
           <div className="space-y-0.5">
-            <div className="text-3xl font-black text-purple-300 font-cinzel">
+            <div className="text-3xl font-black text-purple-700">
               {loading ? '...' : `${kpi.totalRSVPsCount} Bookings`}
             </div>
-            <p className="text-[11px] text-purple-300 font-semibold">
+            <p className="text-[11px] text-purple-700 font-semibold">
               {kpi.totalPassesIssued} Total Passes Issued
             </p>
           </div>
-          <div className="pt-2 border-t border-slate-800/80 flex items-center justify-between text-[10px] text-slate-400">
+          <div className="pt-2 border-t border-[#E65C00]/15 flex items-center justify-between text-[10px] text-[#8C6D62]">
             <span>{kpi.totalAdultsCount} Adults · {kpi.totalChildrenCount} Kids</span>
-            <Link href="/admin/events" className="text-mitra-gold hover:underline flex items-center gap-0.5">
-              <span>View Roster</span>
+            <Link href="/admin/events" className="text-[#E65C00] font-bold hover:underline flex items-center gap-0.5">
+              <span>View RSVPs</span>
               <ArrowUpRight className="w-3 h-3" />
             </Link>
           </div>
@@ -464,33 +508,31 @@ export default function AdminDashboardPage() {
       </div>
 
       {/* ── 3. DEDICATED SECTION: PAID POOJAS VS FREE POOJAS COMPARISON ─────── */}
-      <div className="bg-slate-950 p-6 sm:p-7 rounded-3xl border-2 border-amber-500/40 space-y-6 shadow-xl relative overflow-hidden">
-        {/* Glow Effect */}
-        <div className="absolute top-0 right-0 w-96 h-96 bg-amber-500/5 rounded-full blur-3xl pointer-events-none" />
-
+      {isPoojaEnabled && (
+      <div className="bg-white p-6 sm:p-7 rounded-3xl border border-[#E65C00]/25 space-y-6 shadow-sm relative overflow-hidden">
         {/* Section Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-800/80 pb-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-[#E65C00]/20 pb-4">
           <div className="space-y-1">
-            <div className="inline-flex items-center gap-1.5 bg-amber-500/10 text-amber-400 border border-amber-500/30 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider">
-              <Flame className="w-3.5 h-3.5 fill-current text-amber-400" />
-              <span>Sacred Seva Analytics</span>
+            <div className="inline-flex items-center gap-1.5 bg-[#FFF0E0] text-[#E65C00] border border-[#E65C00]/30 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider shadow-xs">
+              <Flame className="w-3.5 h-3.5 fill-current text-[#E65C00]" />
+              <span>Seva Breakdown</span>
             </div>
-            <h2 className="text-xl sm:text-2xl font-black text-white font-cinzel">
-              PAID POOJAS (£116 SEVA) VS FREE FESTIVAL POOJAS
+            <h2 className="text-xl sm:text-2xl font-black text-[#3D1A00] font-cinzel">
+              Paid vs Free Poojas
             </h2>
-            <p className="text-xs text-slate-400">
-              Comparative breakdown between individual personalized Sankalpam Sevas (£116) and Free Community Festival Registrations.
+            <p className="text-xs text-[#6B3A2A]">
+              Overview of personalized sevas and general festival registrations.
             </p>
           </div>
 
           <div className="flex items-center gap-3">
-            <div className="bg-slate-900 px-4 py-2.5 rounded-2xl border border-slate-800 text-center">
-              <span className="text-[10px] text-slate-400 block uppercase font-bold">Paid Pooja Seva Share</span>
-              <span className="text-lg font-black text-amber-400 font-mono">{paidPoojaPercent}%</span>
+            <div className="bg-[#FFF9F5] px-4 py-2.5 rounded-2xl border border-[#E65C00]/20 text-center shadow-xs">
+              <span className="text-[10px] text-[#6B3A2A] block uppercase font-bold">Paid Share</span>
+              <span className="text-lg font-black text-[#E65C00] font-mono">{paidPoojaPercent}%</span>
             </div>
-            <div className="bg-slate-900 px-4 py-2.5 rounded-2xl border border-slate-800 text-center">
-              <span className="text-[10px] text-slate-400 block uppercase font-bold">Free Darshan Share</span>
-              <span className="text-lg font-black text-purple-400 font-mono">{freePoojaPercent}%</span>
+            <div className="bg-[#FFF9F5] px-4 py-2.5 rounded-2xl border border-[#E65C00]/20 text-center shadow-xs">
+              <span className="text-[10px] text-[#6B3A2A] block uppercase font-bold">Free Share</span>
+              <span className="text-lg font-black text-purple-700 font-mono">{freePoojaPercent}%</span>
             </div>
           </div>
         </div>
@@ -498,24 +540,24 @@ export default function AdminDashboardPage() {
         {/* Visual Progress Ratio Bar */}
         <div className="space-y-2">
           <div className="flex justify-between text-xs font-bold">
-            <span className="text-amber-400 flex items-center gap-1.5">
-              <Flame className="w-3.5 h-3.5 fill-current text-amber-400" />
+            <span className="text-[#E65C00] flex items-center gap-1.5">
+              <Flame className="w-3.5 h-3.5 fill-current text-[#E65C00]" />
               <span>Paid Poojas ({kpi.totalPaidPoojas} Bookings · £{kpi.totalPaidPoojaRevenue.toFixed(2)})</span>
             </span>
-            <span className="text-purple-400 flex items-center gap-1.5">
+            <span className="text-purple-700 flex items-center gap-1.5">
               <span>Free Festival Registrations ({kpi.totalFreePoojas} Bookings · {kpi.totalFreePasses} Passes)</span>
               <Users className="w-3.5 h-3.5" />
             </span>
           </div>
-          <div className="w-full h-4 bg-slate-900 rounded-full overflow-hidden flex p-0.5 border border-slate-800">
+          <div className="w-full h-4 bg-[#FFF0E0] rounded-full overflow-hidden flex p-0.5 border border-[#E65C00]/20">
             <div
               style={{ width: `${Math.max(paidPoojaPercent, 5)}%` }}
-              className="bg-gradient-to-r from-amber-500 to-amber-400 rounded-l-full transition-all duration-500 shadow-sm"
+              className="bg-gradient-to-r from-[#FF7A00] to-[#E65C00] rounded-l-full transition-all duration-500 shadow-sm"
               title={`Paid Poojas: ${kpi.totalPaidPoojas} bookings`}
             />
             <div
               style={{ width: `${Math.max(freePoojaPercent, 5)}%` }}
-              className="bg-gradient-to-r from-purple-500 to-purple-400 rounded-r-full transition-all duration-500 shadow-sm"
+              className="bg-gradient-to-r from-purple-500 to-indigo-500 rounded-r-full transition-all duration-500 shadow-sm"
               title={`Free Poojas: ${kpi.totalFreePoojas} registrations`}
             />
           </div>
@@ -528,11 +570,11 @@ export default function AdminDashboardPage() {
               <h3 className="text-sm font-bold text-white uppercase tracking-wider flex items-center gap-2">
                 <CalendarDays className="w-4 h-4 text-mitra-gold" />
                 <span>
-                  {data?.selectedEventTitle || 'Event'} Daily Schedule &amp; Bookings Matrix
+                  {data?.selectedEventTitle || 'Event'} Schedule
                 </span>
               </h3>
               <span className="text-[11px] text-mitra-gold font-mono bg-mitra-gold/10 px-2 py-0.5 rounded-full border border-mitra-gold/20">
-                {data?.dailyBreakdown?.length} Configured Days
+                {data?.dailyBreakdown?.length} Days
               </span>
             </div>
 
@@ -540,13 +582,13 @@ export default function AdminDashboardPage() {
               <table className="w-full text-left text-xs text-slate-300">
                 <thead className="bg-slate-900 text-slate-400 uppercase text-[10px] tracking-wider border-b border-slate-800 font-mono">
                   <tr>
-                    <th className="p-3.5">Festival Date &amp; Day</th>
-                    <th className="p-3.5">Sacred Deity &amp; Ritual</th>
-                    <th className="p-3.5 text-center text-amber-400">Paid Pooja Sevas (£116)</th>
-                    <th className="p-3.5 text-center text-amber-400">Paid Seva Revenue</th>
-                    <th className="p-3.5 text-center text-purple-400">Free RSVP Bookings</th>
-                    <th className="p-3.5 text-center text-purple-400">Free Passes Issued</th>
-                    <th className="p-3.5 text-right text-emerald-400">Total Day Footfall</th>
+                    <th className="p-3.5">Date</th>
+                    <th className="p-3.5">Ritual / Program</th>
+                    <th className="p-3.5 text-center text-amber-400">Paid Sevas</th>
+                    <th className="p-3.5 text-center text-amber-400">Revenue</th>
+                    <th className="p-3.5 text-center text-purple-400">Free RSVPs</th>
+                    <th className="p-3.5 text-center text-purple-400">Free Passes</th>
+                    <th className="p-3.5 text-right text-emerald-400">Total Attendees</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-800/60 font-sans">
@@ -579,7 +621,7 @@ export default function AdminDashboardPage() {
                         {day.freePasses} passes
                       </td>
                       <td className="p-3.5 text-right font-mono font-black text-emerald-400 text-sm whitespace-nowrap">
-                        {day.totalDevotees} Devotees
+                        {day.totalDevotees}
                       </td>
                     </tr>
                   ))}
@@ -590,60 +632,64 @@ export default function AdminDashboardPage() {
         )}
 
       </div>
+      )}
 
       {/* ── 4. TWO COLUMN SECTION: DONATION BREAKDOWN & ATTENDEE DEMOGRAPHICS ── */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         
         {/* Left Card: Donation Categories & Ledger Status */}
-        <div className="bg-slate-950 p-6 rounded-3xl border border-slate-800 space-y-5">
-          <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+        <div className="bg-white p-6 rounded-3xl border border-[#E65C00]/20 space-y-5 shadow-sm">
+          <div className="flex items-center justify-between border-b border-[#E65C00]/20 pb-3">
             <div className="flex items-center gap-2">
-              <Heart className="w-5 h-5 text-emerald-400" />
-              <h3 className="text-base font-bold text-white">Bookings &amp; Revenue Breakdown</h3>
+              <Heart className="w-5 h-5 text-emerald-600" />
+              <h3 className="text-base font-bold text-[#3D1A00]">Revenue by Category</h3>
             </div>
-            <Link href="/admin/payments" className="text-xs text-mitra-gold hover:underline flex items-center gap-1">
-              <span>Full Ledger</span>
+            <Link href="/admin/payments" className="text-xs text-[#E65C00] font-bold hover:underline flex items-center gap-1">
+              <span>Payments</span>
               <ArrowUpRight className="w-3.5 h-3.5" />
             </Link>
           </div>
 
           {/* Revenue Status Summary Pills */}
           <div className="grid grid-cols-3 gap-3 text-center text-xs">
-            <div className="bg-emerald-950/40 p-3 rounded-2xl border border-emerald-500/30 space-y-0.5">
-              <span className="text-[10px] text-emerald-400 uppercase font-bold block">Completed</span>
-              <span className="text-lg font-black text-emerald-300 font-mono">£{kpi.completedRevenue.toFixed(2)}</span>
-              <span className="text-[10px] text-slate-400 block">{kpi.completedCount} Payments</span>
+            <div className="bg-emerald-50/80 p-3 rounded-2xl border border-emerald-200/80 space-y-0.5 shadow-xs">
+              <span className="text-[10px] text-emerald-800 uppercase font-bold block">Completed</span>
+              <span className="text-lg font-black text-emerald-700 font-mono">£{kpi.completedRevenue.toFixed(2)}</span>
+              <span className="text-[10px] text-emerald-600 block">{kpi.completedCount} Payments</span>
             </div>
 
-            <div className="bg-amber-950/40 p-3 rounded-2xl border border-amber-500/30 space-y-0.5">
-              <span className="text-[10px] text-amber-400 uppercase font-bold block">Pending</span>
-              <span className="text-lg font-black text-amber-300 font-mono">£{kpi.pendingRevenue.toFixed(2)}</span>
-              <span className="text-[10px] text-slate-400 block">{kpi.pendingCount} In-Flight</span>
+            <div className="bg-amber-50/80 p-3 rounded-2xl border border-amber-200/80 space-y-0.5 shadow-xs">
+              <span className="text-[10px] text-amber-800 uppercase font-bold block">Pending</span>
+              <span className="text-lg font-black text-amber-700 font-mono">£{kpi.pendingRevenue.toFixed(2)}</span>
+              <span className="text-[10px] text-amber-600 block">{kpi.pendingCount} In-Flight</span>
             </div>
 
-            <div className="bg-slate-900 p-3 rounded-2xl border border-slate-800 space-y-0.5">
-              <span className="text-[10px] text-slate-400 uppercase font-bold block">Total Recorded</span>
-              <span className="text-lg font-black text-white font-mono">£{kpi.totalRevenue.toFixed(2)}</span>
-              <span className="text-[10px] text-slate-400 block">{kpi.completedCount + kpi.pendingCount + kpi.failedCount} Txns</span>
+            <div className="bg-[#FFF9F5] p-3 rounded-2xl border border-[#E65C00]/20 space-y-0.5 shadow-xs">
+              <span className="text-[10px] text-[#6B3A2A] uppercase font-bold block">Total Recorded</span>
+              <span className="text-lg font-black text-[#3D1A00] font-mono">£{kpi.totalRevenue.toFixed(2)}</span>
+              <span className="text-[10px] text-[#8C6D62] block">{kpi.completedCount + kpi.pendingCount + kpi.failedCount} Txns</span>
             </div>
           </div>
 
           {/* Donation Classification Table */}
           <div className="space-y-2 pt-1">
-            <span className="text-[11px] font-bold uppercase text-slate-400 tracking-wider block">
-              Completed Bookings &amp; Sevas by Category
+            <span className="text-[11px] font-bold uppercase text-[#6B3A2A] tracking-wider block">
+              Category Breakdown
             </span>
             <div className="space-y-2">
-              {(data?.donationBreakdown || []).map((cat, idx) => (
+              {(data?.donationBreakdown || [])
+                .filter((cat) => cat.revenue > 0 || cat.count > 0)
+                .filter((cat) => isPoojaEnabled || cat.type !== 'Paid Sacred Pooja Sevas')
+                .map((cat, idx) => (
                 <div
                   key={idx}
-                  className="bg-slate-900 p-3 rounded-xl border border-slate-800 flex items-center justify-between text-xs"
+                  className="bg-[#FFF9F5] p-3 rounded-xl border border-[#E65C00]/15 flex items-center justify-between text-xs"
                 >
                   <div className="space-y-0.5">
-                    <span className="font-bold text-white block">{cat.type}</span>
-                    <span className="text-[10px] text-slate-400">{cat.count} Completed Transactions</span>
+                    <span className="font-bold text-[#3D1A00] block">{cat.type}</span>
+                    <span className="text-[10px] text-[#8C6D62]">{cat.count} Transactions</span>
                   </div>
-                  <span className="font-mono font-black text-emerald-400 text-sm">
+                  <span className="font-mono font-black text-emerald-700 text-sm">
                     £{cat.revenue.toFixed(2)}
                   </span>
                 </div>
@@ -653,58 +699,58 @@ export default function AdminDashboardPage() {
         </div>
 
         {/* Right Card: RSVP Attendee Demographics & Locations */}
-        <div className="bg-slate-950 p-6 rounded-3xl border border-slate-800 space-y-5">
-          <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+        <div className="bg-white p-6 rounded-3xl border border-[#E65C00]/20 space-y-5 shadow-sm">
+          <div className="flex items-center justify-between border-b border-[#E65C00]/20 pb-3">
             <div className="flex items-center gap-2">
-              <Users className="w-5 h-5 text-purple-400" />
-              <h3 className="text-base font-bold text-white">Attendee Demographics &amp; Geography</h3>
+              <Users className="w-5 h-5 text-purple-600" />
+              <h3 className="text-base font-bold text-[#3D1A00]">Attendee Geography</h3>
             </div>
-            <Link href="/admin/events" className="text-xs text-mitra-gold hover:underline flex items-center gap-1">
-              <span>View Attendees</span>
+            <Link href="/admin/events" className="text-xs text-[#E65C00] font-bold hover:underline flex items-center gap-1">
+              <span>View RSVPs</span>
               <ArrowUpRight className="w-3.5 h-3.5" />
             </Link>
           </div>
 
           {/* Attendee Passes Distribution */}
           <div className="grid grid-cols-2 gap-3 text-center text-xs">
-            <div className="bg-slate-900 p-3.5 rounded-2xl border border-slate-800 space-y-1">
-              <div className="flex items-center justify-center gap-1.5 text-slate-300">
-                <Users className="w-4 h-4 text-purple-400" />
-                <span className="text-[11px] uppercase font-bold">Adult Devotees</span>
+            <div className="bg-purple-50/80 p-3.5 rounded-2xl border border-purple-200/80 space-y-1 shadow-xs">
+              <div className="flex items-center justify-center gap-1.5 text-purple-800">
+                <Users className="w-4 h-4 text-purple-600" />
+                <span className="text-[11px] uppercase font-bold">Adults</span>
               </div>
-              <span className="text-2xl font-black text-white font-mono block">{kpi.totalAdultsCount}</span>
-              <span className="text-[10px] text-purple-300 font-medium">Standard Adult Passes</span>
+              <span className="text-2xl font-black text-purple-700 font-mono block">{kpi.totalAdultsCount}</span>
+              <span className="text-[10px] text-purple-600 font-medium">Standard Passes</span>
             </div>
 
-            <div className="bg-slate-900 p-3.5 rounded-2xl border border-slate-800 space-y-1">
-              <div className="flex items-center justify-center gap-1.5 text-slate-300">
-                <Baby className="w-4 h-4 text-amber-400" />
-                <span className="text-[11px] uppercase font-bold">Children (Under 12)</span>
+            <div className="bg-amber-50/80 p-3.5 rounded-2xl border border-amber-200/80 space-y-1 shadow-xs">
+              <div className="flex items-center justify-center gap-1.5 text-amber-800">
+                <Baby className="w-4 h-4 text-amber-600" />
+                <span className="text-[11px] uppercase font-bold">Children</span>
               </div>
-              <span className="text-2xl font-black text-amber-400 font-mono block">{kpi.totalChildrenCount}</span>
-              <span className="text-[10px] text-amber-300 font-medium">Complimentary Passes</span>
+              <span className="text-2xl font-black text-amber-700 font-mono block">{kpi.totalChildrenCount}</span>
+              <span className="text-[10px] text-amber-600 font-medium">Complimentary Passes</span>
             </div>
           </div>
 
           {/* Top Origin Towns */}
           <div className="space-y-2 pt-1">
-            <span className="text-[11px] font-bold uppercase text-slate-400 tracking-wider block">
-              Top Devotee Origin Cities / Towns (from DB)
+            <span className="text-[11px] font-bold uppercase text-[#6B3A2A] tracking-wider block">
+              Top Locations
             </span>
             <div className="space-y-2">
               {(data?.topLocations || []).length === 0 ? (
-                <p className="text-xs text-slate-500 py-3 text-center">No origin data recorded yet.</p>
+                <p className="text-xs text-[#8C6D62] py-3 text-center">No origin data recorded yet.</p>
               ) : (
                 data?.topLocations.map((loc, idx) => (
                   <div
                     key={idx}
-                    className="bg-slate-900 p-3 rounded-xl border border-slate-800 flex items-center justify-between text-xs"
+                    className="bg-[#FFF9F5] p-3 rounded-xl border border-[#E65C00]/15 flex items-center justify-between text-xs"
                   >
-                    <div className="flex items-center gap-2 text-slate-300">
-                      <MapPin className="w-3.5 h-3.5 text-mitra-gold shrink-0" />
-                      <span className="font-bold text-white">{loc.name}</span>
+                    <div className="flex items-center gap-2 text-[#6B3A2A]">
+                      <MapPin className="w-3.5 h-3.5 text-[#E65C00] shrink-0" />
+                      <span className="font-bold text-[#3D1A00]">{loc.name}</span>
                     </div>
-                    <span className="font-mono font-bold text-purple-300">
+                    <span className="font-mono font-bold text-purple-700">
                       {loc.count} Passes
                     </span>
                   </div>
@@ -723,44 +769,52 @@ export default function AdminDashboardPage() {
             <div className="flex items-center gap-2">
               <Activity className="w-5 h-5 text-emerald-400" />
               <h2 className="text-lg font-black text-white font-cinzel">
-                LIVE DATABASE ACTIVITY STREAM
+                Recent Activity
               </h2>
             </div>
             <p className="text-xs text-slate-400">
-              Real-time chronologically sorted transactions, festival RSVPs, and member registrations directly from Postgres.
+              Live updates of registrations, payments, and members.
             </p>
           </div>
 
           {/* Filter Pills */}
-          <div className="flex flex-wrap gap-1.5 bg-slate-900 p-1.5 rounded-2xl border border-slate-800 text-xs">
+          <div className="flex flex-wrap gap-1.5 bg-white p-1.5 rounded-2xl border border-[#E65C00]/20 text-xs shadow-sm">
             <button
               onClick={() => setFeedFilter('all')}
-              className={`px-3 py-1.5 rounded-xl font-bold transition-colors ${
-                feedFilter === 'all' ? 'bg-mitra-gold text-black shadow' : 'text-slate-400 hover:text-white'
+              className={`px-3 py-1.5 rounded-xl font-bold transition-all ${
+                feedFilter === 'all'
+                  ? 'bg-[#E65C00] text-white shadow-sm'
+                  : 'text-[#6B3A2A] hover:text-[#E65C00] hover:bg-[#FFF0E0]'
               }`}
             >
-              All Events ({data?.liveFeed?.length || 0})
+              All ({data?.liveFeed?.length || 0})
             </button>
             <button
               onClick={() => setFeedFilter('payment')}
-              className={`px-3 py-1.5 rounded-xl font-bold transition-colors ${
-                feedFilter === 'payment' ? 'bg-emerald-500 text-black shadow' : 'text-slate-400 hover:text-white'
+              className={`px-3 py-1.5 rounded-xl font-bold transition-all ${
+                feedFilter === 'payment'
+                  ? 'bg-emerald-600 text-white shadow-sm'
+                  : 'text-[#6B3A2A] hover:text-emerald-700 hover:bg-emerald-50'
               }`}
             >
-              Payments &amp; Poojas
+              Payments
             </button>
             <button
               onClick={() => setFeedFilter('rsvp')}
-              className={`px-3 py-1.5 rounded-xl font-bold transition-colors ${
-                feedFilter === 'rsvp' ? 'bg-purple-500 text-white shadow' : 'text-slate-400 hover:text-white'
+              className={`px-3 py-1.5 rounded-xl font-bold transition-all ${
+                feedFilter === 'rsvp'
+                  ? 'bg-purple-600 text-white shadow-sm'
+                  : 'text-[#6B3A2A] hover:text-purple-700 hover:bg-purple-50'
               }`}
             >
-              RSVPs &amp; Passes
+              RSVPs
             </button>
             <button
               onClick={() => setFeedFilter('member')}
-              className={`px-3 py-1.5 rounded-xl font-bold transition-colors ${
-                feedFilter === 'member' ? 'bg-blue-500 text-white shadow' : 'text-slate-400 hover:text-white'
+              className={`px-3 py-1.5 rounded-xl font-bold transition-all ${
+                feedFilter === 'member'
+                  ? 'bg-blue-600 text-white shadow-sm'
+                  : 'text-[#6B3A2A] hover:text-blue-700 hover:bg-blue-50'
               }`}
             >
               Members
@@ -773,10 +827,10 @@ export default function AdminDashboardPage() {
           {loading ? (
             <div className="text-center py-10 text-slate-500 flex flex-col items-center gap-2">
               <RefreshCw className="w-6 h-6 animate-spin text-mitra-gold" />
-              <span>Fetching live events stream from database...</span>
+              <span>Loading activity...</span>
             </div>
           ) : filteredFeed.length === 0 ? (
-            <p className="text-xs text-slate-500 py-8 text-center">No recent records matching this filter in the database.</p>
+            <p className="text-xs text-slate-500 py-8 text-center">No recent records found.</p>
           ) : (
             filteredFeed.map((item) => (
               <div

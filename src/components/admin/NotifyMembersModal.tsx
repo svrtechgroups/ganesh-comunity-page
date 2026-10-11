@@ -60,7 +60,7 @@ As a valued {{tier}} member (ID: {{id}}), you have access to personalized family
 
 May Lord Ganesha shower your family with health, happiness, and prosperity!`,
     buttonText: 'View Schedule & Book Seva',
-    buttonUrl: 'https://mitra.org.uk/ganesh-event-2026',
+    buttonUrl: 'https://mitrauk.com/ganesh-event-2026',
   },
   {
     id: 'community-notice',
@@ -78,7 +78,7 @@ Please review our latest association initiatives, community welfare drives, and 
 
 Should you have any suggestions or wish to volunteer, feel free to reply directly to this notice.`,
     buttonText: 'Visit MITRA Member Portal',
-    buttonUrl: 'https://mitra.org.uk/membership',
+    buttonUrl: 'https://mitrauk.com/membership',
   },
   {
     id: 'membership-pass',
@@ -96,7 +96,7 @@ This is a reminder that your digital membership pass is active under ID {{id}} (
 
 Click below to view your digital pass and review your member benefits.`,
     buttonText: 'Access Digital Pass',
-    buttonUrl: 'https://mitra.org.uk/membership',
+    buttonUrl: 'https://mitrauk.com/membership',
   },
   {
     id: 'blank-custom',
@@ -682,7 +682,7 @@ export default function NotifyMembersModal({
                       type="url"
                       value={buttonUrl}
                       onChange={(e) => setButtonUrl(e.target.value)}
-                      placeholder="e.g. https://mitra.org.uk/ganesh-event-2026"
+                      placeholder="e.g. https://mitrauk.com/ganesh-event-2026"
                       className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white placeholder-slate-500 focus:border-mitra-gold focus:outline-none"
                     />
                   </div>

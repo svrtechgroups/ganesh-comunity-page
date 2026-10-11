@@ -93,7 +93,7 @@ export default function HomeVariantCultural() {
             </p>
           </div>
 
-          {/* Post-Mahotsav Celebration Banner */}
+          {/* Community Heritage Banner */}
           <div className="temple-card rounded-2xl p-4 sm:p-5 border-2 border-[#E65C00]/30 max-w-3xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4 shadow-md bg-gradient-to-r from-white via-[#FFF9F2] to-white">
             <div className="flex items-center gap-3 text-left">
               <div className="w-11 h-11 rounded-full bg-[#FFF0E0] border border-[#E65C00]/40 flex items-center justify-center shrink-0 text-[#E65C00]">
@@ -101,18 +101,18 @@ export default function HomeVariantCultural() {
               </div>
               <div>
                 <span className="text-[11px] font-black uppercase text-[#E65C00] tracking-wider block">
-                  Historic London Ganesh Mahotsav 2026
+                  UK Telugu Community Network
                 </span>
                 <p className="text-xs text-[#6B3A2A]">
-                  Thank you 40,000+ devotees, volunteers, and patrons for Europe&apos;s grandest eco-friendly celebration!
+                  Connecting over 25,000 Telugu-speaking families across Britain through culture, language, and community seva.
                 </p>
               </div>
             </div>
             <Link
-              href="/ganesh-event-2026"
+              href="/about"
               className="maroon-button px-5 py-2 rounded-full text-xs font-bold shrink-0 flex items-center gap-1.5"
             >
-              <span>View Recap</span>
+              <span>Our Mission</span>
               <ArrowRight className="w-3.5 h-3.5" />
             </Link>
           </div>

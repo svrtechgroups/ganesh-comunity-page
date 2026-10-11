@@ -24,7 +24,9 @@ import {
   AlertTriangle,
   BadgePercent,
   Calendar,
+  Loader2,
 } from 'lucide-react';
+import { useAdminGlobalEvent } from '../layout';
 
 interface PaymentItem {
   id: string;
@@ -50,6 +52,7 @@ interface PaymentItem {
   specialWishes?: string | null;
   primaryDevoteeName?: string | null;
   createdAt: string;
+  hasRsvp?: boolean;
 }
 
 interface PaymentStats {
@@ -107,13 +110,14 @@ export default function AdminPaymentsPage() {
   const [exporting, setExporting] = useState(false);
   const [savingSettings, setSavingSettings] = useState(false);
   const [successMsg, setSuccessMsg] = useState('');
+  const [creatingRsvp, setCreatingRsvp] = useState(false);
 
   // Search & Filter state (applied at DB level)
   const [searchQuery, setSearchQuery] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [typeFilter, setTypeFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState('all');
-  const [eventFilter, setEventFilter] = useState('all');
+  const { globalEventId: eventFilter, setGlobalEventId: setEventFilter } = useAdminGlobalEvent();
   const [availableEvents, setAvailableEvents] = useState<{ id: string; title: string; date: string }[]>([]);
   const [runningCleanup, setRunningCleanup] = useState(false);
   const [cleanupResultMsg, setCleanupResultMsg] = useState<string | null>(null);
@@ -268,6 +272,34 @@ export default function AdminPaymentsPage() {
     }
   };
 
+  const handleCreateRsvp = async (payment: PaymentItem) => {
+    if (!payment.eventId) {
+      alert("This payment does not have an associated Event ID. Cannot create RSVP.");
+      return;
+    }
+    
+    setCreatingRsvp(true);
+    try {
+      const res = await fetch('/api/admin/payments/force-rsvp', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ paymentId: payment.id }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        alert("RSVP Created successfully!");
+        setSelectedPaymentDetail({ ...payment, hasRsvp: true });
+        fetchPaymentsData(); // Refresh list to update hasRsvp flags
+      } else {
+        alert("Error: " + data.error);
+      }
+    } catch (e: any) {
+      alert("Error: " + e.message);
+    } finally {
+      setCreatingRsvp(false);
+    }
+  };
+
   const startIndex = pagination.total > 0 ? (pagination.page - 1) * pagination.limit + 1 : 0;
   const endIndex = Math.min(pagination.page * pagination.limit, pagination.total);
 
@@ -361,7 +393,7 @@ export default function AdminPaymentsPage() {
         >
           <div className="flex justify-between items-center text-[#6B3A2A]">
             <span className="text-[11px] uppercase font-bold tracking-wider text-amber-700">
-              Pending / In-Flight
+              Pending
             </span>
             <div className="p-2 bg-amber-100/80 rounded-xl text-amber-600">
               <Clock className="w-4 h-4" />
@@ -376,7 +408,7 @@ export default function AdminPaymentsPage() {
                 {stats.pendingCount} Pending Bookings
               </span>
               <span className="text-[10px] text-amber-600/90 font-medium">
-                {statusFilter === 'Pending' ? '● Filter Active' : 'Click to filter'}
+                {statusFilter === 'Pending' ? '● Filter Active' : 'Filter'}
               </span>
             </div>
           </div>
@@ -390,7 +422,7 @@ export default function AdminPaymentsPage() {
           }`}
         >
           <div className="flex justify-between items-center text-[#6B3A2A]">
-            <span className="text-[11px] uppercase font-bold tracking-wider">Total Recorded Ledger</span>
+            <span className="text-[11px] uppercase font-bold tracking-wider">Total Recorded</span>
             <div className="p-2 bg-[#FFF0E0] rounded-xl text-[#E65C00]">
               <CreditCard className="w-4 h-4" />
             </div>
@@ -439,10 +471,10 @@ export default function AdminPaymentsPage() {
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border-b border-[#E65C00]/15 pb-4">
               <div>
                 <h3 className="text-lg font-black font-cinzel text-[#3D1A00]">
-                  RECENT PAYMENTS &amp; SANKALPAM LEDGER
+                  Recent Payments
                 </h3>
                 <p className="text-xs text-[#6B3A2A] font-semibold">
-                  Detailed logs of devotee pooja bookings, Gotrams, priest Sankalpam family names, and seva payments.
+                  View and manage devotee pooja bookings and payment transactions.
                 </p>
               </div>
 
@@ -669,6 +701,7 @@ export default function AdminPaymentsPage() {
                       <th className="p-4">Amount (£)</th>
                       <th className="p-4">Method</th>
                       <th className="p-4">Status</th>
+                      <th className="p-4">RSVP</th>
                       <th className="p-4">Date</th>
                       <th className="p-4 text-right">Action</th>
                     </tr>
@@ -782,6 +815,25 @@ export default function AdminPaymentsPage() {
                                 <span className="bg-rose-50 text-rose-700 font-bold px-2.5 py-1 rounded-full text-[10px] border border-rose-500/30 flex items-center gap-1 max-w-fit whitespace-nowrap">
                                   <AlertTriangle className="w-3 h-3 text-rose-600" />
                                   <span>{p.status || 'Failed'}</span>
+                                </span>
+                              )}
+                            </td>
+
+                            {/* RSVP */}
+                            <td className="p-4">
+                              {p.hasRsvp ? (
+                                <span className="text-emerald-600 font-bold flex items-center gap-1 text-[11px] whitespace-nowrap">
+                                  <CheckCircle2 className="w-3.5 h-3.5" />
+                                  <span>Yes</span>
+                                </span>
+                              ) : p.eventId ? (
+                                <span className="text-rose-500 font-bold flex items-center gap-1 text-[11px] whitespace-nowrap" title="No RSVP Created">
+                                  <AlertTriangle className="w-3.5 h-3.5" />
+                                  <span>No</span>
+                                </span>
+                              ) : (
+                                <span className="text-gray-400 font-semibold text-[11px] whitespace-nowrap" title="Not an event payment">
+                                  N/A
                                 </span>
                               )}
                             </td>
@@ -1119,6 +1171,17 @@ export default function AdminPaymentsPage() {
                 </span>
               </div>
             </div>
+
+            {!selectedPaymentDetail.hasRsvp && selectedPaymentDetail.eventId && (
+              <button
+                onClick={() => handleCreateRsvp(selectedPaymentDetail)}
+                disabled={creatingRsvp}
+                className="w-full py-3 rounded-xl font-black uppercase tracking-wider text-xs bg-mitra-gold hover:bg-amber-500 text-mitra-navy transition-colors flex items-center justify-center gap-2 shadow-md"
+              >
+                {creatingRsvp ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
+                {creatingRsvp ? 'Creating RSVP...' : 'Force Create RSVP for Payment'}
+              </button>
+            )}
 
             <button
               onClick={() => setSelectedPaymentDetail(null)}

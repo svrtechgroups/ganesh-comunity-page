@@ -19,7 +19,7 @@ import {
   Video,
   Volume2
 } from 'lucide-react';
-import { EventHeroConfig } from '@/types/event-template';
+import { EventHeroConfig, HeroCTA } from '@/types/event-template';
 
 export interface EventHeroProps {
   config?: Partial<EventHeroConfig>;
@@ -32,34 +32,31 @@ export interface EventHeroProps {
 }
 
 const DEFAULT_CONFIG: EventHeroConfig = {
-  heroType: '3d-model',
+  heroType: 'image',
   modelUrl: '/assets/idols/Lord Ganesh.glb',
   modelScale: 2.8,
   proceduralFallback: 'none',
   bannerImageUrl: '/assets/poster.jpg',
-  presenterBadge: 'Welcome to Mana Indian Telugu Roots Abroad (MITRA UK)',
-  title: 'THE BIGGEST MAHA GANAPATHI',
-  subtitle: 'LONDON GANESH MAHOTSAV 2026',
-  tagline: 'Streaming 3D Bappa Murti & Devotional Rays',
-  loadingText: 'ENTERING SANCTUM...',
-  scrollCueText: 'Scroll to Enter Sanctum',
+  presenterBadge: 'Welcome to MITRA UK',
+  title: 'MITRA UK',
+  subtitle: 'Mana Indian Telugu Roots Abroad',
+  tagline: '',
+  loadingText: 'LOADING...',
+  scrollCueText: 'Scroll to Explore',
   primaryColor: '#E65C00',
   accentColor: '#CC4000',
   backgroundColor: '#FFF8F0',
   primaryCta: {
-    label: 'Book Pooja / Seva',
-    action: 'pooja',
+    label: 'Register Now',
+    action: 'rsvp',
   },
-  secondaryCta: {
-    label: 'Make Donation',
-    action: 'donation',
-  },
-  whatsAppUrl: 'https://chat.whatsapp.com/IVqirWWzM96IBNRfhSWGEd',
+  secondaryCta: undefined,
+  whatsAppUrl: '',
 };
 
 export default function EventHero({
   config: userConfig,
-  eventSlug = 'ganesh-event-2026',
+  eventSlug,
   mode = 'event',
   onBookPoojaClick,
   onDonateClick,
@@ -68,6 +65,13 @@ export default function EventHero({
 }: EventHeroProps) {
   const cfg: EventHeroConfig = { ...DEFAULT_CONFIG, ...userConfig };
   const isHomeMode = mode === 'home';
+
+  // Guaranteed public event URL — never fall back to old hardcoded slug
+  const resolvedEventHref = (() => {
+    if (!eventSlug) return '/events';
+    const clean = eventSlug.replace(/^\/+/, '');
+    return clean.startsWith('events/') ? `/${clean}` : `/events/${clean}`;
+  })();
 
   // Background aura, particles, and corner motifs flags
   const shouldShowParticles = cfg.showParticles === true || (cfg.showParticles !== false && cfg.proceduralFallback !== 'none');
@@ -381,17 +385,23 @@ export default function EventHero({
   );
 
   // CTA Click Helper
-  const handleCtaClick = (cta: typeof cfg.primaryCta) => {
-    if (cta.action === 'pooja' && onBookPoojaClick) {
+  const handleCtaClick = (cta?: HeroCTA | null) => {
+    const action = cta?.action;
+    const label = (cta?.label || '').toLowerCase();
+    const isRsvp = action === 'rsvp' || label.includes('register') || label.includes('rsvp');
+
+    if (action === 'pooja' && onBookPoojaClick) {
       onBookPoojaClick();
-    } else if (cta.action === 'donation' && onDonateClick) {
+    } else if (action === 'donation' && onDonateClick) {
       onDonateClick();
-    } else if (cta.action === 'rsvp' && onRsvpClick) {
+    } else if (isRsvp && onRsvpClick) {
       onRsvpClick();
-    } else if (cta.action === 'whatsapp' && cfg.whatsAppUrl) {
+    } else if (action === 'whatsapp' && cfg.whatsAppUrl) {
       window.open(cfg.whatsAppUrl, '_blank');
-    } else if (cta.linkUrl) {
+    } else if (cta?.linkUrl) {
       window.location.href = cta.linkUrl;
+    } else if (onRsvpClick) {
+      onRsvpClick();
     }
   };
 
@@ -403,7 +413,7 @@ export default function EventHero({
         {isHomeMode ? (
           <>
             <Link
-              href={`/${eventSlug}`}
+              href={resolvedEventHref}
               className="maroon-button px-8 py-3.5 rounded-full text-sm font-black uppercase tracking-wider flex items-center gap-2.5 shadow-xl hover:scale-105 transition-all border border-[#E65C00]/30"
             >
               <ExternalLink className="w-5 h-5 text-[#FF9A3C]" />
@@ -424,27 +434,31 @@ export default function EventHero({
           </>
         ) : (
           <>
-            <button
-              onClick={() => handleCtaClick(cfg.primaryCta)}
-              className="gold-button px-8 py-3.5 rounded-full text-sm font-black uppercase tracking-wider flex items-center gap-2.5 hover:scale-105 transition-all shadow-md"
-            >
-              {cfg.primaryCta.action === 'pooja' && <Flame className="w-5 h-5 fill-current text-white" />}
-              {cfg.primaryCta.action === 'rsvp' && <Calendar className="w-5 h-5 text-white" />}
-              {cfg.primaryCta.action === 'donation' && <Heart className="w-5 h-5 text-white" />}
-              <span>{cfg.primaryCta.label}</span>
-            </button>
+            {cfg.primaryCta && (
+              <button
+                onClick={() => handleCtaClick(cfg.primaryCta)}
+                className="gold-button px-8 py-3.5 rounded-full text-sm font-black uppercase tracking-wider flex items-center gap-2.5 hover:scale-105 transition-all shadow-md"
+              >
+                {cfg.primaryCta.action === 'pooja' && <Flame className="w-5 h-5 fill-current text-white" />}
+                {cfg.primaryCta.action === 'rsvp' && <Calendar className="w-5 h-5 text-white" />}
+                {cfg.primaryCta.action === 'donation' && <Heart className="w-5 h-5 text-white" />}
+                <span>{cfg.primaryCta.label}</span>
+              </button>
+            )}
 
-            <button
-              onClick={() => handleCtaClick(cfg.secondaryCta)}
-              className="maroon-button px-8 py-3.5 rounded-full text-sm font-black uppercase tracking-wider flex items-center gap-2.5 shadow-xl hover:scale-105 transition-all border border-[#E65C00]/30"
-            >
-              {cfg.secondaryCta.action === 'donation' && <Heart className="w-5 h-5 text-[#FF9A3C] fill-current" />}
-              {cfg.secondaryCta.action === 'pooja' && <Flame className="w-5 h-5 text-[#FF9A3C] fill-current" />}
-              {cfg.secondaryCta.action === 'whatsapp' && (
-                <img src="/assets/whatsapp.png" alt="WhatsApp" className="w-5 h-5 object-contain" />
-              )}
-              <span>{cfg.secondaryCta.label}</span>
-            </button>
+            {cfg.secondaryCta?.label && cfg.secondaryCta.label.trim().toLowerCase() !== 'learn more' && (
+              <button
+                onClick={() => handleCtaClick(cfg.secondaryCta!)}
+                className="maroon-button px-8 py-3.5 rounded-full text-sm font-black uppercase tracking-wider flex items-center gap-2.5 shadow-xl hover:scale-105 transition-all border border-[#E65C00]/30"
+              >
+                {cfg.secondaryCta.action === 'donation' && <Heart className="w-5 h-5 text-[#FF9A3C] fill-current" />}
+                {cfg.secondaryCta.action === 'pooja' && <Flame className="w-5 h-5 text-[#FF9A3C] fill-current" />}
+                {cfg.secondaryCta.action === 'whatsapp' && (
+                  <img src="/assets/whatsapp.png" alt="WhatsApp" className="w-5 h-5 object-contain" />
+                )}
+                <span>{cfg.secondaryCta.label}</span>
+              </button>
+            )}
           </>
         )}
       </div>

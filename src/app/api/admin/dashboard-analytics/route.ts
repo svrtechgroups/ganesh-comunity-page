@@ -24,6 +24,7 @@ export async function GET(request: Request) {
         orderBy: { createdAt: 'desc' },
       }),
       prisma.eventRSVP.findMany({
+        where: { paymentStatus: { in: ['Completed', 'Free'] } },
         include: {
           event: {
             select: {
@@ -115,6 +116,11 @@ export async function GET(request: Request) {
     let annadanamRevenue = 0;
     let otherRevenue = 0;
 
+    let rsvpTicketRevenue = 0;
+    let rsvpTicketCount = 0;
+    let eventSupportRevenue = 0;
+    let eventSupportCount = 0;
+
     const donationTypeMap: Record<string, { count: number; revenue: number }> = {
       pooja: { count: 0, revenue: 0 },
       anadanam: { count: 0, revenue: 0 },
@@ -188,7 +194,22 @@ export async function GET(request: Request) {
       if (loc) {
         locationCounts[loc] = (locationCounts[loc] || 0) + passes;
       }
+
+      const support = Number(r.supportAmount) || 0;
+      const total = Number(r.totalAmount) || 0;
+      const ticketRev = total > support ? total - support : 0;
+      
+      if (ticketRev > 0) {
+        rsvpTicketCount++;
+        rsvpTicketRevenue += ticketRev;
+      }
+      if (support > 0) {
+        eventSupportCount++;
+        eventSupportRevenue += support;
+      }
     });
+
+    otherRevenue = Math.max(0, generalDonationsRevenue - (rsvpTicketRevenue + eventSupportRevenue));
 
     // Top Locations Sorted
     const topLocations = Object.entries(locationCounts)
@@ -415,7 +436,7 @@ export async function GET(request: Request) {
         dailyBreakdown,
         donationBreakdown: [
           {
-            type: 'Paid Sacred Pooja Sevas (£116)',
+            type: 'Paid Sacred Pooja Sevas',
             count: totalPaidPoojas,
             revenue: totalPaidPoojaRevenue,
             badge: 'Sacred Ritual',
@@ -427,11 +448,23 @@ export async function GET(request: Request) {
             badge: 'Annadanam',
           },
           {
-            type: 'General & Student Welfare Fund',
-            count: generalDonationsCount,
-            revenue: generalDonationsRevenue,
-            badge: 'Charity & Welfare',
+            type: 'Event RSVP',
+            count: rsvpTicketCount,
+            revenue: rsvpTicketRevenue,
+            badge: 'Registrations to event',
           },
+          {
+            type: 'Event Support Fund',
+            count: eventSupportCount,
+            revenue: eventSupportRevenue,
+            badge: 'Event Support',
+          },
+          {
+            type: 'Other Donations',
+            count: Math.max(0, generalDonationsCount - (rsvpTicketCount + eventSupportCount)),
+            revenue: otherRevenue,
+            badge: 'Other',
+          }
         ],
         topLocations,
         memberTiers: Object.entries(memberTierCounts).map(([tier, count]) => ({ tier, count })),
@@ -443,6 +476,7 @@ export async function GET(request: Request) {
           date: e.date,
           category: e.category,
           status: e.status,
+          enablePooja: e.enablePooja,
         })),
         recentPayments: filteredPayments.slice(0, 8),
         recentRSVPs: filteredRSVPs.slice(0, 8),

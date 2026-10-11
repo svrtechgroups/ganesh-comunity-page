@@ -419,7 +419,7 @@ export default function Ganesha3DHero({
             // ── Home page: show WhatsApp + View Event ─────────────────────────
             <>
             <Link
-                href="/ganesh-event-2026"
+                href="/events/evt-ganesh-chaturthi"
                 className="maroon-button px-8 py-3.5 rounded-full text-sm font-black uppercase tracking-wider flex items-center gap-2.5 shadow-xl hover:scale-105 transition-all border border-[#E65C00]/30"
               >
                 <ExternalLink className="w-5 h-5 text-[#FF9A3C]" />

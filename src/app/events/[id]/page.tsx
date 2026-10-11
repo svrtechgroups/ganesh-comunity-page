@@ -12,6 +12,7 @@ import {
   MapPin, 
   Download, 
   ArrowLeft, 
+  Image as ImageIcon,
   Loader2, 
   Heart, 
   Sparkles, 
@@ -59,6 +60,8 @@ export default function EventDetailPage() {
     }
   };
 
+  const [templateConfig, setTemplateConfig] = useState<any>(null);
+
   useEffect(() => {
     setLoading(true);
     fetch('/api/events')
@@ -68,18 +71,21 @@ export default function EventDetailPage() {
         if (resData.success && Array.isArray(resData.data)) {
           found = resData.data.find((e: EventItem) => e.id === id) ||
             resData.data.find((e: EventItem) => e.id.toLowerCase() === id.toLowerCase()) ||
-            resData.data.find((e: EventItem) => (id === 'evt-ganesh-chaturthi' || id === 'evt-101') && e.title.toLowerCase().includes('ganesh')) || null;
+            resData.data.find((e: EventItem) => (id === 'evt-ganesh-chaturthi' || id === 'evt-101' || id === 'ganesh-event-2026') && e.title.toLowerCase().includes('ganesh')) || null;
         }
 
-        // If not found in DB events, check template config storage
-        if (!found) {
-          try {
-            const resTpl = await fetch(`/api/config/preferences?eventId=${encodeURIComponent(id)}`);
-            const tplJson = await resTpl.json();
-            if (tplJson.success && (tplJson.templateConfig || tplJson.data)) {
-              const tpl = tplJson.templateConfig || tplJson.data;
+        // Check template config storage for custom hero/landing preferences in DB
+        try {
+          const resTpl = await fetch(`/api/config/preferences?eventId=${encodeURIComponent(id)}`);
+          const tplJson = await resTpl.json();
+          if (tplJson.success && (tplJson.templateConfig || tplJson.preferences)) {
+            const tpl = tplJson.templateConfig;
+            if (tpl && (tpl.hero?.heroType || tpl.hero?.title || Object.keys(tplJson.preferences || {}).length > 0)) {
+              setTemplateConfig(tpl);
+            }
+            if (!found && tpl) {
               found = {
-                id: tpl.id,
+                id: tpl.id || id,
                 title: tpl.title,
                 category: 'Cultural Events',
                 date: tpl.targetDate ? tpl.targetDate.slice(0, 10) : '2027-01-01',
@@ -95,8 +101,8 @@ export default function EventDetailPage() {
                 featured: true,
               };
             }
-          } catch {}
-        }
+          }
+        } catch {}
 
         if (found) {
           setEvent(found);
@@ -131,7 +137,7 @@ export default function EventDetailPage() {
   }
 
   const jsonLd = generateEventJsonLd(event);
-  const isTemplateEvent = id.startsWith('evt-') || (event.id && event.id.startsWith('evt-'));
+  const isTemplateEvent = !!templateConfig || id.startsWith('evt-') || (event.id && event.id.startsWith('evt-'));
 
   const handleICSDownload = () => {
     const icsData = `BEGIN:VCALENDAR
@@ -192,14 +198,28 @@ END:VCALENDAR`;
           onBookPoojaClick={event.enablePooja !== false ? () => setPoojaModalOpen(true) : undefined}
         />
 
-        {/* 2. RITUAL COUNTDOWN CLOCK */}
-        <RitualCountdown />
+        {/* MEDIA GALLERY LINK BANNER */}
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+          <Link href={`/media?event=${event.id}`} className="bg-gradient-to-r from-mitra-gold to-amber-500 rounded-3xl p-6 flex flex-col sm:flex-row items-center justify-between shadow-xl border-2 border-amber-300 gap-4 transform hover:scale-[1.01] transition-transform">
+            <div className="space-y-1 text-center sm:text-left">
+              <h3 className="text-xl font-black text-[#3D1A00] flex items-center justify-center sm:justify-start gap-2">
+                <ImageIcon className="w-6 h-6 text-amber-900" />
+                Official Event Media Gallery
+              </h3>
+              <p className="text-sm text-amber-900 font-bold">
+                Explore the official photos, videos, and highlights from this event!
+              </p>
+            </div>
+            <div className="shrink-0 bg-[#3D1A00] hover:bg-black text-white px-8 py-3 rounded-2xl font-black shadow-lg transition-colors flex items-center gap-2">
+              <span>Open Media Gallery</span>
+            </div>
+          </Link>
+        </div>
 
-        {/* 3. EVENT DETAILS, VENUE & POOJA BOOKING */}
-        <EventDetailsSection 
-          event={event}
-          onOpenPoojaBooking={event.enablePooja !== false ? () => setPoojaModalOpen(true) : undefined} 
-        />
+        {/* 2. RITUAL COUNTDOWN CLOCK */}
+        <RitualCountdown targetDate={event.date}/>
+
+        
 
         {/* 4. IDOL SPECS PLAQUE */}
         <IdolSpecsCard />
@@ -236,7 +256,7 @@ END:VCALENDAR`;
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
         />
-        <EventLandingTemplate eventId={event.id || id} />
+        <EventLandingTemplate eventId={event.id || id} config={templateConfig || undefined} event={event} />
       </>
     );
   }
@@ -280,6 +300,23 @@ END:VCALENDAR`;
           </p>
         </div>
       </div>
+
+      {/* Media Link Banner */}
+      <Link href={`/media?event=${event.id}`} className="bg-gradient-to-r from-slate-900 to-slate-800 rounded-3xl p-6 flex flex-col sm:flex-row items-center justify-between shadow-xl border border-slate-700/50 gap-4 group hover:border-mitra-gold/50 transition-colors">
+        <div className="space-y-1">
+          <h3 className="text-lg font-bold text-white flex items-center gap-2">
+            <Sparkles className="w-5 h-5 text-mitra-gold" />
+            Official Event Media Gallery
+          </h3>
+          <p className="text-sm text-slate-300">
+            View high-resolution photos, video reels, and highlights from this event.
+          </p>
+        </div>
+        <div className="shrink-0 bg-mitra-red hover:bg-[#c22026] text-white px-6 py-2.5 rounded-xl font-bold shadow-md transition-all flex items-center gap-2 group-hover:scale-105">
+          <ImageIcon className="w-4 h-4" />
+          <span>View Gallery</span>
+        </div>
+      </Link>
 
       {/* Main Content & RSVP Sidebar */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">

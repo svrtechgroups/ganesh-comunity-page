@@ -8,6 +8,8 @@ interface MediaTeaserSectionProps {
   eventId?: string;
   sectionTitle?: string;
   subtitle?: string;
+  videoUrl?: string;
+  posterUrl?: string;
 }
 
 interface GalleryItem {
@@ -20,14 +22,14 @@ interface GalleryItem {
   description?: string | null;
 }
 
-const fallbackImages: GalleryItem[] = [
-
-];
+const fallbackImages: GalleryItem[] = [];
 
 export default function MediaTeaserSection({
   eventId,
   sectionTitle,
   subtitle,
+  videoUrl = '/assets/teaser-reel.mp4',
+  posterUrl = '/assets/poster.jpg',
 }: MediaTeaserSectionProps) {
   const [muted, setMuted] = useState(false);
   const [playing, setPlaying] = useState(false);
@@ -98,7 +100,10 @@ export default function MediaTeaserSection({
   };
 
   const displayTitle = sectionTitle || 'TEASER REEL & EVENT POSTERS';
-  const displaySubtitle = subtitle || 'Experience the official Maha Ganapathi video teaser reel and high-resolution event artwork from our media assets.';
+  const displaySubtitle = subtitle || 'Experience the official event teaser video reel and high-resolution event artwork from our media assets.';
+
+  const resolvedVideoSrc = videoUrl || '/assets/teaser-reel.mp4';
+  const resolvedPosterSrc = posterUrl || '/assets/poster.jpg';
 
   return (
     <section className="py-20 bg-[#FFF3E0] text-[#3D1A00] border-y border-[#E65C00]/20">
@@ -126,7 +131,7 @@ export default function MediaTeaserSection({
             {!playing && (
               <div className="absolute inset-0 z-10 flex flex-col items-center justify-center space-y-4 bg-[#FFF8F0]/60 backdrop-blur-[2px]">
                 <img
-                  src="/assets/poster.jpg"
+                  src={resolvedPosterSrc}
                   alt="Poster Backdrop"
                   className="absolute inset-0 w-full h-full object-cover opacity-40 filter brightness-90"
                 />
@@ -138,7 +143,7 @@ export default function MediaTeaserSection({
                     <Play className="w-8 h-8 fill-current ml-1" />
                   </button>
                   <span className="text-xs font-black tracking-widest text-[#3D1A00] uppercase font-cinzel bg-white/80 px-4 py-1.5 rounded-full border border-[#E65C00]/30 shadow-sm">
-                    Play Official Teaser Video (.MP4)
+                    Play Official Teaser Video
                   </span>
                 </div>
               </div>
@@ -146,8 +151,8 @@ export default function MediaTeaserSection({
 
             <video
               ref={videoRef}
-              src="/assets/teaser-reel.mp4"
-              poster="/assets/poster.jpg"
+              src={resolvedVideoSrc}
+              poster={resolvedPosterSrc}
               controls={playing}
               className="w-full h-full object-contain"
               playsInline

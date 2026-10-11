@@ -54,18 +54,12 @@ export async function POST(request: Request) {
       where: { id: eventId },
     });
 
-    if (!eventRecord && (eventId === 'evt-ganesh-chaturthi' || eventId === 'evt-101')) {
-      eventRecord = await prisma.event.findFirst({
-        where: { title: { contains: 'Ganesh', mode: 'insensitive' } },
-      });
-    }
-
-    if (!eventRecord && (eventId === 'evt-bathukamma-2026' || eventId.toLowerCase().includes('bathukamma') || eventId.toLowerCase().includes('grays'))) {
+    if (!eventRecord) {
       eventRecord = await prisma.event.findFirst({
         where: {
           OR: [
-            { title: { contains: 'Bathukamma', mode: 'insensitive' } },
-            { title: { contains: 'Grays', mode: 'insensitive' } },
+            { id: { equals: eventId, mode: 'insensitive' } },
+            { title: { contains: eventId.replace(/-/g, ' '), mode: 'insensitive' } },
           ],
         },
       });
@@ -126,49 +120,56 @@ export async function POST(request: Request) {
       );
     }
 
-    // Check separate adult capacity limit
-    if (eventRecord && eventRecord.enforceCapacityLimit && eventRecord.adultCapacity && eventRecord.adultCapacity > 0) {
-      const adultAgg = await prisma.eventRSVP.aggregate({
+    // Check separate adult and child capacity limits in a single query
+    const checkAdults = eventRecord && eventRecord.enforceCapacityLimit && eventRecord.adultCapacity && eventRecord.adultCapacity > 0;
+    const checkChildren = eventRecord && eventRecord.enforceCapacityLimit && eventRecord.childCapacity && eventRecord.childCapacity > 0;
+
+    if (checkAdults || checkChildren) {
+      const agg = await prisma.eventRSVP.aggregate({
         where: { eventId: eventRecord.id },
-        _sum: { adultsCount: true },
+        _sum: { adultsCount: true, childrenCount: true },
       });
-      const currentAdults = adultAgg._sum.adultsCount || 0;
-      if (currentAdults + adults > eventRecord.adultCapacity) {
-        const remainingAdults = Math.max(0, eventRecord.adultCapacity - currentAdults);
-        return NextResponse.json(
-          {
-            success: false,
-            error: `Adult capacity limit reached (${eventRecord.adultCapacity} adults max). Only ${remainingAdults} adult slot${remainingAdults === 1 ? '' : 's'} remaining.`,
-          },
-          { status: 400 }
-        );
+
+      if (checkAdults) {
+        const currentAdults = agg._sum.adultsCount || 0;
+        if (currentAdults + adults > eventRecord.adultCapacity!) {
+          const remainingAdults = Math.max(0, eventRecord.adultCapacity! - currentAdults);
+          return NextResponse.json(
+            {
+              success: false,
+              error: `Adult capacity limit reached (${eventRecord.adultCapacity} adults max). Only ${remainingAdults} adult slot${remainingAdults === 1 ? '' : 's'} remaining.`,
+            },
+            { status: 400 }
+          );
+        }
+      }
+
+      if (checkChildren) {
+        const currentChildren = agg._sum.childrenCount || 0;
+        if (currentChildren + children > eventRecord.childCapacity!) {
+          const remainingChildren = Math.max(0, eventRecord.childCapacity! - currentChildren);
+          return NextResponse.json(
+            {
+              success: false,
+              error: `Child capacity limit reached (${eventRecord.childCapacity} children max). Only ${remainingChildren} child slot${remainingChildren === 1 ? '' : 's'} remaining.`,
+            },
+            { status: 400 }
+          );
+        }
       }
     }
 
-    // Check separate child capacity limit
-    if (eventRecord && eventRecord.enforceCapacityLimit && eventRecord.childCapacity && eventRecord.childCapacity > 0) {
-      const childAgg = await prisma.eventRSVP.aggregate({
-        where: { eventId: eventRecord.id },
-        _sum: { childrenCount: true },
-      });
-      const currentChildren = childAgg._sum.childrenCount || 0;
-      if (currentChildren + children > eventRecord.childCapacity) {
-        const remainingChildren = Math.max(0, eventRecord.childCapacity - currentChildren);
-        return NextResponse.json(
-          {
-            success: false,
-            error: `Child capacity limit reached (${eventRecord.childCapacity} children max). Only ${remainingChildren} child slot${remainingChildren === 1 ? '' : 's'} remaining.`,
-          },
-          { status: 400 }
-        );
-      }
-    }
+    const parsedAmount = Number(totalAmount) || 0;
+    const finalPaymentStatus = paymentStatus || (parsedAmount > 0 ? 'Pending' : 'Completed');
 
     // Check capacity alert threshold (e.g. last 10 slots or fewer left)
     const threshold = Number(process.env.CAPACITY_ALERT_THRESHOLD) || 10;
     const remainingSlots = capacity - newTotalRsvps;
+    
+    let triggerAlert = false;
 
     if (eventRecord && remainingSlots <= threshold && !eventRecord.capacityAlertSent) {
+      triggerAlert = true;
       const notifyRecipient = process.env.NOTIFY_MAIL || process.env.REPORT_MAIL || process.env.SMTP_USER;
       if (notifyRecipient) {
         const alertSubject = `🚨 Event Capacity Warning: "${eventRecord.title}" has ${remainingSlots <= 0 ? 'reached full capacity' : `only ${remainingSlots} slots remaining`}`;
@@ -198,44 +199,22 @@ export async function POST(request: Request) {
           console.error('[CAPACITY ALERT EMAIL ERROR]:', e)
         );
       }
-
-      await prisma.event.update({
-        where: { id: eventId },
-        data: { capacityAlertSent: true },
-      }).catch(() => {});
     }
 
-    if (!eventRecord) {
-      const isBathukammaId = eventId.toLowerCase().includes('bathukamma') || eventId.toLowerCase().includes('grays');
-      eventRecord = await prisma.event.create({
-        data: {
-          id: eventId,
-          title: isBathukammaId ? 'MITRA Grays Bathukamma 2026' : 'London Ganesh Mahotsav 2026',
-          category: 'Cultural Events',
-          date: isBathukammaId ? '2026-10-18' : '13 to 19 September 2026',
-          time: isBathukammaId ? '4:30 PM onwards' : 'Monday – Saturday: 6:00 PM – 9:00 PM | Sunday: 11:00 AM – 5:00 PM',
-          venue: isBathukammaId ? 'Thurrock Rugby Football Club' : 'E Block, SLOUGH & LANGLEY COLLEGE',
-          address: isBathukammaId ? 'Oakfield, Long Lane, Grays, Essex, RM16 2QH' : 'Langley Road, SL3 8GW',
-          description: isBathukammaId
-            ? 'Get ready for a wonderful evening celebrating flowers, culture and togetherness, with family fun, DJ, food and traditional Bathukamma celebrations.'
-            : 'London’s largest Maha Ganapathi Mahotsav.',
-          bannerUrl: isBathukammaId
-            ? 'https://images.unsplash.com/photo-1545232979-fbf34fe37b38?auto=format&fit=crop&q=80&w=1200'
-            : '/assets/organizers-poster.jpg',
-          capacity: isBathukammaId ? 600 : 5000,
-          rsvpCount: totalTickets,
-        },
-      }).catch(() => null);
-    } else {
+    // Single update for RSVP count and capacity alert
+    if (eventRecord && finalPaymentStatus !== 'Pending') {
+      const updateData: any = { rsvpCount: { increment: totalTickets } };
+      if (triggerAlert) {
+        updateData.capacityAlertSent = true;
+      }
+      
       await prisma.event.update({
-        where: { id: eventId },
-        data: { rsvpCount: { increment: totalTickets } },
+        where: { id: eventRecord.id },
+        data: updateData,
       }).catch(() => {});
     }
 
     // ── 2. Create Event RSVP in DB ──────────────────────────────────────────
-    const parsedAmount = Number(totalAmount) || 0;
-    const finalPaymentStatus = paymentStatus || (parsedAmount > 0 ? 'Completed' : 'Free');
 
     let rsvp;
     try {
@@ -283,11 +262,11 @@ export async function POST(request: Request) {
      sendEventRegistrationConfirmationEmail({
        recipientEmail: normalEmail,
        recipientName: safeName,
-       eventName: eventRecord?.title || 'MITRA Grays Bathukamma 2026',
-       eventDate: eventRecord?.date || 'Sunday, 18 October 2026',
-       eventTime: eventRecord?.time || '4:30 PM onwards',
-       eventVenue: eventRecord?.venue || 'Thurrock Rugby Football Club',
-       eventAddress: eventRecord?.address || 'Oakfield, Long Lane, Grays, Essex, RM16 2QH',
+       eventName: eventRecord.title,
+       eventDate: eventRecord.date,
+       eventTime: eventRecord.time,
+       eventVenue: eventRecord.venue,
+       eventAddress: eventRecord.address || '',
        totalAmount: parsedAmount,
        supportAmount: Number(supportAmount) || 0,
        ticketsCount: totalTickets,

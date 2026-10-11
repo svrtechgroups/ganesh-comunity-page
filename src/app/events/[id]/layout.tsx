@@ -26,7 +26,6 @@ export async function generateMetadata(
           OR: [
             { id: { equals: eventId, mode: 'insensitive' } },
             { title: { contains: decoded, mode: 'insensitive' } },
-            { title: { contains: 'Bathukamma', mode: 'insensitive' } },
           ],
         },
       });

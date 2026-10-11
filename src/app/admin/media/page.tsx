@@ -25,6 +25,19 @@ import {
   Check
 } from 'lucide-react';
 import { isYouTubeUrl, getYouTubeThumbnailUrl } from '@/lib/youtube';
+import { useAdminGlobalEvent } from '../layout';
+
+const isExternalAlbum = (url: string) => {
+  if (!url) return false;
+  const lowerUrl = url.toLowerCase();
+  return lowerUrl.includes('photos.app.goo.gl') || 
+         lowerUrl.includes('photos.google.com') || 
+         lowerUrl.includes('drive.google.com') ||
+         lowerUrl.includes('dropbox.com') ||
+         lowerUrl.includes('onedrive') ||
+         lowerUrl.includes('sharepoint.com') ||
+         lowerUrl.includes('icloud.com');
+};
 
 interface EventOption {
   id: string;
@@ -85,7 +98,7 @@ export default function AdminMediaPage() {
   });
 
   // Filters
-  const [selectedEventFilter, setSelectedEventFilter] = useState<string>('all');
+  const { globalEventId: selectedEventFilter, setGlobalEventId: setSelectedEventFilter } = useAdminGlobalEvent();
   const [selectedTypeFilter, setSelectedTypeFilter] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState<string>('');
 
@@ -156,43 +169,52 @@ export default function AdminMediaPage() {
     setModalOpen(true);
   };
 
-  // FTP Upload Handler matching Add New Committee Member dialog box
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+    const files = Array.from(e.target.files || []);
+    if (!files.length) return;
 
     setUploadingImage(true);
     setUploadSuccessMsg('');
+    let uploadedUrls: string[] = [];
+    let successCount = 0;
 
-    try {
-      const body = new FormData();
-      body.append('file', file);
-      body.append('useCase', 'media_gallery');
-      body.append('identifier', formData.title || 'media_asset');
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i];
+      try {
+        const body = new FormData();
+        body.append('file', file);
+        body.append('useCase', 'media_gallery');
+        body.append('identifier', formData.title || `media_asset_${i}`);
 
-      const res = await fetch('/api/upload', {
-        method: 'POST',
-        body,
-      });
+        const res = await fetch('/api/upload', {
+          method: 'POST',
+          body,
+        });
 
-      const data = await res.json();
-      if (data.success && data.url) {
-        setFormData((prev) => ({
-          ...prev,
-          url: data.url,
-          coverImage: prev.coverImage || data.url,
-        }));
-        setUploadSuccessMsg(`Uploaded via ${data.storageType ? data.storageType.toUpperCase() : 'FTP'}: ${data.filename}`);
-      } else {
-        alert(data.error || 'Upload failed.');
+        const data = await res.json();
+        if (data.success && data.url) {
+          uploadedUrls.push(data.url);
+          successCount++;
+        }
+      } catch (err: any) {
+        console.error(`Error uploading file:`, err);
       }
-    } catch (err: any) {
-      alert(`Error uploading file: ${err?.message || 'Network error'}`);
-    } finally {
-      setUploadingImage(false);
-      if (fileInputRef.current) {
-        fileInputRef.current.value = '';
-      }
+    }
+
+    if (uploadedUrls.length > 0) {
+      setFormData((prev) => ({
+        ...prev,
+        url: prev.url ? `${prev.url},\n${uploadedUrls.join(',\n')}` : uploadedUrls.join(',\n'),
+        coverImage: prev.coverImage || uploadedUrls[0],
+      }));
+      setUploadSuccessMsg(`Successfully uploaded ${successCount} file(s).`);
+    } else {
+      alert('Upload failed for all files.');
+    }
+
+    setUploadingImage(false);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
     }
   };
 
@@ -209,24 +231,37 @@ export default function AdminMediaPage() {
 
     setSubmitting(true);
     try {
-      const method = editingItem ? 'PUT' : 'POST';
-      const payload = editingItem ? { id: editingItem.id, ...formData } : formData;
+      const urls = formData.url.split(/[\n,]+/).map(u => u.trim()).filter(Boolean);
 
-      const res = await fetch('/api/admin/media', {
-        method,
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      });
-
-      const data = await res.json();
-      if (data.success) {
-        setModalOpen(false);
-        fetchMedia();
+      if (editingItem || urls.length === 1) {
+        const payload = editingItem ? { id: editingItem.id, ...formData, url: urls[0] } : { ...formData, url: urls[0] };
+        const res = await fetch('/api/admin/media', {
+          method: editingItem ? 'PUT' : 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+        const data = await res.json();
+        if (!data.success) throw new Error(data.error);
       } else {
-        alert(data.error || 'Failed to save media item.');
+        // Bulk create for new items
+        for (let i = 0; i < urls.length; i++) {
+          const payload = { ...formData, url: urls[i], coverImage: urls[i] };
+          if (urls.length > 1) payload.title = `${formData.title} - ${i + 1}`;
+          
+          const res = await fetch('/api/admin/media', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload),
+          });
+          const data = await res.json();
+          if (!data.success) throw new Error(data.error);
+        }
       }
+
+      setModalOpen(false);
+      fetchMedia();
     } catch (err: any) {
-      alert(`Network error saving media: ${err?.message || 'Please try again.'}`);
+      alert(`Error saving media: ${err?.message || 'Please try again.'}`);
     } finally {
       setSubmitting(false);
     }
@@ -414,14 +449,14 @@ export default function AdminMediaPage() {
     <div className="space-y-8 max-w-7xl mx-auto pb-16">
       
       {/* Top Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-800 pb-6">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-[#E65C00]/20 pb-6">
         <div>
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-mitra-red/10 border border-mitra-gold/20 text-mitra-gold text-xs font-bold mb-2">
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#FFF0E0] border border-[#E65C00]/30 text-[#E65C00] text-xs font-bold mb-2">
             <Sparkles className="w-3.5 h-3.5" />
             <span>Event Media & Gallery CMS</span>
           </div>
-          <h1 className="text-3xl font-black text-white">Media Manager</h1>
-          <p className="text-xs text-slate-400 mt-1">
+          <h1 className="text-3xl font-black text-[#3D1A00]">Media Manager</h1>
+          <p className="text-xs text-[#6B3A2A] mt-1">
             Add event photos, teaser reels, and videos. Files upload directly via SiteGround FTP or link to external URLs.
           </p>
         </div>
@@ -431,15 +466,15 @@ export default function AdminMediaPage() {
             href="/media"
             target="_blank"
             rel="noopener noreferrer"
-            className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl border border-slate-700 hover:border-slate-500 text-slate-300 hover:text-white text-xs font-bold transition-colors bg-slate-900"
+            className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl border border-[#E65C00]/25 hover:border-[#E65C00]/50 text-[#3D1A00] hover:bg-[#FFF5EB] text-xs font-bold transition-colors bg-white shadow-xs"
           >
-            <Eye className="w-4 h-4 text-mitra-gold" />
+            <Eye className="w-4 h-4 text-[#E65C00]" />
             <span>View Public /media</span>
             <ExternalLink className="w-3 h-3 opacity-50" />
           </a>
           <button
             onClick={() => openCreateModal()}
-            className="flex items-center gap-2 bg-gradient-to-r from-mitra-red to-rose-700 hover:from-rose-600 hover:to-mitra-red text-white px-5 py-2.5 rounded-xl text-xs font-black shadow-lg shadow-mitra-red/20 transition-all transform active:scale-95"
+            className="flex items-center gap-2 bg-gradient-to-r from-[#FF7A00] to-[#E65C00] hover:from-[#E65C00] hover:to-[#CC4000] text-white px-5 py-2.5 rounded-xl text-xs font-bold shadow-md shadow-[#E65C00]/20 transition-all transform active:scale-95"
           >
             <Plus className="w-4 h-4" />
             <span>Add New Media</span>
@@ -449,62 +484,62 @@ export default function AdminMediaPage() {
 
       {/* KPI Stats Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="bg-slate-950 border border-slate-800 p-4 rounded-2xl">
-          <div className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Total Media</div>
-          <div className="text-2xl font-black text-white mt-1">{stats.totalMedia}</div>
-          <div className="text-[10px] text-slate-500 mt-0.5">Photos &amp; Video assets</div>
+        <div className="bg-white border border-[#E65C00]/20 p-4 rounded-2xl shadow-sm">
+          <div className="text-[11px] font-bold uppercase tracking-wider text-[#6B3A2A]">Total Media</div>
+          <div className="text-2xl font-black text-[#3D1A00] mt-1">{stats.totalMedia}</div>
+          <div className="text-[10px] text-[#8C6D62] mt-0.5">Photos &amp; Video assets</div>
         </div>
 
-        <div className="bg-slate-950 border border-slate-800 p-4 rounded-2xl">
-          <div className="text-[11px] font-bold uppercase tracking-wider text-emerald-400 flex items-center gap-1.5">
-            <ImageIcon className="w-3.5 h-3.5" />
+        <div className="bg-white border border-[#E65C00]/20 p-4 rounded-2xl shadow-sm">
+          <div className="text-[11px] font-bold uppercase tracking-wider text-emerald-800 flex items-center gap-1.5">
+            <ImageIcon className="w-3.5 h-3.5 text-emerald-600" />
             <span>Photos / Images</span>
           </div>
-          <div className="text-2xl font-black text-white mt-1">{stats.totalPhotos}</div>
-          <div className="text-[10px] text-slate-500 mt-0.5">Gallery pictures</div>
+          <div className="text-2xl font-black text-[#3D1A00] mt-1">{stats.totalPhotos}</div>
+          <div className="text-[10px] text-[#8C6D62] mt-0.5">Gallery pictures</div>
         </div>
 
-        <div className="bg-slate-950 border border-slate-800 p-4 rounded-2xl">
-          <div className="text-[11px] font-bold uppercase tracking-wider text-amber-400 flex items-center gap-1.5">
-            <Video className="w-3.5 h-3.5" />
+        <div className="bg-white border border-[#E65C00]/20 p-4 rounded-2xl shadow-sm">
+          <div className="text-[11px] font-bold uppercase tracking-wider text-amber-800 flex items-center gap-1.5">
+            <Video className="w-3.5 h-3.5 text-amber-600" />
             <span>Videos & Reels</span>
           </div>
-          <div className="text-2xl font-black text-white mt-1">{stats.totalVideos}</div>
-          <div className="text-[10px] text-slate-500 mt-0.5">Teasers &amp; YouTube clips</div>
+          <div className="text-2xl font-black text-[#3D1A00] mt-1">{stats.totalVideos}</div>
+          <div className="text-[10px] text-[#8C6D62] mt-0.5">Teasers &amp; YouTube clips</div>
         </div>
 
-        <div className="bg-slate-950 border border-slate-800 p-4 rounded-2xl">
-          <div className="text-[11px] font-bold uppercase tracking-wider text-mitra-gold flex items-center gap-1.5">
-            <Calendar className="w-3.5 h-3.5" />
+        <div className="bg-white border border-[#E65C00]/20 p-4 rounded-2xl shadow-sm">
+          <div className="text-[11px] font-bold uppercase tracking-wider text-[#E65C00] flex items-center gap-1.5">
+            <Calendar className="w-3.5 h-3.5 text-[#E65C00]" />
             <span>Events Tagged</span>
           </div>
-          <div className="text-2xl font-black text-white mt-1">{stats.totalEventsCovered}</div>
-          <div className="text-[10px] text-slate-500 mt-0.5">Events with albums</div>
+          <div className="text-2xl font-black text-[#3D1A00] mt-1">{stats.totalEventsCovered}</div>
+          <div className="text-[10px] text-[#8C6D62] mt-0.5">Events with albums</div>
         </div>
       </div>
 
       {/* Filter & Search Bar */}
-      <div className="bg-slate-950/70 border border-slate-800 p-4 rounded-2xl flex flex-col md:flex-row gap-4 items-stretch md:items-center justify-between">
+      <div className="bg-white border border-[#E65C00]/20 p-4 rounded-2xl shadow-sm flex flex-col md:flex-row gap-4 items-stretch md:items-center justify-between">
         <div className="flex flex-wrap items-center gap-3 flex-1">
           {/* Search */}
           <div className="relative flex-1 min-w-[200px]">
-            <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+            <Search className="w-4 h-4 text-[#8C6D62] absolute left-3 top-1/2 -translate-y-1/2" />
             <input
               type="text"
               placeholder="Search by title, caption, event..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full bg-slate-900 border border-slate-800 rounded-xl pl-9 pr-3 py-2 text-xs text-white focus:outline-none focus:border-mitra-gold"
+              className="w-full bg-[#FFF9F5] border border-[#E65C00]/20 rounded-xl pl-9 pr-3 py-2 text-xs text-[#3D1A00] placeholder-[#8C6D62] focus:outline-none focus:border-[#E65C00] focus:bg-white"
             />
           </div>
 
           {/* Event Filter */}
           <div className="flex items-center gap-2">
-            <Filter className="w-3.5 h-3.5 text-mitra-gold" />
+            <Filter className="w-3.5 h-3.5 text-[#E65C00]" />
             <select
               value={selectedEventFilter}
               onChange={(e) => setSelectedEventFilter(e.target.value)}
-              className="bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-mitra-gold"
+              className="bg-[#FFF9F5] border border-[#E65C00]/20 rounded-xl px-3 py-2 text-xs text-[#3D1A00] focus:outline-none focus:border-[#E65C00] focus:bg-white"
             >
               <option value="all">All Events ({events.length})</option>
               {events.map((evt) => (
@@ -520,7 +555,7 @@ export default function AdminMediaPage() {
           <select
             value={selectedTypeFilter}
             onChange={(e) => setSelectedTypeFilter(e.target.value)}
-            className="bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-mitra-gold"
+            className="bg-[#FFF9F5] border border-[#E65C00]/20 rounded-xl px-3 py-2 text-xs text-[#3D1A00] focus:outline-none focus:border-[#E65C00] focus:bg-white"
           >
             <option value="all">All Types</option>
             <option value="IMAGE">Photos Only</option>
@@ -528,8 +563,8 @@ export default function AdminMediaPage() {
           </select>
         </div>
 
-        <div className="text-xs text-slate-400 shrink-0">
-          Showing <span className="font-bold text-white">{filteredItems.length}</span> of {mediaItems.length} items
+        <div className="text-xs text-[#6B3A2A] shrink-0">
+          Showing <span className="font-bold text-[#E65C00]">{filteredItems.length}</span> of {mediaItems.length} items
         </div>
       </div>
 
@@ -596,20 +631,29 @@ export default function AdminMediaPage() {
               >
                 {/* Thumbnail / Media Preview */}
                 <div className="relative aspect-video bg-slate-900 overflow-hidden shrink-0 cursor-grab active:cursor-grabbing">
-                  <img
-                    src={item.coverImage || (isYouTubeUrl(item.url) ? getYouTubeThumbnailUrl(item.url, 'hq') : null) || item.url || '/assets/poster.jpg'}
-                    alt={item.title}
-                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 pointer-events-none"
-                    onError={(e) => {
-                      const ytThumb = isYouTubeUrl(item.url) ? getYouTubeThumbnailUrl(item.url, 'hq') : null;
-                      if (ytThumb && (e.target as HTMLImageElement).src !== ytThumb) {
-                        (e.target as HTMLImageElement).src = ytThumb;
-                      } else {
-                        (e.target as HTMLImageElement).src = '/assets/poster.jpg';
-                      }
-                    }}
-                  />
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent pointer-events-none" />
+                  {isExternalAlbum(item.url) ? (
+                    <div className="w-full h-full flex flex-col items-center justify-center bg-slate-800 text-slate-400">
+                      <ExternalLink className="w-8 h-8 mb-2 text-mitra-gold" />
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-center px-4">External Link<br/>(Google Drive/Photos)</span>
+                    </div>
+                  ) : (
+                    <>
+                      <img
+                        src={item.coverImage || (isYouTubeUrl(item.url) ? getYouTubeThumbnailUrl(item.url, 'hq') : null) || item.url || '/assets/poster.jpg'}
+                        alt={item.title}
+                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 pointer-events-none"
+                        onError={(e) => {
+                          const ytThumb = isYouTubeUrl(item.url) ? getYouTubeThumbnailUrl(item.url, 'hq') : null;
+                          if (ytThumb && (e.target as HTMLImageElement).src !== ytThumb) {
+                            (e.target as HTMLImageElement).src = ytThumb;
+                          } else {
+                            (e.target as HTMLImageElement).src = '/assets/poster.jpg';
+                          }
+                        }}
+                      />
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent pointer-events-none" />
+                    </>
+                  )}
 
                   {/* Drag Handle Indicator */}
                   <div 
@@ -869,24 +913,30 @@ export default function AdminMediaPage() {
                 <div className="flex items-center gap-3">
                   {/* Preview Thumbnail */}
                   <div className="w-16 h-16 rounded-xl overflow-hidden border-2 border-mitra-gold/60 bg-slate-950 shrink-0 flex items-center justify-center shadow-inner relative">
-                    <img
-                      src={
-                        formData.coverImage ||
-                        (isYouTubeUrl(formData.url) ? getYouTubeThumbnailUrl(formData.url, 'hq') : null) ||
-                        formData.url ||
-                        '/assets/poster.jpg'
-                      }
-                      alt="Preview"
-                      className="w-full h-full object-cover"
-                      onError={(e) => {
-                        const ytThumb = isYouTubeUrl(formData.url) ? getYouTubeThumbnailUrl(formData.url, 'hq') : null;
-                        if (ytThumb && (e.target as HTMLImageElement).src !== ytThumb) {
-                          (e.target as HTMLImageElement).src = ytThumb;
-                        } else {
-                          (e.target as HTMLImageElement).src = '/assets/poster.jpg';
+                    {isExternalAlbum(formData.url) ? (
+                      <div className="w-full h-full flex flex-col items-center justify-center bg-slate-800">
+                        <ExternalLink className="w-6 h-6 text-mitra-gold" />
+                      </div>
+                    ) : (
+                      <img
+                        src={
+                          formData.coverImage ||
+                          (isYouTubeUrl(formData.url) ? getYouTubeThumbnailUrl(formData.url, 'hq') : null) ||
+                          formData.url ||
+                          '/assets/poster.jpg'
                         }
-                      }}
-                    />
+                        alt="Preview"
+                        className="w-full h-full object-cover"
+                        onError={(e) => {
+                          const ytThumb = isYouTubeUrl(formData.url) ? getYouTubeThumbnailUrl(formData.url, 'hq') : null;
+                          if (ytThumb && (e.target as HTMLImageElement).src !== ytThumb) {
+                            (e.target as HTMLImageElement).src = ytThumb;
+                          } else {
+                            (e.target as HTMLImageElement).src = '/assets/poster.jpg';
+                          }
+                        }}
+                      />
+                    )}
                     {formData.type === 'VIDEO' && (
                       <div className="absolute inset-0 bg-black/40 flex items-center justify-center pointer-events-none">
                         <Video className="w-5 h-5 text-mitra-gold" />
@@ -898,6 +948,7 @@ export default function AdminMediaPage() {
                     <input
                       type="file"
                       ref={fileInputRef}
+                      multiple
                       accept={formData.type === 'VIDEO' ? 'video/*,image/*' : 'image/*'}
                       onChange={handleFileUpload}
                       className="hidden"
@@ -919,7 +970,7 @@ export default function AdminMediaPage() {
                       ) : (
                         <>
                           <Upload className="w-3.5 h-3.5" />
-                          <span>Upload File from Device (FTP)</span>
+                          <span>Upload File(s) from Device (FTP)</span>
                         </>
                       )}
                     </label>
@@ -939,15 +990,15 @@ export default function AdminMediaPage() {
                 {/* Direct URL */}
                 <div>
                   <label className="block text-[11px] text-slate-400 mb-1">
-                    Direct Asset URL / YouTube / Web Link:
+                    Direct Asset URL / Google Drive / External Platform Link (comma separate for multiple):
                   </label>
                   <input
                     type="text"
                     required
                     placeholder={
                       formData.type === 'VIDEO'
-                        ? 'https://www.youtube.com/watch?v=... or https://youtu.be/... or https://media.mitrauk.com/.../video.mp4'
-                        : 'https://media.mitrauk.com/media/gallery/... or /assets/organizers-poster.jpg'
+                        ? 'https://www.youtube.com/watch?v=... or https://media.mitrauk.com/.../video.mp4'
+                        : 'https://drive.google.com/... or https://media.mitrauk.com/.../poster.jpg'
                     }
                     value={formData.url}
                     onChange={(e) => {

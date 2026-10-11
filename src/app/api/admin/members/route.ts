@@ -1,14 +1,37 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { noCacheHeaders, getErrorMessage } from '@/lib/api-utils';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
-    const members = await prisma.member.findMany({
-      orderBy: { createdAt: 'desc' },
-    });
+    const { searchParams } = new URL(request.url);
+    const page = Math.max(1, parseInt(searchParams.get('page') || '1', 10));
+    const limitParam = searchParams.get('limit');
+    const limit = limitParam === 'all' ? 0 : Math.max(1, parseInt(limitParam || '50', 10));
+    const search = searchParams.get('search')?.trim() || '';
+
+    const where = search
+      ? {
+          OR: [
+            { fullName: { contains: search, mode: 'insensitive' as const } },
+            { email: { contains: search, mode: 'insensitive' as const } },
+            { phone: { contains: search, mode: 'insensitive' as const } },
+          ],
+        }
+      : {};
+
+    const [total, members] = await prisma.$transaction([
+      prisma.member.count({ where }),
+      prisma.member.findMany({
+        where,
+        orderBy: { createdAt: 'desc' },
+        ...(limit > 0 ? { skip: (page - 1) * limit, take: limit } : {}),
+      }),
+    ]);
+
     const normalized = members.map((m) => ({
       ...m,
       name: m.fullName || '',
@@ -16,25 +39,26 @@ export async function GET() {
       startDate: m.startDate || (m.createdAt ? new Date(m.createdAt).toISOString().split('T')[0] : '2026-01-01'),
       expiryDate: m.expiryDate || 'Lifetime',
     }));
+
     return NextResponse.json(
-      { success: true, source: 'prisma', data: normalized },
       {
-        headers: {
-          'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0',
-          Pragma: 'no-cache',
-          Expires: '0',
+        success: true,
+        source: 'prisma',
+        data: normalized,
+        pagination: {
+          total,
+          page,
+          limit: limit || total,
+          totalPages: limit > 0 ? Math.ceil(total / limit) : 1,
         },
-      }
+      },
+      { headers: noCacheHeaders }
     );
   } catch (error) {
     console.error('[ADMIN MEMBERS API] Error:', error);
     return NextResponse.json(
-      { success: true, source: 'static', data: [] },
-      {
-        headers: {
-          'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0',
-        },
-      }
+      { success: false, error: getErrorMessage(error, 'Failed to fetch members') },
+      { status: 500, headers: noCacheHeaders }
     );
   }
 }
@@ -44,35 +68,23 @@ export async function POST(request: Request) {
     const body = await request.json();
     const { fullName, email, phone, role, notes } = body;
 
-    try {
-      const newMember = await prisma.member.create({
-        data: {
-          fullName,
-          email,
-          phone,
-          role: role || 'Volunteer',
-          status: 'Active',
-          notes: notes || null,
-        },
-      });
-      return NextResponse.json({ success: true, source: 'prisma', data: newMember });
-    } catch {
-      const fallbackMember = {
-        id: `MITRA-MEM-${Math.floor(5000 + Math.random() * 4000)}`,
-        name: fullName,
+    if (!fullName || !email) {
+      return NextResponse.json({ success: false, error: 'Full name and email are required.' }, { status: 400 });
+    }
+
+    const newMember = await prisma.member.create({
+      data: {
+        fullName,
         email,
         phone,
-        tier: role || 'Volunteer',
-        address: 'London, UK',
-        profession: 'Volunteer Advocate',
+        role: role || 'Volunteer',
         status: 'Active',
-        startDate: new Date().toISOString().split('T')[0],
-        expiryDate: 'Lifetime',
-      };
-      return NextResponse.json({ success: true, source: 'static', data: fallbackMember });
-    }
+        notes: notes || null,
+      },
+    });
+    return NextResponse.json({ success: true, source: 'prisma', data: newMember });
   } catch (err: unknown) {
-    const errorMessage = err instanceof Error ? err.message : 'Invalid request payload';
-    return NextResponse.json({ success: false, error: errorMessage }, { status: 400 });
+    return NextResponse.json({ success: false, error: getErrorMessage(err, 'Invalid request payload') }, { status: 400 });
   }
 }
+

@@ -1,0 +1,43 @@
+{
+  "title": "Mana Indian Telugu Roots Abroad",
+  "description": "The premier UK Telugu Community promoting Telugu language, culture, arts, community welfare, student counselling, career guidance, and flagship Telugu events across UK",
+  "defaultImage": "/assets/organizers-poster.jpg",
+  "keywords": [
+    "Mana Indian Telugu Roots Abroad",
+    "MITRA",
+    "Telugu Community UK",
+    "London Telugu Events",
+    "Ugadi Celebrations UK",
+    "Telugu Charity UK",
+    "Kuchipudi Dance London",
+    "Telugu Student Help London"
+  ],
+  "authors": [
+    {
+      "name": "Mana Indian Telugu Roots Abroad IT Committee"
+    }
+  ],
+  "siteName": "Mana Indian Telugu Roots Abroad (MITRA)",
+  "twitterCreator": "@mitra_official",
+  "organization": {
+    "name": "Mana Indian Telugu Roots Abroad",
+    "alternateName": "MITRA",
+    "sameAs": [
+      "https://twitter.com/mitra_official",
+      "https://linkedin.com/company/mitra-official",
+      "https://facebook.com/ukteluguassociation",
+      "https://youtube.com/@mitraofficial"
+    ],
+    "address": {
+      "streetAddress": "Chiswick Park, 566 Chiswick High Rd",
+      "addressLocality": "London",
+      "postalCode": "W4 5YA",
+      "addressCountry": "GB"
+    },
+    "contactPoint": {
+      "telephone": "+44-20-8123-4567",
+      "contactType": "customer service",
+      "email": "info@mitra.org.uk"
+    }
+  }
+}

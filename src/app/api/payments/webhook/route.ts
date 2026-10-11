@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { logger } from '@/lib/logger';
-import { sendPaymentFailureAlert } from '@/lib/email';
+import { sendPaymentFailureAlert, sendEmail } from '@/lib/email';
 import Stripe from 'stripe';
 
 /**
@@ -156,6 +156,38 @@ export async function POST(req: NextRequest) {
         } catch (dbErr) {
           await logger.error('payments/webhook', `DB update error on payment_intent.succeeded for PI ${pi.id}`, dbErr);
         }
+
+        // Fulfill RSVP if applicable
+        if (meta.donationType === 'event_rsvp' || meta.rsvpId) {
+          try {
+            const rsvp = await prisma.eventRSVP.findFirst({
+              where: {
+                OR: [
+                  ...(meta.rsvpId ? [{ id: String(meta.rsvpId) }] : []),
+                  { paymentIntentId: pi.id },
+                ]
+              }
+            });
+            if (rsvp) {
+              if (rsvp.paymentStatus === 'Pending') {
+                await prisma.eventRSVP.update({
+                  where: { id: rsvp.id },
+                  data: { paymentStatus: 'Completed' }
+                });
+                await prisma.event.update({
+                  where: { id: rsvp.eventId },
+                  data: { rsvpCount: { increment: rsvp.ticketsCount } }
+                });
+              }
+            } else {
+              // will u have enougth info to create an RSVP create the RSVP 
+               const reportMail = process.env.REPORT_MAIL || 'info@mitrauk.com';
+               await sendEmail(reportMail, `Missing RSVP for completed payment ${pi.id}`, `A payment succeeded for an RSVP, but the RSVP record was not found in the DB. Payment Intent ID: ${pi.id}`);
+            }
+          } catch (rsvpErr) {
+            console.error('[Webhook] Error fulfilling RSVP:', rsvpErr);
+          }
+        }
         break;
       }
 
@@ -179,6 +211,22 @@ export async function POST(req: NextRequest) {
             where: { stripePaymentIntentId: pi.id },
             data: { status: 'Failed' },
           });
+
+          // Mark RSVP as failed
+          const rsvp = await prisma.eventRSVP.findFirst({
+            where: {
+              OR: [
+                ...(meta.rsvpId ? [{ id: String(meta.rsvpId) }] : []),
+                { paymentIntentId: pi.id }
+              ]
+            }
+          });
+          if (rsvp && rsvp.paymentStatus === 'Pending') {
+            await prisma.eventRSVP.update({
+              where: { id: rsvp.id },
+              data: { paymentStatus: 'Failed' }
+            });
+          }
         } catch (dbErr) {
           console.error('[Webhook] DB update error on failed:', dbErr);
         }
@@ -230,6 +278,22 @@ export async function POST(req: NextRequest) {
             where: { stripePaymentIntentId: pi.id },
             data: { status: 'Failed' },
           });
+
+          // Mark RSVP as canceled/failed
+          const rsvp = await prisma.eventRSVP.findFirst({
+            where: {
+              OR: [
+                ...(meta.rsvpId ? [{ id: String(meta.rsvpId) }] : []),
+                { paymentIntentId: pi.id }
+              ]
+            }
+          });
+          if (rsvp && rsvp.paymentStatus === 'Pending') {
+            await prisma.eventRSVP.update({
+              where: { id: rsvp.id },
+              data: { paymentStatus: 'Failed' }
+            });
+          }
         } catch {}
 
         await logger.warn('payments/webhook', `PaymentIntent canceled: ${pi.id} (Cancellation reason: ${pi.cancellation_reason || 'Unknown'})`, {

@@ -41,7 +41,14 @@ export async function GET(request: Request) {
 
     const where: Prisma.SystemLogWhereInput = whereConditions.length > 0 ? { AND: whereConditions } : {};
 
-    const [totalLogs, logs, countsByLevel] = await Promise.all([
+    // 1. Ensure any queued request logs are committed
+    try {
+      const { flushLogQueue } = await import('@/lib/request-analytics');
+      await flushLogQueue();
+    } catch {}
+
+    // 2. Fetch logs and level counts
+    const [totalLogs, logs, countsByLevel, recentHttpLogs] = await Promise.all([
       prisma.systemLog.count({ where }),
       prisma.systemLog.findMany({
         where,
@@ -53,7 +60,72 @@ export async function GET(request: Request) {
         by: ['level'],
         _count: { level: true },
       }),
+      prisma.systemLog.findMany({
+        where: {
+          OR: [
+            { level: 'HTTP' },
+            { source: { startsWith: 'http:' } },
+          ],
+        },
+        orderBy: { createdAt: 'desc' },
+        take: 300,
+        select: {
+          id: true,
+          level: true,
+          source: true,
+          message: true,
+          details: true,
+          createdAt: true,
+        },
+      }),
     ]);
+
+    // 3. Compute request analytics (avg response time, min, max, slowest routes)
+    let totalDuration = 0;
+    let validDurationCount = 0;
+    let minDuration = Infinity;
+    let maxDuration = 0;
+    const statusCounts: Record<string, number> = { '2xx': 0, '3xx': 0, '4xx': 0, '5xx': 0 };
+    const routeDurations: Record<string, { totalMs: number; count: number }> = {};
+
+    for (const log of recentHttpLogs) {
+      const details = log.details as any;
+      const duration = details?.durationMs;
+      const status = details?.status;
+      const pathname = details?.pathname || log.source;
+
+      if (typeof duration === 'number') {
+        totalDuration += duration;
+        validDurationCount++;
+        if (duration < minDuration) minDuration = duration;
+        if (duration > maxDuration) maxDuration = duration;
+      }
+
+      if (typeof status === 'number') {
+        if (status >= 200 && status < 300) statusCounts['2xx']++;
+        else if (status >= 300 && status < 400) statusCounts['3xx']++;
+        else if (status >= 400 && status < 500) statusCounts['4xx']++;
+        else if (status >= 500) statusCounts['5xx']++;
+      }
+
+      if (pathname && typeof pathname === 'string') {
+        if (!routeDurations[pathname]) {
+          routeDurations[pathname] = { totalMs: 0, count: 0 };
+        }
+        routeDurations[pathname].totalMs += (duration || 0);
+        routeDurations[pathname].count++;
+      }
+    }
+
+    const avgDuration = validDurationCount > 0 ? Math.round(totalDuration / validDurationCount) : 0;
+    const slowestRoutes = Object.entries(routeDurations)
+      .map(([route, data]) => ({
+        route,
+        count: data.count,
+        avgMs: Math.round(data.totalMs / data.count),
+      }))
+      .sort((a, b) => b.avgMs - a.avgMs)
+      .slice(0, 6);
 
     const retentionCutoff = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
 
@@ -74,6 +146,14 @@ export async function GET(request: Request) {
         ),
         retentionDays: 7,
         retentionCutoff: retentionCutoff.toISOString(),
+        analytics: {
+          totalHttpRequests: recentHttpLogs.length,
+          avgResponseTimeMs: avgDuration,
+          minResponseTimeMs: minDuration === Infinity ? 0 : minDuration,
+          maxResponseTimeMs: maxDuration,
+          statusCounts,
+          slowestRoutes,
+        },
       },
     });
   } catch (error) {

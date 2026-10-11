@@ -1,13 +1,13 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { Prisma } from '@prisma/client';
+import { noCacheHeaders, getErrorMessage } from '@/lib/api-utils';
+
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
 export async function GET(request: Request) {
-  const timestamp = new Date().toISOString();
-
   try {
     const { searchParams } = new URL(request.url);
     const search = searchParams.get('search')?.trim() || '';
@@ -17,8 +17,6 @@ export async function GET(request: Request) {
     const page = Math.max(1, parseInt(searchParams.get('page') || '1', 10));
     const limit = searchParams.get('limit') === 'all' ? 0 : Math.max(1, parseInt(searchParams.get('limit') || '10', 10));
     const exportAll = searchParams.get('exportAll') === 'true';
-
-    console.log(`[ADMIN PAYMENTS API] [${timestamp}] GET query: search="${search}", type="${type}", status="${status}", eventId="${eventId}", page=${page}, limit=${limit}`);
 
     // Fetch available events for filtering
     const availableEvents = await prisma.event.findMany({
@@ -141,6 +139,19 @@ export async function GET(request: Request) {
       });
     }
 
+    const paymentIdsToMatch = payments.map(p => p.stripePaymentIntentId || p.id).filter(Boolean);
+    const linkedRsvps = await prisma.eventRSVP.findMany({
+      where: { paymentIntentId: { in: paymentIdsToMatch } },
+      select: { paymentIntentId: true, id: true }
+    });
+    
+    const rsvpMap = new Set(linkedRsvps.map(r => r.paymentIntentId));
+    
+    const enrichedPayments = payments.map(p => ({
+      ...p,
+      hasRsvp: (p.stripePaymentIntentId && rsvpMap.has(p.stripePaymentIntentId)) || rsvpMap.has(p.id)
+    }));
+
     const effectiveLimit = limit === 0 ? totalFiltered : limit;
     const totalPages = effectiveLimit > 0 ? Math.max(1, Math.ceil(totalFiltered / effectiveLimit)) : 1;
 
@@ -148,7 +159,7 @@ export async function GET(request: Request) {
       {
         success: true,
         source: 'prisma',
-        data: payments,
+        data: enrichedPayments,
         pagination: {
           total: totalFiltered,
           page,
@@ -183,7 +194,7 @@ export async function GET(request: Request) {
     );
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown database error occurred';
-    console.error(`[ADMIN PAYMENTS API ERROR] [${timestamp}] Failed to fetch payment records:`, error);
+    console.error(`[ADMIN PAYMENTS API ERROR] [${new Date().toISOString()}] Failed to fetch payment records:`, error);
 
     return NextResponse.json(
       {
