@@ -121,16 +121,19 @@ export async function uploadFileViaFTP(
     };
   }
 
-  const client = new ftp.Client(20000); // 20s timeout
-  client.ftp.verbose = false;
+  const timeoutMs = parseInt(process.env.FTP_TIMEOUT || '60000', 10); // 60s default timeout
+  const client = new ftp.Client(timeoutMs);
+  client.ftp.verbose = process.env.FTP_VERBOSE === 'true';
 
   try {
+    const isSecure = process.env.FTP_SECURE === 'true';
     await client.access({
       host: ftpHost,
       user: ftpUser,
       password: ftpPassword,
       port: ftpPort,
-      secure: process.env.FTP_SECURE === 'true',
+      secure: isSecure,
+      secureOptions: isSecure ? { rejectUnauthorized: false } : undefined,
     });
 
     // Target remote directory: e.g. public_html/uploads/leaders/profiles
@@ -139,7 +142,6 @@ export async function uploadFileViaFTP(
 
     const stream = Readable.from(fileBuffer);
     await client.uploadFrom(stream, filename);
-    client.close();
 
     const publicUrl = `${ftpBaseUrl}/${config.subDir}/${filename}`.replace(/([^:]\/)\/+/g, '$1');
 
@@ -151,7 +153,6 @@ export async function uploadFileViaFTP(
       storageType: 'ftp',
     };
   } catch (ftpError: any) {
-    client.close();
     console.error('[FTP UPLOAD ERROR]:', ftpError);
     return {
       success: false,
@@ -161,5 +162,7 @@ export async function uploadFileViaFTP(
       storageType: 'ftp',
       error: `FTP Upload failed: ${ftpError.message || 'Connection or permission error'}`,
     };
+  } finally {
+    client.close();
   }
 }

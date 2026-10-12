@@ -40,11 +40,12 @@ export async function POST(request: Request) {
       );
     }
 
-    // Max 25MB
-    const maxSizeBytes = 25 * 1024 * 1024;
+    // Max upload size in MB (defaults to 25MB)
+    const maxUploadMb = Number(process.env.MAX_FILE_UPLOAD_IN_MB) || 25;
+    const maxSizeBytes = maxUploadMb * 1024 * 1024;
     if (file.size > maxSizeBytes) {
       return NextResponse.json(
-        { success: false, error: 'File size exceeds 25MB limit.' },
+        { success: false, error: `File size exceeds ${maxUploadMb}MB limit.` },
         { status: 400 }
       );
     }

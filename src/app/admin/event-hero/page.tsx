@@ -1076,17 +1076,32 @@ export default function EventHeroAdminPage() {
               )}
 
               {currentConfig.hero.heroType === 'video' && (
-                <div className="pt-3 border-t border-slate-800/80 space-y-2">
-                  <label className="text-[11px] font-bold text-slate-400 block mb-1">
-                    Hero Video URL (MP4 / WebM)
-                  </label>
-                  <input
-                    type="text"
-                    value={currentConfig.hero.videoUrl || ''}
-                    onChange={(e) => updateHero('videoUrl', e.target.value)}
-                    placeholder="/assets/teaser.mp4 or https://..."
-                    className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-1.5 text-xs text-white focus:outline-none focus:border-amber-500"
-                  />
+                <div className="pt-3 border-t border-slate-800/80 space-y-3">
+                  <div>
+                    <label className="text-[11px] font-bold text-slate-400 block mb-1">
+                      Hero Video URL (MP4 / WebM)
+                    </label>
+                    <input
+                      type="text"
+                      value={currentConfig.hero.videoUrl || ''}
+                      onChange={(e) => updateHero('videoUrl', e.target.value)}
+                      placeholder="/assets/teaser.mp4 or https://..."
+                      className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-1.5 text-xs text-white focus:outline-none focus:border-amber-500"
+                    />
+                  </div>
+
+                  <div className="flex items-center justify-between gap-3 bg-slate-900/60 p-2.5 rounded-xl border border-slate-800">
+                    <div>
+                      <span className="text-xs font-semibold text-slate-300 block">Show Native Video Controls</span>
+                      <span className="text-[10px] text-slate-500">Enable play/pause, volume slider &amp; fullscreen bar</span>
+                    </div>
+                    <input
+                      type="checkbox"
+                      checked={Boolean(currentConfig.hero.videoControls)}
+                      onChange={(e) => updateHero('videoControls', e.target.checked)}
+                      className="w-4 h-4 accent-amber-500 rounded cursor-pointer"
+                    />
+                  </div>
                 </div>
               )}
             </div>
