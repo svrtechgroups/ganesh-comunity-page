@@ -38,7 +38,7 @@ import {
   Film,
   Upload
 } from 'lucide-react';
-import { useAdminGlobalEvent } from '../layout';
+import { useAdminGlobalEvent } from '../admin-context';
 import { isYouTubeUrl, getYouTubeThumbnailUrl } from '@/lib/youtube';
 import MultiDateSelector from '@/components/admin/MultiDateSelector';
 import CustomFieldBuilder from '@/components/admin/CustomFieldBuilder';

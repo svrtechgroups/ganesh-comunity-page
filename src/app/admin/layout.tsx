@@ -28,32 +28,13 @@ import {
   PanelLeftOpen,
   ClipboardList,
 } from 'lucide-react';
+import { 
+  AdminSidebarContext, 
+  useAdminSidebar, 
+  AdminGlobalEventContext, 
+  useAdminGlobalEvent 
+} from './admin-context';
 
-interface AdminSidebarContextType {
-  sidebarOpen: boolean;
-  setSidebarOpen: (open: boolean) => void;
-  toggleSidebar: () => void;
-}
-
-export const AdminSidebarContext = createContext<AdminSidebarContextType>({
-  sidebarOpen: true,
-  setSidebarOpen: () => {},
-  toggleSidebar: () => {},
-});
-
-export const useAdminSidebar = () => useContext(AdminSidebarContext);
-
-interface AdminGlobalEventContextType {
-  globalEventId: string;
-  setGlobalEventId: (id: string) => void;
-}
-
-export const AdminGlobalEventContext = createContext<AdminGlobalEventContextType>({
-  globalEventId: 'all',
-  setGlobalEventId: () => {},
-});
-
-export const useAdminGlobalEvent = () => useContext(AdminGlobalEventContext);
 
 function AdminLayoutContent({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();

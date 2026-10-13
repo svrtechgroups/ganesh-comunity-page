@@ -5,12 +5,37 @@ import { notFound } from 'next/navigation';
 import Link from 'next/link';
 import { ArrowLeft, ShieldAlert } from 'lucide-react';
 
+import type { Metadata } from 'next';
+import { constructMetadata } from '@/lib/seo-config';
+
 export const dynamic = 'force-dynamic';
 
 interface PageProps {
   params: {
     formId: string;
   };
+}
+
+export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
+  const resolvedParams = await Promise.resolve(params);
+  const form = await prisma.dynamicForm.findUnique({
+    where: { id: resolvedParams.formId },
+    select: { title: true, description: true },
+  });
+
+  if (!form) {
+    return constructMetadata({
+      title: 'Form | MITRA UK',
+      image: '/logo.png',
+    });
+  }
+
+  return constructMetadata({
+    title: `${form.title} | MITRA UK`,
+    description: form.description || undefined,
+    image: '/logo.png',
+    canonical: `/forms/${resolvedParams.formId}`,
+  });
 }
 
 export default async function PublicFormPage({ params }: PageProps) {

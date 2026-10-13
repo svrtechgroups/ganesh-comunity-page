@@ -5,10 +5,24 @@ import Footer from '@/components/Footer';
 import AnalyticsTracker from '@/components/AnalyticsTracker';
 import { constructMetadata, generateOrganizationJsonLd } from '@/lib/seo-config';
 import { AuthProvider } from '@/lib/auth-context';
+import { getFeaturedEventForMetadata } from '@/lib/seo-server';
 
 export const revalidate = 10;
 
-export const metadata: Metadata = constructMetadata();
+export async function generateMetadata(): Promise<Metadata> {
+  const currentEvent = await getFeaturedEventForMetadata();
+
+  if (currentEvent && currentEvent.bannerUrl) {
+    return constructMetadata({
+      title: `${currentEvent.title} | MITRA UK`,
+      description: currentEvent.description || undefined,
+      image: currentEvent.bannerUrl,
+      canonical: '/',
+    });
+  }
+
+  return constructMetadata();
+}
 
 export default function RootLayout({
   children,

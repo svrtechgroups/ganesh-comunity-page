@@ -39,7 +39,7 @@ import {
   Upload,
 } from 'lucide-react';
 import EventHero from '@/components/EventHero';
-import { useAdminGlobalEvent, useAdminSidebar } from '@/app/admin/layout';
+import { useAdminGlobalEvent, useAdminSidebar } from '@/app/admin/admin-context';
 import { EventTemplateConfig, EventHeroConfig, HeroType, EventHeroStorageConfig } from '@/types/event-template';
 
 interface EventItemOption {

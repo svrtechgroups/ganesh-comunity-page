@@ -10,7 +10,8 @@ interface Props {
 export async function generateMetadata(
   { params }: Props
 ): Promise<Metadata> {
-  const eventId = params.id;
+  const resolvedParams = await Promise.resolve(params);
+  const eventId = resolvedParams?.id;
 
   let event = null;
   try {
@@ -35,20 +36,54 @@ export async function generateMetadata(
   }
 
   // Detect Host / Base URL from incoming request headers
-  const headersList = headers();
-  const host = headersList.get('x-forwarded-host') || headersList.get('host');
-  const proto = headersList.get('x-forwarded-proto') || (host?.includes('localhost') ? 'http' : 'https');
-  const baseUrl = host ? `${proto}://${host}` : (process.env.NEXT_PUBLIC_BASE_URL || 'https://www.mitrauk.com');
+  let baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://www.mitrauk.com';
+  try {
+    const headersList = headers();
+    const host = headersList.get('x-forwarded-host') || headersList.get('host');
+    const proto = headersList.get('x-forwarded-proto') || (host?.includes('localhost') ? 'http' : 'https');
+    if (host) {
+      baseUrl = `${proto}://${host}`;
+    }
+  } catch {
+    // Fall back to process.env.NEXT_PUBLIC_BASE_URL
+  }
+  const defaultLogoUrl = `${baseUrl.replace(/\/$/, '')}/logo.png`;
 
   if (!event) {
     return {
       title: 'Event Details | MITRA UK',
       description: 'Mana Indian Telugu Roots Abroad - Official Community Event.',
+      metadataBase: new URL(baseUrl),
+      openGraph: {
+        title: 'Event Details | MITRA UK',
+        description: 'Mana Indian Telugu Roots Abroad - Official Community Event.',
+        url: `${baseUrl}/events`,
+        siteName: 'MITRA UK · Mana Indian Telugu Roots Abroad',
+        locale: 'en_GB',
+        type: 'website',
+        images: [
+          {
+            url: defaultLogoUrl,
+            secureUrl: defaultLogoUrl,
+            width: 1200,
+            height: 630,
+            alt: 'MITRA UK Logo',
+            type: 'image/png',
+          },
+        ],
+      },
+      twitter: {
+        card: 'summary_large_image',
+        title: 'Event Details | MITRA UK',
+        description: 'Mana Indian Telugu Roots Abroad - Official Community Event.',
+        images: [defaultLogoUrl],
+        creator: '@mitra_official',
+      },
     };
   }
 
   // Ensure absolute URL for WhatsApp & social platforms
-  let posterUrl = event.bannerUrl || '/assets/organizers-poster.jpg';
+  let posterUrl = event.bannerUrl || defaultLogoUrl;
   if (!posterUrl.startsWith('http://') && !posterUrl.startsWith('https://')) {
     const cleanPath = posterUrl.startsWith('/') ? posterUrl : `/${posterUrl}`;
     posterUrl = `${baseUrl.replace(/\/$/, '')}${cleanPath}`;

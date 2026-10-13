@@ -25,7 +25,7 @@ import {
   Check
 } from 'lucide-react';
 import { isYouTubeUrl, getYouTubeThumbnailUrl } from '@/lib/youtube';
-import { useAdminGlobalEvent } from '../layout';
+import { useAdminGlobalEvent } from '../admin-context';
 
 const isExternalAlbum = (url: string) => {
   if (!url) return false;

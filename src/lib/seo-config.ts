@@ -83,7 +83,7 @@ export function generateOrganizationJsonLd() {
 export function generateEventJsonLd(event: EventItem) {
   const eventBanner = event.bannerUrl?.startsWith('http')
     ? event.bannerUrl
-    : `${BASE_URL.replace(/\/$/, '')}${event.bannerUrl?.startsWith('/') ? '' : '/'}${event.bannerUrl || 'assets/organizers-poster.jpg'}`;
+    : `${BASE_URL.replace(/\/$/, '')}${event.bannerUrl?.startsWith('/') ? '' : '/'}${event.bannerUrl || 'logo.png'}`;
 
   return {
     '@context': 'https://schema.org',
