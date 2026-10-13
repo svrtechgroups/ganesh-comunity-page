@@ -584,3 +584,136 @@ export const sendEventRegistrationConfirmationEmail = async (
   return sendEmail(recipientEmail, subject, html);
 };
 
+// ── Form Submission Email Notifications ───────────────────────────────────────
+
+export interface FormSubmissionEmailPayload {
+  formTitle: string;
+  submissionId: string;
+  clientTimezone?: string;
+  answers: { label: string; value: string }[];
+  appointment?: {
+    startTime: string;
+    endTime: string;
+  } | null;
+  userEmail?: string;
+}
+
+export const sendFormSubmissionNotifications = async (payload: FormSubmissionEmailPayload) => {
+  const { formTitle, submissionId, clientTimezone, answers, appointment, userEmail } = payload;
+  const notifyRecipient = process.env.NOTIFY_MAIL || process.env.REPORT_MAIL || process.env.SMTP_USER;
+
+  const appointmentHtml = appointment
+    ? `
+      <div style="background: #FFF7ED; border: 1.5px solid #FDBA74; border-radius: 14px; padding: 16px; margin: 18px 0;">
+        <div style="font-weight: 800; color: #C2410C; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px;">
+          📅 Reserved Appointment Slot
+        </div>
+        <div style="font-size: 15px; font-weight: 700; color: #2D231E;">
+          ${new Date(appointment.startTime).toLocaleString('en-US', {
+            timeZone: clientTimezone || 'UTC',
+            weekday: 'short',
+            month: 'short',
+            day: 'numeric',
+            year: 'numeric',
+            hour: 'numeric',
+            minute: '2-digit',
+          })} – ${new Date(appointment.endTime).toLocaleTimeString('en-US', {
+            timeZone: clientTimezone || 'UTC',
+            hour: 'numeric',
+            minute: '2-digit',
+          })}
+        </div>
+        <div style="font-size: 11px; color: #7C2D12; margin-top: 4px;">
+          Status: <strong style="color: #059669;">CONFIRMED</strong> • Client Timezone: ${clientTimezone || 'UTC'}
+        </div>
+      </div>
+    `
+    : '';
+
+  const answersTableHtml = `
+    <table style="width: 100%; border-collapse: collapse; font-size: 13px; margin: 16px 0; background: #FFFDFB; border-radius: 12px; overflow: hidden; border: 1px solid #EAD8C7;">
+      <thead>
+        <tr style="background: #FAF6F0; border-bottom: 1.5px solid #EAD8C7;">
+          <th style="padding: 10px 14px; text-align: left; color: #7C2D12; font-weight: 800; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; width: 40%;">Field / Question</th>
+          <th style="padding: 10px 14px; text-align: left; color: #7C2D12; font-weight: 800; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px;">Submitted Response</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${answers
+          .map(
+            (a, i) => `
+          <tr style="border-bottom: 1px solid #F3E8DF; background: ${i % 2 === 0 ? '#FFFFFF' : '#FFFDFB'};">
+            <td style="padding: 10px 14px; font-weight: 700; color: #2D231E; vertical-align: top;">${a.label}</td>
+            <td style="padding: 10px 14px; color: #443831; vertical-align: top;">${a.value || '<em style="color: #9CA3AF;">(Unanswered)</em>'}</td>
+          </tr>
+        `
+          )
+          .join('')}
+      </tbody>
+    </table>
+  `;
+
+  // 1. Send Admin Notification to NOTIFY_MAIL
+  if (notifyRecipient) {
+    const adminSubject = `📋 New Submission: "${formTitle}"`;
+    const adminBody = `
+      <h2 style="color: #C2410C; font-family: 'Cinzel', Georgia, serif; font-size: 20px; font-weight: 900; margin: 0 0 8px;">
+        New Form Response Received
+      </h2>
+      <p style="color: #443831; font-size: 14px; margin: 0 0 16px;">
+        A new response has been submitted for <strong>${formTitle}</strong>.
+      </p>
+
+      ${appointmentHtml}
+      ${answersTableHtml}
+
+      <div style="margin-top: 20px; padding-top: 14px; border-top: 1px solid #F3E8DF; font-size: 11px; color: #9CA3AF; font-family: monospace;">
+        Submission ID: ${submissionId}
+      </div>
+    `;
+
+    const adminHtml = renderEmailLayout({
+      pageTitle: adminSubject,
+      badgeText: 'Form Response Alert',
+      children: adminBody,
+    });
+
+    sendEmail(notifyRecipient, adminSubject, adminHtml).catch((err) =>
+      console.error('[ADMIN NOTIFY EMAIL ERROR]:', err)
+    );
+  }
+
+  // 2. Send Respondent Confirmation to user's email if provided
+  if (userEmail) {
+    const userSubject = `Confirmation: Your Response for "${formTitle}"`;
+    const userBody = `
+      <h2 style="color: #C2410C; font-family: 'Cinzel', Georgia, serif; font-size: 20px; font-weight: 900; margin: 0 0 8px;">
+        Thank You for Your Submission
+      </h2>
+      <p style="color: #443831; font-size: 14px; margin: 0 0 16px;">
+        We have received your response for <strong>${formTitle}</strong>. Below is a summary of your submitted details:
+      </p>
+
+      ${appointmentHtml}
+      ${answersTableHtml}
+
+      <p style="color: #6B5E55; font-size: 13px; line-height: 1.6; margin: 16px 0 0;">
+        If you need to make any changes to your appointment or responses, please contact our team.
+      </p>
+    `;
+
+    const userHtml = renderEmailLayout({
+      pageTitle: userSubject,
+      badgeText: 'Response Confirmation',
+      children: userBody,
+    });
+
+    sendEmail(userEmail, userSubject, userHtml).catch((err) =>
+      console.error('[USER CONFIRMATION EMAIL ERROR]:', err)
+    );
+  }
+
+  return true;
+};
+
+

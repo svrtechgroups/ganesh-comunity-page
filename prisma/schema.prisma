@@ -335,3 +335,120 @@ model EmailQueue {
   campaignId   String?
   createdAt    DateTime @default(now())
 }
+
+// ══════════════════════════════════════════════════════════════════════════════
+// DYNAMIC FORM BUILDER & ATOMIC APPOINTMENT BOOKING MODELS
+// ══════════════════════════════════════════════════════════════════════════════
+
+enum DynamicFormFieldType {
+  TEXT
+  TEXTAREA
+  SELECT
+  RADIO
+  CHECKBOX
+  DATE
+  APPOINTMENT
+}
+
+model DynamicForm {
+  id          String   @id @default(cuid())
+  title       String
+  description String?  @db.Text
+  isPublished Boolean  @default(false)
+  creatorId   String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  fields      DynamicFormField[]
+  submissions DynamicFormSubmission[]
+
+  @@index([isPublished])
+  @@index([createdAt])
+}
+
+model DynamicFormField {
+  id                String               @id @default(cuid())
+  formId            String
+  form              DynamicForm          @relation(fields: [formId], references: [id], onDelete: Cascade)
+  type              DynamicFormFieldType
+  label             String
+  placeholder       String?
+  helpText          String?
+  isRequired        Boolean              @default(false)
+  orderIndex        Int                  @default(0)
+  options           Json?                @default("[]") // For select, radio, checkbox choices
+  appointmentConfig Json?                // Daily schedule, duration, capacity, timezone
+  isActive          Boolean              @default(true) // Soft-delete to preserve historical submission integrity
+  createdAt         DateTime             @default(now())
+  updatedAt         DateTime             @updatedAt
+
+  slots   AppointmentSlot[]
+  answers DynamicSubmissionAnswer[]
+
+  @@index([formId, orderIndex])
+  @@index([formId, isActive])
+}
+
+model AppointmentSlot {
+  id          String           @id @default(cuid())
+  fieldId     String
+  field       DynamicFormField @relation(fields: [fieldId], references: [id], onDelete: Cascade)
+  startTime   DateTime         // Always stored as UTC DateTime to prevent timezone discrepancies
+  endTime     DateTime         // Always stored as UTC DateTime
+  maxCapacity Int              @default(1)
+  bookedCount Int              @default(0) // Incremented conditionally: WHERE bookedCount < maxCapacity
+  version     Int              @default(1)
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+
+  bookings SlotBooking[]
+
+  @@unique([fieldId, startTime]) // Ensures idempotent slot generation & zero duplicates
+  @@index([fieldId, startTime, endTime])
+  @@index([fieldId, bookedCount, maxCapacity])
+}
+
+model DynamicFormSubmission {
+  id          String   @id @default(cuid())
+  formId      String
+  form        DynamicForm @relation(fields: [formId], references: [id], onDelete: Cascade)
+  submittedAt DateTime @default(now())
+  metadata    Json?    // Snapshot of all field labels and config at submission time for immutable audit trail
+  ipAddress   String?
+  userAgent   String?
+
+  answers      DynamicSubmissionAnswer[]
+  slotBookings SlotBooking[]
+
+  @@index([formId, submittedAt])
+}
+
+model DynamicSubmissionAnswer {
+  id            String                @id @default(cuid())
+  submissionId  String
+  submission    DynamicFormSubmission @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+  fieldId       String?
+  field         DynamicFormField?     @relation(fields: [fieldId], references: [id], onDelete: SetNull)
+  fieldSnapshot Json                  // Preserves label & type even if field is edited or soft-deleted
+  answerValue   String                @db.Text
+  jsonValue     Json?                 // Multi-select values or structured answers
+  slotId        String?
+  createdAt     DateTime              @default(now())
+
+  @@index([submissionId])
+  @@index([fieldId, answerValue])
+}
+
+model SlotBooking {
+  id           String                @id @default(cuid())
+  slotId       String
+  slot         AppointmentSlot       @relation(fields: [slotId], references: [id], onDelete: Cascade)
+  submissionId String
+  submission   DynamicFormSubmission @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+  bookedAt     DateTime              @default(now())
+  status       String                @default("CONFIRMED") // CONFIRMED, CANCELLED
+
+  @@index([slotId])
+  @@index([submissionId])
+}
+
