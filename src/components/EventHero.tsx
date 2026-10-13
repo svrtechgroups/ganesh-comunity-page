@@ -17,7 +17,8 @@ import {
   Layers, 
   Compass, 
   Video,
-  Volume2
+  Volume2,
+  VolumeX
 } from 'lucide-react';
 import { EventHeroConfig, HeroCTA } from '@/types/event-template';
 
@@ -79,9 +80,62 @@ export default function EventHero({
   const shouldShowRadialAura = cfg.showRadialAura === true || (cfg.showRadialAura !== false && cfg.proceduralFallback !== 'none');
 
   const mountRef = useRef<HTMLDivElement>(null);
+  const videoRef = useRef<HTMLVideoElement | null>(null);
   const [modelLoaded, setModelLoaded] = useState(false);
   const [loadingProgress, setLoadingProgress] = useState(15);
   const [isLowPower, setIsLowPower] = useState(false);
+  const [isMuted, setIsMuted] = useState(cfg.videoMuted ?? true);
+
+  useEffect(() => {
+    if (typeof cfg.videoMuted === 'boolean') {
+      setIsMuted(cfg.videoMuted);
+      if (videoRef.current) {
+        videoRef.current.muted = cfg.videoMuted;
+      }
+    }
+  }, [cfg.videoMuted]);
+
+  const toggleMute = (e?: React.MouseEvent) => {
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+    if (videoRef.current) {
+      const nextMuted = !videoRef.current.muted;
+      videoRef.current.muted = nextMuted;
+      setIsMuted(nextMuted);
+      if (!nextMuted && videoRef.current.paused) {
+        videoRef.current.play().catch(() => {});
+      }
+    } else {
+      setIsMuted(prev => !prev);
+    }
+  };
+
+  const renderSoundToggle = (className?: string) => {
+    if (!cfg.videoUrl) return null;
+    return (
+      <button
+        type="button"
+        onClick={toggleMute}
+        title={isMuted ? 'Click to enable audio' : 'Click to mute audio'}
+        aria-label={isMuted ? 'Unmute video audio' : 'Mute video audio'}
+        className={`z-30 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-black/80 hover:bg-black/95 text-white backdrop-blur-md border border-white/25 transition-all hover:scale-105 active:scale-95 shadow-xl text-xs font-semibold cursor-pointer select-none ${className || ''}`}
+      >
+        {isMuted ? (
+          <>
+            <VolumeX className="w-4 h-4 text-amber-400 shrink-0" />
+            <span className="font-medium tracking-wide">Unmute Audio</span>
+          </>
+        ) : (
+          <>
+            <Volume2 className="w-4 h-4 text-emerald-400 shrink-0 animate-pulse" />
+            <span className="font-medium tracking-wide">Audio On</span>
+          </>
+        )}
+      </button>
+    );
+  };
 
   useEffect(() => {
     // Low power / mobile hardware detection
@@ -928,14 +982,19 @@ export default function EventHero({
   const renderVideoCinema = () => (
     <div className="relative z-10 w-full min-h-[85vh] flex items-center justify-center overflow-hidden">
       {cfg.videoUrl ? (
-        <video
-          src={cfg.videoUrl}
-          autoPlay
-          loop
-          muted
-          playsInline
-          className="absolute inset-0 w-full h-full object-cover"
-        />
+        <>
+          <video
+            ref={videoRef}
+            src={cfg.videoUrl}
+            autoPlay
+            loop
+            muted={isMuted}
+            playsInline
+            controls={cfg.videoControls}
+            className="absolute inset-0 w-full h-full object-cover"
+          />
+          {renderSoundToggle('absolute bottom-6 right-6')}
+        </>
       ) : (
         <div
           className="absolute inset-0 bg-cover bg-center filter brightness-75 scale-105"
@@ -1010,14 +1069,19 @@ export default function EventHero({
             />
             <div className="relative rounded-3xl overflow-hidden shadow-2xl border-2 border-white/80 aspect-[16/9] bg-slate-950 flex items-center justify-center">
               {cfg.videoUrl ? (
-                <video
-                  src={cfg.videoUrl}
-                  autoPlay
-                  loop
-                  muted
-                  playsInline
-                  className="w-full h-full object-cover"
-                />
+                <>
+                  <video
+                    ref={videoRef}
+                    src={cfg.videoUrl}
+                    autoPlay
+                    loop
+                    muted={isMuted}
+                    playsInline
+                    controls={cfg.videoControls}
+                    className="w-full h-full object-cover"
+                  />
+                  {renderSoundToggle('absolute bottom-3 right-3')}
+                </>
               ) : (
                 <div className="relative w-full h-full">
                   <img
@@ -1032,8 +1096,8 @@ export default function EventHero({
                   </div>
                 </div>
               )}
-              <div className="absolute bottom-3 left-3 bg-black/70 backdrop-blur-sm text-white text-[10px] font-bold px-2.5 py-1 rounded-full uppercase tracking-wider flex items-center gap-1.5">
-                <Volume2 className="w-3 h-3 text-amber-400" />
+              <div className="absolute bottom-3 left-3 bg-black/70 backdrop-blur-sm text-white text-[10px] font-bold px-2.5 py-1 rounded-full uppercase tracking-wider flex items-center gap-1.5 pointer-events-none">
+                <Video className="w-3 h-3 text-amber-400" />
                 <span>HD Video Teaser</span>
               </div>
             </div>
@@ -1069,14 +1133,19 @@ export default function EventHero({
         />
         <div className="relative rounded-2xl sm:rounded-3xl overflow-hidden shadow-2xl border-4 border-white aspect-[16/9] bg-black">
           {cfg.videoUrl ? (
-            <video
-              src={cfg.videoUrl}
-              autoPlay
-              loop
-              muted
-              playsInline
-              className="w-full h-full object-cover"
-            />
+            <>
+              <video
+                ref={videoRef}
+                src={cfg.videoUrl}
+                autoPlay
+                loop
+                muted={isMuted}
+                playsInline
+                controls={cfg.videoControls}
+                className="w-full h-full object-cover"
+              />
+              {renderSoundToggle('absolute bottom-4 right-4')}
+            </>
           ) : (
             <div className="relative w-full h-full">
               <img
@@ -1118,14 +1187,19 @@ export default function EventHero({
       {/* 21:9 Panoramic Cinema Scope Bar */}
       <div className="relative w-full aspect-[21/9] sm:aspect-[21/7] max-h-[460px] overflow-hidden border-y-4 border-white shadow-2xl bg-black">
         {cfg.videoUrl ? (
-          <video
-            src={cfg.videoUrl}
-            autoPlay
-            loop
-            muted
-            playsInline
-            className="w-full h-full object-cover"
-          />
+          <>
+            <video
+              ref={videoRef}
+              src={cfg.videoUrl}
+              autoPlay
+              loop
+              muted={isMuted}
+              playsInline
+              controls={cfg.videoControls}
+              className="w-full h-full object-cover"
+            />
+            {renderSoundToggle('absolute bottom-6 right-6')}
+          </>
         ) : (
           <img
             src={cfg.bannerImageUrl || '/assets/poster.jpg'}

@@ -26,33 +26,15 @@ import {
   Send,
   PanelLeftClose,
   PanelLeftOpen,
+  ClipboardList,
 } from 'lucide-react';
+import { 
+  AdminSidebarContext, 
+  useAdminSidebar, 
+  AdminGlobalEventContext, 
+  useAdminGlobalEvent 
+} from './admin-context';
 
-interface AdminSidebarContextType {
-  sidebarOpen: boolean;
-  setSidebarOpen: (open: boolean) => void;
-  toggleSidebar: () => void;
-}
-
-export const AdminSidebarContext = createContext<AdminSidebarContextType>({
-  sidebarOpen: true,
-  setSidebarOpen: () => {},
-  toggleSidebar: () => {},
-});
-
-export const useAdminSidebar = () => useContext(AdminSidebarContext);
-
-interface AdminGlobalEventContextType {
-  globalEventId: string;
-  setGlobalEventId: (id: string) => void;
-}
-
-export const AdminGlobalEventContext = createContext<AdminGlobalEventContextType>({
-  globalEventId: 'all',
-  setGlobalEventId: () => {},
-});
-
-export const useAdminGlobalEvent = () => useContext(AdminGlobalEventContext);
 
 function AdminLayoutContent({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -99,6 +81,7 @@ function AdminLayoutContent({ children }: { children: React.ReactNode }) {
   const navItems = [
     { label: 'Dashboard', href: '/admin/dashboard', icon: LayoutDashboard, roleAccess: ['Super Admin', 'Media Secretary', 'Events Coordinator', 'Membership Officer', 'Charity Officer'] },
     { label: 'Events', href: '/admin/events', icon: Calendar, roleAccess: ['Super Admin', 'Events Coordinator'] },
+    { label: 'Forms & Bookings', href: '/admin/forms', icon: ClipboardList, roleAccess: ['Super Admin', 'Events Coordinator', 'Membership Officer'] },
     { label: 'Payments', href: '/admin/payments', icon: CreditCard, roleAccess: ['Super Admin'] },
     { label: 'Members', href: '/admin/members', icon: Users, roleAccess: ['Super Admin', 'Membership Officer'] },
     { label: 'Broadcast', href: '/admin/members/broadcast', icon: Send, roleAccess: ['Super Admin', 'Membership Officer'] },

@@ -148,10 +148,10 @@ export default function RitualCountdown({
           {/* 4 Countdown Dials */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-6 max-w-4xl mx-auto">
             {[
-              { label: 'DAYS', value: timeLeft.days },
-              { label: 'HOURS', value: timeLeft.hours },
-              { label: 'MINUTES', value: timeLeft.minutes },
-              { label: 'SECONDS', value: timeLeft.seconds },
+              { label: 'DAYS', value: timeLeft.days || 0 },
+              { label: 'HOURS', value: timeLeft.hours || 0 },
+              { label: 'MINUTES', value: timeLeft.minutes || 0 },
+              { label: 'SECONDS', value: timeLeft.seconds || 0 },
             ].map((unit, idx) => (
               <div
                 key={idx}

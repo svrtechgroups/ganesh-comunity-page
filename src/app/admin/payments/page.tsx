@@ -26,7 +26,7 @@ import {
   Calendar,
   Loader2,
 } from 'lucide-react';
-import { useAdminGlobalEvent } from '../layout';
+import { useAdminGlobalEvent } from '../admin-context';
 
 interface PaymentItem {
   id: string;

@@ -37,6 +37,8 @@ export interface EventHeroConfig {
   // Media Settings (for Image / Video hero types)
   bannerImageUrl?: string;
   videoUrl?: string;
+  videoMuted?: boolean;
+  videoControls?: boolean;
   // Typography & Content
   presenterBadge: string;
   title: string;

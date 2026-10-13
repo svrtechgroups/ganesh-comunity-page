@@ -8,7 +8,8 @@
     "start": "next start",
     "lint": "next lint",
     "seed-user": "npx -y tsx prisma/seed-user.ts",
-    "seed": "npx -y tsx prisma/seed.ts"
+    "seed": "npx -y tsx prisma/seed.ts",
+    "migrate": "npx -y tsx migrate.ts"
   },
   "prisma": {
     "seed": "npx tsx prisma/seed.ts"

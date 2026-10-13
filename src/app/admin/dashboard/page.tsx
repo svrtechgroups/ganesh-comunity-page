@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { useAdminGlobalEvent } from '../layout';
+import { useAdminGlobalEvent } from '../admin-context';
 import Link from 'next/link';
 import {
   Users,
