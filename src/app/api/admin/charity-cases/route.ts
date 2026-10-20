@@ -2,12 +2,32 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { INITIAL_CHARITY_CASES } from '@/data/charity';
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
-    const cases = await prisma.charityCase.findMany({
-      orderBy: { createdAt: 'desc' },
+    const { searchParams } = new URL(request.url);
+    const page = Math.max(1, parseInt(searchParams.get('page') || '1', 10));
+    const limit = searchParams.get('limit') ? Math.max(1, parseInt(searchParams.get('limit')!, 10)) : 50;
+
+    const [cases, totalCount] = await Promise.all([
+      prisma.charityCase.findMany({
+        orderBy: { createdAt: 'desc' },
+        skip: (page - 1) * limit,
+        take: limit,
+      }),
+      prisma.charityCase.count(),
+    ]);
+
+    return NextResponse.json({
+      success: true,
+      source: 'prisma',
+      data: cases,
+      pagination: {
+        page,
+        limit,
+        totalCount,
+        totalPages: Math.ceil(totalCount / limit),
+      },
     });
-    return NextResponse.json({ success: true, source: 'prisma', data: cases });
   } catch {
     return NextResponse.json({ success: true, source: 'static', data: INITIAL_CHARITY_CASES });
   }

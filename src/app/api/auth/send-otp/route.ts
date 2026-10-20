@@ -10,12 +10,54 @@ export async function POST(request: Request) {
       return NextResponse.json({ success: false, error: 'Email and type are required' }, { status: 400 });
     }
 
+    const normalEmail = email.toLowerCase().trim();
+
     if (type !== 'REGISTER' && type !== 'FORGOT_PASSWORD') {
       return NextResponse.json({ success: false, error: 'Invalid OTP type' }, { status: 400 });
     }
 
+    // 1. Rate Limiting: 60-second cooldown per email
+    const recentOtp = await prisma.oTP.findFirst({
+      where: {
+        email: normalEmail,
+        type,
+        createdAt: { gte: new Date(Date.now() - 60 * 1000) },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    if (recentOtp) {
+      return NextResponse.json(
+        { success: false, error: 'Please wait 60 seconds before requesting another verification code.' },
+        { status: 429 }
+      );
+    }
+
+    // 2. Hourly Abuse Prevention: Maximum 5 OTP requests per hour
+    const hourlyCount = await prisma.oTP.count({
+      where: {
+        email: normalEmail,
+        createdAt: { gte: new Date(Date.now() - 60 * 60 * 1000) },
+      },
+    });
+
+    if (hourlyCount >= 5) {
+      return NextResponse.json(
+        { success: false, error: 'Too many verification attempts. Please try again in an hour.' },
+        { status: 429 }
+      );
+    }
+
+    // 3. Clean up expired OTPs for this email in background
+    prisma.oTP.deleteMany({
+      where: {
+        email: normalEmail,
+        expiresAt: { lt: new Date() },
+      },
+    }).catch(() => {});
+
     // Check if user exists depending on the type
-    const existingMember = await prisma.member.findFirst({ where: { email } });
+    const existingMember = await prisma.member.findFirst({ where: { email: normalEmail } });
 
     if (type === 'REGISTER' && existingMember) {
       return NextResponse.json({ success: false, error: 'An account with this email already exists.' }, { status: 409 });
@@ -34,7 +76,7 @@ export async function POST(request: Request) {
     // Save to DB
     await prisma.oTP.create({
       data: {
-        email,
+        email: normalEmail,
         code,
         type,
         expiresAt,
@@ -42,7 +84,7 @@ export async function POST(request: Request) {
     });
 
     // Send email
-    const emailSent = await sendOTP(email, code, type);
+    const emailSent = await sendOTP(normalEmail, code, type);
 
     if (!emailSent) {
       return NextResponse.json({ success: false, error: 'Failed to send OTP email.' }, { status: 500 });

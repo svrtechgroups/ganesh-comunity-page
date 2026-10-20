@@ -11,237 +11,267 @@ export async function GET(request: Request) {
   const eventId = searchParams.get('eventId')?.trim() || 'all';
 
   try {
-    // 1. Parallel Database Queries across all core entities
-    const [
-      allPayments,
-      allRSVPs,
-      allEvents,
-      allMembers,
-      subscribersCount,
-      charityCasesCount
-    ] = await Promise.all([
-      prisma.payment.findMany({
-        orderBy: { createdAt: 'desc' },
-      }),
-      prisma.eventRSVP.findMany({
-        where: { paymentStatus: { in: ['Completed', 'Free'] } },
-        include: {
-          event: {
-            select: {
-              id: true,
-              title: true,
-              date: true,
-              ticketPrice: true,
-            },
-          },
-        },
-        orderBy: { createdAt: 'desc' },
-      }),
-      prisma.event.findMany({
-        orderBy: { createdAt: 'desc' },
-      }),
-      prisma.member.findMany({
-        orderBy: { createdAt: 'desc' },
-      }),
-      prisma.subscriber.count().catch(() => 0),
-      prisma.charityCase.count().catch(() => 0),
-    ]);
+    // 1. Fetch available events for filtering and options dropdown
+    const allEvents = await prisma.event.findMany({
+      orderBy: { createdAt: 'desc' },
+      select: {
+        id: true,
+        title: true,
+        date: true,
+        category: true,
+        status: true,
+        enablePooja: true,
+        eventSchedule: true,
+      },
+    });
 
-    // ── 1b. EVENT FILTERING ──────────────────────────────────────────────────
     const targetEvent = allEvents.find((e) => e.id === eventId);
     const targetTitle = targetEvent?.title?.toLowerCase() || '';
 
-    const filteredPayments = eventId && eventId !== 'all'
-      ? allPayments.filter((p) => {
-          if (p.eventId === eventId) return true;
-          if (targetTitle) {
-            const pEvent = (p.eventName || '').toLowerCase();
-            const pDesc = (p.description || '').toLowerCase();
-            return pEvent.includes(targetTitle) || pDesc.includes(targetTitle);
+    // ── 1b. BUILD SCOPED WHERE CLAUSES ────────────────────────────────────────
+    const isFiltered = Boolean(eventId && eventId !== 'all');
+
+    const paymentWhere: any = isFiltered
+      ? {
+          OR: [
+            { eventId },
+            ...(targetTitle
+              ? [
+                  { eventName: { contains: targetTitle, mode: 'insensitive' } },
+                  { description: { contains: targetTitle, mode: 'insensitive' } },
+                ]
+              : []),
+          ],
+        }
+      : {};
+
+    const rsvpWhere: any = {
+      paymentStatus: { in: ['Completed', 'Free'] },
+      ...(isFiltered
+        ? {
+            OR: [
+              { eventId },
+              ...(targetTitle
+                ? [{ event: { title: { contains: targetTitle, mode: 'insensitive' } } }]
+                : []),
+            ],
           }
-          return false;
-        })
-      : allPayments;
-
-    const filteredRSVPs = eventId && eventId !== 'all'
-      ? allRSVPs.filter((r) => {
-          if (r.eventId === eventId) return true;
-          if (targetTitle && r.event?.title) {
-            return r.event.title.toLowerCase().includes(targetTitle);
-          }
-          return false;
-        })
-      : allRSVPs;
-
-    // ── 2. REAL USERS DEDUPLICATION & METRICS ──────────────────────────────────
-    const uniqueUserEmails = new Set<string>();
-    const userRoleCounts: Record<string, number> = {};
-    const memberTierCounts: Record<string, number> = {};
-    let activeMembersCount = 0;
-
-    allMembers.forEach((m) => {
-      if (eventId === 'all' && m.email) uniqueUserEmails.add(m.email.trim().toLowerCase());
-      const role = m.role || 'Member';
-      userRoleCounts[role] = (userRoleCounts[role] || 0) + 1;
-      const tier = m.tier || 'Annual Member';
-      memberTierCounts[tier] = (memberTierCounts[tier] || 0) + 1;
-      if ((m.status || '').toLowerCase() === 'active') activeMembersCount++;
-    });
-
-    filteredRSVPs.forEach((r) => {
-      if (r.attendeeEmail) uniqueUserEmails.add(r.attendeeEmail.trim().toLowerCase());
-    });
-
-    filteredPayments.forEach((p) => {
-      if (p.customerEmail) uniqueUserEmails.add(p.customerEmail.trim().toLowerCase());
-    });
-
-    const totalRealUsers = uniqueUserEmails.size;
-    const registeredMembersCount = allMembers.length;
-
-    // ── 3. DONATIONS & REVENUE METRICS ─────────────────────────────────────────
-    let completedRevenue = 0;
-    let completedCount = 0;
-    let pendingRevenue = 0;
-    let pendingCount = 0;
-    let failedRevenue = 0;
-    let failedCount = 0;
-    let totalRevenue = 0;
-
-    let totalPaidPoojas = 0;
-    let totalPaidPoojaRevenue = 0;
-    let generalDonationsCount = 0;
-    let generalDonationsRevenue = 0;
-    let annadanamCount = 0;
-    let annadanamRevenue = 0;
-    let otherRevenue = 0;
-
-    let rsvpTicketRevenue = 0;
-    let rsvpTicketCount = 0;
-    let eventSupportRevenue = 0;
-    let eventSupportCount = 0;
-
-    const donationTypeMap: Record<string, { count: number; revenue: number }> = {
-      pooja: { count: 0, revenue: 0 },
-      anadanam: { count: 0, revenue: 0 },
-      'event donation': { count: 0, revenue: 0 },
-      membership: { count: 0, revenue: 0 },
-      general: { count: 0, revenue: 0 },
+        : {}),
     };
 
-    filteredPayments.forEach((p) => {
-      const amt = Number(p.amount) || 0;
-      const st = (p.status || '').toLowerCase();
-      totalRevenue += amt;
+    // ── 2. AGGREGATE DATABASE METRICS (ZERO OOM, ZERO MEMORY SCANS) ───────────
+    const [
+      totalPaymentAgg,
+      completedPaymentAgg,
+      pendingPaymentAgg,
+      failedPaymentAgg,
+      rsvpAgg,
+      poojaPaymentAgg,
+      annadanamPaymentAgg,
+      registeredMembersCount,
+      activeMembersCount,
+      memberTiersRaw,
+      subscribersCount,
+      charityCasesCount,
+      recentPayments,
+      recentRSVPs,
+      recentMembers,
+    ] = await Promise.all([
+      // Total Payments
+      prisma.payment.aggregate({
+        where: paymentWhere,
+        _sum: { amount: true },
+        _count: { id: true },
+      }),
+      // Completed Payments
+      prisma.payment.aggregate({
+        where: { ...paymentWhere, status: { equals: 'Completed', mode: 'insensitive' } },
+        _sum: { amount: true },
+        _count: { id: true },
+      }),
+      // Pending Payments
+      prisma.payment.aggregate({
+        where: { ...paymentWhere, status: { equals: 'Pending', mode: 'insensitive' } },
+        _sum: { amount: true },
+        _count: { id: true },
+      }),
+      // Failed Payments
+      prisma.payment.aggregate({
+        where: { ...paymentWhere, status: { equals: 'Failed', mode: 'insensitive' } },
+        _sum: { amount: true },
+        _count: { id: true },
+      }),
+      // RSVPs (Passes, Adults, Children, Support)
+      prisma.eventRSVP.aggregate({
+        where: rsvpWhere,
+        _sum: {
+          ticketsCount: true,
+          adultsCount: true,
+          childrenCount: true,
+          totalAmount: true,
+          supportAmount: true,
+        },
+        _count: { id: true },
+      }),
+      // Paid Pooja Sevas
+      prisma.payment.aggregate({
+        where: {
+          ...paymentWhere,
+          status: { equals: 'Completed', mode: 'insensitive' },
+          OR: [
+            { donationType: { contains: 'pooja', mode: 'insensitive' } },
+            { poojaTitle: { not: null } },
+            { description: { contains: 'pooja', mode: 'insensitive' } },
+          ],
+        },
+        _sum: { amount: true },
+        _count: { id: true },
+      }),
+      // Annadanam
+      prisma.payment.aggregate({
+        where: {
+          ...paymentWhere,
+          status: { equals: 'Completed', mode: 'insensitive' },
+          OR: [
+            { donationType: { in: ['anadanam', 'annadanam'] } },
+            { description: { contains: 'anadanam', mode: 'insensitive' } },
+            { description: { contains: 'annadanam', mode: 'insensitive' } },
+          ],
+        },
+        _sum: { amount: true },
+        _count: { id: true },
+      }),
+      // Members counts
+      prisma.member.count(),
+      prisma.member.count({ where: { status: { equals: 'Active', mode: 'insensitive' } } }),
+      // Member tiers breakdown
+      prisma.member.groupBy({
+        by: ['tier'],
+        _count: { id: true },
+      }),
+      // Subscribers & Charity cases
+      prisma.subscriber.count().catch(() => 0),
+      prisma.charityCase.count().catch(() => 0),
+      // Bounded queries for recent tables (max 15 rows)
+      prisma.payment.findMany({
+        where: paymentWhere,
+        orderBy: { createdAt: 'desc' },
+        take: 15,
+      }),
+      prisma.eventRSVP.findMany({
+        where: rsvpWhere,
+        include: {
+          event: {
+            select: { id: true, title: true, date: true, ticketPrice: true },
+          },
+        },
+        orderBy: { createdAt: 'desc' },
+        take: 15,
+      }),
+      prisma.member.findMany({
+        orderBy: { createdAt: 'desc' },
+        take: 10,
+      }),
+    ]);
 
-      if (st === 'completed') {
-        completedRevenue += amt;
-        completedCount++;
+    // ── 3. MAP AGGREGATE VALUES ──────────────────────────────────────────────
+    const totalRevenue = totalPaymentAgg._sum.amount || 0;
+    const completedRevenue = completedPaymentAgg._sum.amount || 0;
+    const completedCount = completedPaymentAgg._count.id || 0;
+    const pendingRevenue = pendingPaymentAgg._sum.amount || 0;
+    const pendingCount = pendingPaymentAgg._count.id || 0;
+    const failedRevenue = failedPaymentAgg._sum.amount || 0;
+    const failedCount = failedPaymentAgg._count.id || 0;
 
-        const isPooja =
-          (p.donationType || '').toLowerCase() === 'pooja' ||
-          Boolean(p.poojaTitle) ||
-          (p.description || '').toLowerCase().includes('pooja');
+    const totalPaidPoojas = poojaPaymentAgg._count.id || 0;
+    const totalPaidPoojaRevenue = poojaPaymentAgg._sum.amount || 0;
+    const annadanamCount = annadanamPaymentAgg._count.id || 0;
+    const annadanamRevenue = annadanamPaymentAgg._sum.amount || 0;
 
-        const isAnnadanam =
-          (p.donationType || '').toLowerCase() === 'anadanam' ||
-          (p.donationType || '').toLowerCase() === 'annadanam' ||
-          (p.description || '').toLowerCase().includes('anadanam') ||
-          (p.description || '').toLowerCase().includes('annadanam');
+    const totalRSVPsCount = rsvpAgg._count.id || 0;
+    const totalPassesIssued = rsvpAgg._sum.ticketsCount || totalRSVPsCount;
+    const totalAdultsCount = rsvpAgg._sum.adultsCount || totalRSVPsCount;
+    const totalChildrenCount = rsvpAgg._sum.childrenCount || 0;
 
-        if (isPooja) {
-          totalPaidPoojas++;
-          totalPaidPoojaRevenue += amt;
-          donationTypeMap.pooja.count++;
-          donationTypeMap.pooja.revenue += amt;
-        } else if (isAnnadanam) {
-          annadanamCount++;
-          annadanamRevenue += amt;
-          donationTypeMap.anadanam.count++;
-          donationTypeMap.anadanam.revenue += amt;
-        } else {
-          generalDonationsCount++;
-          generalDonationsRevenue += amt;
-          donationTypeMap.general.count++;
-          donationTypeMap.general.revenue += amt;
-        }
-      } else if (st === 'pending') {
-        pendingRevenue += amt;
-        pendingCount++;
-      } else if (st === 'failed') {
-        failedRevenue += amt;
-        failedCount++;
-      }
+    const eventSupportRevenue = rsvpAgg._sum.supportAmount || 0;
+    const rsvpTotalAmount = rsvpAgg._sum.totalAmount || 0;
+    const rsvpTicketRevenue = Math.max(0, rsvpTotalAmount - eventSupportRevenue);
+    const eventSupportCount = eventSupportRevenue > 0 ? totalRSVPsCount : 0;
+    const rsvpTicketCount = rsvpTicketRevenue > 0 ? totalRSVPsCount : 0;
+
+    const generalDonationsRevenue = Math.max(0, completedRevenue - totalPaidPoojaRevenue - annadanamRevenue);
+    const generalDonationsCount = Math.max(0, completedCount - totalPaidPoojas - annadanamCount);
+    const otherRevenue = Math.max(0, generalDonationsRevenue - (rsvpTicketRevenue + eventSupportRevenue));
+
+    const totalRealUsers = registeredMembersCount + totalRSVPsCount;
+
+    // Top locations from RSVPs (grouped by travellingFrom with count)
+    const locationGroups = await prisma.eventRSVP.groupBy({
+      by: ['travellingFrom'],
+      where: rsvpWhere,
+      _sum: { ticketsCount: true },
+      _count: { id: true },
+      orderBy: { _count: { id: 'desc' } },
+      take: 5,
     });
 
-    // ── 4. RSVP & FREE POOJA METRICS ──────────────────────────────────────────
-    const totalRSVPsCount = filteredRSVPs.length;
-    let totalPassesIssued = 0;
-    let totalAdultsCount = 0;
-    let totalChildrenCount = 0;
-    const locationCounts: Record<string, number> = {};
+    const topLocations = locationGroups.map((lg) => ({
+      name: lg.travellingFrom || 'Local / Langley',
+      count: lg._sum.ticketsCount || lg._count.id,
+    }));
 
-    filteredRSVPs.forEach((r) => {
-      const passes = r.ticketsCount || (r.adultsCount + r.childrenCount) || 1;
-      const adults = r.adultsCount ?? 1;
-      const children = r.childrenCount ?? 0;
+    // Member Tiers
+    const memberTiers = memberTiersRaw.map((m) => ({
+      tier: m.tier || 'Annual Member',
+      count: m._count.id,
+    }));
 
-      totalPassesIssued += passes;
-      totalAdultsCount += adults;
-      totalChildrenCount += children;
-
-      const loc = (r.travellingFrom || 'Local / Langley').trim();
-      if (loc) {
-        locationCounts[loc] = (locationCounts[loc] || 0) + passes;
-      }
-
-      const support = Number(r.supportAmount) || 0;
-      const total = Number(r.totalAmount) || 0;
-      const ticketRev = total > support ? total - support : 0;
-      
-      if (ticketRev > 0) {
-        rsvpTicketCount++;
-        rsvpTicketRevenue += ticketRev;
-      }
-      if (support > 0) {
-        eventSupportCount++;
-        eventSupportRevenue += support;
-      }
-    });
-
-    otherRevenue = Math.max(0, generalDonationsRevenue - (rsvpTicketRevenue + eventSupportRevenue));
-
-    // Top Locations Sorted
-    const topLocations = Object.entries(locationCounts)
-      .map(([name, count]) => ({ name, count }))
-      .sort((a, b) => b.count - a.count)
-      .slice(0, 5);
-
-    // Free Poojas / Festival Registrations
-    const totalFreePoojas = totalRSVPsCount; // Free Community Pooja & Darshan RSVP bookings
-    const totalFreePasses = totalPassesIssued; // Free devotee passes
-
-    // ── 5. EVENT DAILY SCHEDULE BREAKDOWN (ONLY VISIBLE WHEN SINGLE EVENT SELECTED) ──
+    // ── 4. EVENT DAILY SCHEDULE BREAKDOWN (ONLY WHEN SINGLE EVENT SELECTED) ───
     const isSingleEvent = Boolean(eventId && eventId !== 'all' && targetEvent);
     const eventScheduleList = isSingleEvent ? getEventSchedule(targetEvent) : [];
 
-    const dailyBreakdown = eventScheduleList.map((fd) => {
-      let paidCount = 0;
-      let paidRevenue = 0;
-      let freeBookingsCount = 0;
-      let freePasses = 0;
-      let adultsCount = 0;
-      let childrenCount = 0;
+    let dailyBreakdown: any[] = [];
+    if (isSingleEvent && eventScheduleList.length > 0) {
+      // Fetch only the rows for this single event to compute schedule matches
+      const [singleEventPayments, singleEventRsvps] = await Promise.all([
+        prisma.payment.findMany({
+          where: { ...paymentWhere, status: { equals: 'Completed', mode: 'insensitive' } },
+          select: {
+            amount: true,
+            poojaDate: true,
+            poojaDay: true,
+            poojaTitle: true,
+            description: true,
+          },
+          take: 5000,
+        }),
+        prisma.eventRSVP.findMany({
+          where: rsvpWhere,
+          select: {
+            ticketsCount: true,
+            adultsCount: true,
+            childrenCount: true,
+            selectedDates: true,
+          },
+          take: 5000,
+        }),
+      ]);
 
-      const fdDate = (fd.date || '').toLowerCase();
-      const fdLabel = (fd.dateLabel || fd.date || '').toLowerCase();
-      const fdTitle = (fd.title || '').toLowerCase();
-      const fdDay = (fd.day || '').toLowerCase();
-      const fdId = (fd.id || '').toLowerCase();
+      dailyBreakdown = eventScheduleList.map((fd) => {
+        let paidCount = 0;
+        let paidRevenue = 0;
+        let freeBookingsCount = 0;
+        let freePasses = 0;
+        let adultsCount = 0;
+        let childrenCount = 0;
 
-      // Check Paid Poojas matching this day
-      filteredPayments.forEach((p) => {
-        if ((p.status || '').toLowerCase() === 'completed') {
+        const fdDate = (fd.date || '').toLowerCase();
+        const fdLabel = (fd.dateLabel || fd.date || '').toLowerCase();
+        const fdTitle = (fd.title || '').toLowerCase();
+        const fdDay = (fd.day || '').toLowerCase();
+        const fdId = (fd.id || '').toLowerCase();
+
+        singleEventPayments.forEach((p) => {
           const pDate = (p.poojaDate || '').toLowerCase();
           const pDay = (p.poojaDay || '').toLowerCase();
           const pTitle = (p.poojaTitle || '').toLowerCase();
@@ -257,56 +287,55 @@ export async function GET(request: Request) {
             paidCount++;
             paidRevenue += Number(p.amount) || 0;
           }
-        }
-      });
-
-      // Check Free RSVP Registrations matching this day
-      filteredRSVPs.forEach((r) => {
-        const passes = r.ticketsCount || (r.adultsCount + r.childrenCount) || 1;
-        const adults = r.adultsCount ?? 1;
-        const children = r.childrenCount ?? 0;
-        const dates = Array.isArray(r.selectedDates) && r.selectedDates.length > 0
-          ? r.selectedDates
-          : [];
-
-        const matchesDay = dates.some((d) => {
-          const dLower = d.toLowerCase();
-          return (
-            (fdDate && dLower.includes(fdDate)) ||
-            (fdLabel && dLower.includes(fdLabel)) ||
-            (fdDay && dLower.includes(fdDay)) ||
-            (fdId && dLower.includes(fdId)) ||
-            dLower === fdDate ||
-            dLower === fdLabel
-          );
         });
 
-        if (matchesDay) {
-          freeBookingsCount++;
-          freePasses += passes;
-          adultsCount += adults;
-          childrenCount += children;
-        }
+        singleEventRsvps.forEach((r) => {
+          const passes = r.ticketsCount || (r.adultsCount + r.childrenCount) || 1;
+          const adults = r.adultsCount ?? 1;
+          const children = r.childrenCount ?? 0;
+          const dates = Array.isArray(r.selectedDates) && r.selectedDates.length > 0
+            ? r.selectedDates
+            : [];
+
+          const matchesDay = dates.some((d) => {
+            const dLower = d.toLowerCase();
+            return (
+              (fdDate && dLower.includes(fdDate)) ||
+              (fdLabel && dLower.includes(fdLabel)) ||
+              (fdDay && dLower.includes(fdDay)) ||
+              (fdId && dLower.includes(fdId)) ||
+              dLower === fdDate ||
+              dLower === fdLabel
+            );
+          });
+
+          if (matchesDay) {
+            freeBookingsCount++;
+            freePasses += passes;
+            adultsCount += adults;
+            childrenCount += children;
+          }
+        });
+
+        return {
+          id: fd.id,
+          date: fd.date,
+          dateLabel: fd.dateLabel || fd.date,
+          day: fd.day || '',
+          title: fd.title,
+          theme: fd.theme || '',
+          paidCount,
+          paidRevenue,
+          freeBookingsCount,
+          freePasses,
+          adultsCount,
+          childrenCount,
+          totalDevotees: paidCount + freePasses,
+        };
       });
+    }
 
-      return {
-        id: fd.id,
-        date: fd.date,
-        dateLabel: fd.dateLabel || fd.date,
-        day: fd.day || '',
-        title: fd.title,
-        theme: fd.theme || '',
-        paidCount,
-        paidRevenue,
-        freeBookingsCount,
-        freePasses,
-        adultsCount,
-        childrenCount,
-        totalDevotees: paidCount + freePasses,
-      };
-    });
-
-    // ── 6. UNIFIED REAL-TIME LIVE ACTIVITY FEED (100% REAL FROM DATABASE) ─────
+    // ── 5. UNIFIED REAL-TIME LIVE ACTIVITY FEED (FROM BOUNDED RECENT ROWS) ─────
     type LiveFeedItem = {
       id: string;
       type: 'payment' | 'rsvp' | 'member';
@@ -322,8 +351,8 @@ export async function GET(request: Request) {
 
     const liveFeed: LiveFeedItem[] = [];
 
-    // Add Payments from filtered set
-    filteredPayments.slice(0, 15).forEach((p) => {
+    // Add Payments
+    recentPayments.slice(0, 15).forEach((p) => {
       const isCompleted = (p.status || '').toLowerCase() === 'completed';
       const isPooja = Boolean(p.poojaTitle) || (p.donationType || '').toLowerCase() === 'pooja';
       liveFeed.push({
@@ -349,8 +378,8 @@ export async function GET(request: Request) {
       });
     });
 
-    // Add RSVPs from filtered set
-    filteredRSVPs.slice(0, 15).forEach((r) => {
+    // Add RSVPs
+    recentRSVPs.slice(0, 15).forEach((r) => {
       const passes = r.ticketsCount || (r.adultsCount + r.childrenCount) || 1;
       const datesStr = (r.selectedDates || []).slice(0, 2).join(', ');
       liveFeed.push({
@@ -372,9 +401,9 @@ export async function GET(request: Request) {
       });
     });
 
-    // Add Members only when viewing all events
+    // Add Members when viewing all events
     if (eventId === 'all') {
-      allMembers.slice(0, 10).forEach((m) => {
+      recentMembers.slice(0, 10).forEach((m) => {
         liveFeed.push({
           id: `mem-${m.id}`,
           type: 'member',
@@ -424,8 +453,8 @@ export async function GET(request: Request) {
           // Paid Poojas vs Free Poojas
           totalPaidPoojas,
           totalPaidPoojaRevenue,
-          totalFreePoojas,
-          totalFreePasses,
+          totalFreePoojas: totalRSVPsCount,
+          totalFreePasses: totalPassesIssued,
 
           // RSVP Passes
           totalRSVPsCount,
@@ -467,7 +496,7 @@ export async function GET(request: Request) {
           }
         ],
         topLocations,
-        memberTiers: Object.entries(memberTierCounts).map(([tier, count]) => ({ tier, count })),
+        memberTiers,
         selectedEventId: eventId,
         selectedEventTitle: targetEvent?.title || null,
         events: allEvents.map((e) => ({
@@ -478,9 +507,9 @@ export async function GET(request: Request) {
           status: e.status,
           enablePooja: e.enablePooja,
         })),
-        recentPayments: filteredPayments.slice(0, 8),
-        recentRSVPs: filteredRSVPs.slice(0, 8),
-        recentMembers: allMembers.slice(0, 8),
+        recentPayments: recentPayments.slice(0, 8),
+        recentRSVPs: recentRSVPs.slice(0, 8),
+        recentMembers: recentMembers.slice(0, 8),
         liveFeed: liveFeed.slice(0, 20),
       },
       {

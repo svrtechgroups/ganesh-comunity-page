@@ -49,7 +49,7 @@ export async function POST(request: Request) {
     const rawDates: string[] = Array.isArray(selectedDates) ? selectedDates : [];
     const travelOrigin = travellingFrom ? String(travellingFrom).trim() : null;
 
-    // ── 1. Fetch Event and Validate Customization & Capacity ───────────────
+    // ── 1. Fetch Event and Validate Dates ─────────────────────────────────
     let eventRecord = await prisma.event.findUnique({
       where: { id: eventId },
     });
@@ -98,129 +98,87 @@ export async function POST(request: Request) {
       datesArray = [eventRecord.date || 'General Admission'];
     }
 
-    if (eventRecord && eventRecord.enableRsvp === false) {
+    if (eventRecord.enableRsvp === false) {
       return NextResponse.json(
         { success: false, error: 'Registration / RSVP is currently disabled for this event.' },
         { status: 400 }
       );
     }
 
-    const capacity = eventRecord ? (eventRecord.capacity || 5000) : 5000;
-    const currentRsvps = eventRecord ? (eventRecord.rsvpCount || 0) : 0;
-    const newTotalRsvps = currentRsvps + totalTickets;
-
-    // Check total capacity limit enforcement
-    if (eventRecord && eventRecord.enforceCapacityLimit && newTotalRsvps > capacity) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: `Event capacity reached (${capacity} attendees max). Registrations are now closed.`,
-        },
-        { status: 400 }
-      );
-    }
-
-    // Check separate adult and child capacity limits in a single query
-    const checkAdults = eventRecord && eventRecord.enforceCapacityLimit && eventRecord.adultCapacity && eventRecord.adultCapacity > 0;
-    const checkChildren = eventRecord && eventRecord.enforceCapacityLimit && eventRecord.childCapacity && eventRecord.childCapacity > 0;
-
-    if (checkAdults || checkChildren) {
-      const agg = await prisma.eventRSVP.aggregate({
-        where: { eventId: eventRecord.id },
-        _sum: { adultsCount: true, childrenCount: true },
-      });
-
-      if (checkAdults) {
-        const currentAdults = agg._sum.adultsCount || 0;
-        if (currentAdults + adults > eventRecord.adultCapacity!) {
-          const remainingAdults = Math.max(0, eventRecord.adultCapacity! - currentAdults);
-          return NextResponse.json(
-            {
-              success: false,
-              error: `Adult capacity limit reached (${eventRecord.adultCapacity} adults max). Only ${remainingAdults} adult slot${remainingAdults === 1 ? '' : 's'} remaining.`,
-            },
-            { status: 400 }
-          );
-        }
-      }
-
-      if (checkChildren) {
-        const currentChildren = agg._sum.childrenCount || 0;
-        if (currentChildren + children > eventRecord.childCapacity!) {
-          const remainingChildren = Math.max(0, eventRecord.childCapacity! - currentChildren);
-          return NextResponse.json(
-            {
-              success: false,
-              error: `Child capacity limit reached (${eventRecord.childCapacity} children max). Only ${remainingChildren} child slot${remainingChildren === 1 ? '' : 's'} remaining.`,
-            },
-            { status: 400 }
-          );
-        }
-      }
-    }
-
     const parsedAmount = Number(totalAmount) || 0;
     const finalPaymentStatus = paymentStatus || (parsedAmount > 0 ? 'Pending' : 'Completed');
-
-    // Check capacity alert threshold (e.g. last 10 slots or fewer left)
     const threshold = Number(process.env.CAPACITY_ALERT_THRESHOLD) || 10;
-    const remainingSlots = capacity - newTotalRsvps;
-    
-    let triggerAlert = false;
 
-    if (eventRecord && remainingSlots <= threshold && !eventRecord.capacityAlertSent) {
-      triggerAlert = true;
-      const notifyRecipient = process.env.NOTIFY_MAIL || process.env.REPORT_MAIL || process.env.SMTP_USER;
-      if (notifyRecipient) {
-        const alertSubject = `🚨 Event Capacity Warning: "${eventRecord.title}" has ${remainingSlots <= 0 ? 'reached full capacity' : `only ${remainingSlots} slots remaining`}`;
-        const alertHtml = renderEmailLayout({
-          pageTitle: 'Event Capacity Alert',
-          badgeText: 'Capacity Threshold Alert',
-          isAlert: true,
-          children: `
-            <h2 style="color: #991B1B; font-family: 'Cinzel', Georgia, serif; font-size: 18px; margin: 0 0 12px;">
-              Event Capacity Warning
-            </h2>
-            <p style="color: #2D231E; font-size: 14px; margin: 0 0 16px;">
-              The event <strong>${eventRecord.title}</strong> is approaching or has reached its capacity limit.
-            </p>
-            <div style="background: #FFF8F0; border: 1.5px solid #FDBA74; border-radius: 12px; padding: 16px; margin-bottom: 20px;">
-              <table style="width: 100%; font-size: 13px; border-collapse: collapse;">
-                <tr><td style="padding: 6px 0; color: #6B5E55;">Configured Capacity:</td><td style="font-weight: 700; color: #2D231E;">${capacity}</td></tr>
-                <tr><td style="padding: 6px 0; color: #6B5E55;">Total Registered:</td><td style="font-weight: 700; color: #C2410C;">${newTotalRsvps}</td></tr>
-                <tr><td style="padding: 6px 0; color: #6B5E55;">Remaining Slots:</td><td style="font-weight: 700; color: #DC2626;">${Math.max(0, remainingSlots)}</td></tr>
-                <tr><td style="padding: 6px 0; color: #6B5E55;">Capacity Limit Enforced:</td><td style="font-weight: 700;">${eventRecord.enforceCapacityLimit ? 'YES (Further registrations will be blocked)' : 'NO (Registrations will continue)'}</td></tr>
-              </table>
-            </div>
-          `,
+    // ── 2. Atomic Database Transaction: Capacity Check & RSVP Creation ───────
+    const { rsvp, activeEvent, triggerAlert, capacityAlertData } = await prisma.$transaction(async (tx) => {
+      // Re-fetch current event state atomically
+      const currentEvent = await tx.event.findUnique({
+        where: { id: eventRecord.id },
+      });
+
+      if (!currentEvent) {
+        throw new Error('Event not found during booking verification.');
+      }
+
+      if (currentEvent.enableRsvp === false) {
+        throw new Error('Registration / RSVP is currently disabled for this event.');
+      }
+
+      const capacity = currentEvent.capacity || 5000;
+      const currentRsvps = currentEvent.rsvpCount || 0;
+      const newTotalRsvps = currentRsvps + totalTickets;
+
+      // Check total capacity limit enforcement
+      if (currentEvent.enforceCapacityLimit && newTotalRsvps > capacity) {
+        throw new Error(`Event capacity reached (${capacity} attendees max). Registrations are now closed.`);
+      }
+
+      // Check separate adult and child capacity limits
+      const checkAdults = currentEvent.enforceCapacityLimit && currentEvent.adultCapacity && currentEvent.adultCapacity > 0;
+      const checkChildren = currentEvent.enforceCapacityLimit && currentEvent.childCapacity && currentEvent.childCapacity > 0;
+
+      if (checkAdults || checkChildren) {
+        const agg = await tx.eventRSVP.aggregate({
+          where: { eventId: currentEvent.id },
+          _sum: { adultsCount: true, childrenCount: true },
         });
 
-        sendEmail(notifyRecipient, alertSubject, alertHtml).catch((e) =>
-          console.error('[CAPACITY ALERT EMAIL ERROR]:', e)
-        );
+        if (checkAdults) {
+          const currentAdults = agg._sum.adultsCount || 0;
+          if (currentAdults + adults > currentEvent.adultCapacity!) {
+            const remainingAdults = Math.max(0, currentEvent.adultCapacity! - currentAdults);
+            throw new Error(`Adult capacity limit reached (${currentEvent.adultCapacity} adults max). Only ${remainingAdults} adult slot${remainingAdults === 1 ? '' : 's'} remaining.`);
+          }
+        }
+
+        if (checkChildren) {
+          const currentChildren = agg._sum.childrenCount || 0;
+          if (currentChildren + children > currentEvent.childCapacity!) {
+            const remainingChildren = Math.max(0, currentEvent.childCapacity! - currentChildren);
+            throw new Error(`Child capacity limit reached (${currentEvent.childCapacity} children max). Only ${remainingChildren} child slot${remainingChildren === 1 ? '' : 's'} remaining.`);
+          }
+        }
       }
-    }
 
-    // Single update for RSVP count and capacity alert
-    if (eventRecord && finalPaymentStatus !== 'Pending') {
-      const updateData: any = { rsvpCount: { increment: totalTickets } };
-      if (triggerAlert) {
-        updateData.capacityAlertSent = true;
+      const remainingSlots = capacity - newTotalRsvps;
+      let shouldTriggerAlert = false;
+      let alertData = null;
+
+      if (remainingSlots <= threshold && !currentEvent.capacityAlertSent) {
+        shouldTriggerAlert = true;
+        alertData = {
+          title: currentEvent.title,
+          capacity,
+          remainingSlots,
+          newTotalRsvps,
+          enforceCapacityLimit: currentEvent.enforceCapacityLimit,
+        };
       }
-      
-      await prisma.event.update({
-        where: { id: eventRecord.id },
-        data: updateData,
-      }).catch(() => {});
-    }
 
-    // ── 2. Create Event RSVP in DB ──────────────────────────────────────────
-
-    let rsvp;
-    try {
-      rsvp = await prisma.eventRSVP.create({
+      // Create RSVP record
+      const createdRsvp = await tx.eventRSVP.create({
         data: {
-          eventId,
+          eventId: currentEvent.id,
           attendeeName: safeName,
           attendeeEmail: normalEmail,
           attendeePhone: safePhone,
@@ -236,50 +194,83 @@ export async function POST(request: Request) {
           customResponses: customResponses || {},
         },
       });
-    } catch (e) {
-      console.warn('[RSVP] DB creation fallback:', e);
-      rsvp = {
-        id: `RSVP-${Date.now()}`,
-        eventId,
-        attendeeName: safeName,
-        attendeeEmail: normalEmail,
-        attendeePhone: safePhone,
-        travellingFrom: travelOrigin,
-        ticketsCount: totalTickets,
-        adultsCount: adults,
-        childrenCount: children,
-        selectedDates: datesArray,
-        totalAmount: parsedAmount,
-        supportAmount: Number(supportAmount) || 0,
-        paymentStatus: finalPaymentStatus,
-        paymentIntentId: paymentIntentId ? String(paymentIntentId) : null,
-        customResponses: customResponses || {},
-        createdAt: new Date(),
-      };
-    }
- 
-     // ── 2.5 Send Registration & Payment Confirmation Email ──────────────────
-     sendEventRegistrationConfirmationEmail({
-       recipientEmail: normalEmail,
-       recipientName: safeName,
-       eventName: eventRecord.title,
-       eventDate: eventRecord.date,
-       eventTime: eventRecord.time,
-       eventVenue: eventRecord.venue,
-       eventAddress: eventRecord.address || '',
-       totalAmount: parsedAmount,
-       supportAmount: Number(supportAmount) || 0,
-       ticketsCount: totalTickets,
-       adultsCount: adults,
-       childrenCount: children,
-       selectedDates: datesArray,
-       paymentIntentId: paymentIntentId ? String(paymentIntentId) : undefined,
-       rsvpId: rsvp.id,
-     }).catch((emailErr) => {
-       console.error('[RSVP CONFIRMATION EMAIL ERROR]:', emailErr);
-     });
 
-     // ── 3. Automatic Guest Login & Member Account Creation ──────────────────
+      // Atomically increment RSVP count on event if completed / free
+      if (finalPaymentStatus !== 'Pending') {
+        const updateData: any = { rsvpCount: { increment: totalTickets } };
+        if (shouldTriggerAlert) {
+          updateData.capacityAlertSent = true;
+        }
+
+        await tx.event.update({
+          where: { id: currentEvent.id },
+          data: updateData,
+        });
+      }
+
+      return {
+        rsvp: createdRsvp,
+        activeEvent: currentEvent,
+        triggerAlert: shouldTriggerAlert,
+        capacityAlertData: alertData,
+      };
+    });
+
+    // ── 2.1 Send Capacity Warning Alert (if triggered) Asynchronously ────────
+    if (triggerAlert && capacityAlertData) {
+      const notifyRecipient = process.env.NOTIFY_MAIL || process.env.REPORT_MAIL || process.env.SMTP_USER;
+      if (notifyRecipient) {
+        const alertSubject = `🚨 Event Capacity Warning: "${capacityAlertData.title}" has ${capacityAlertData.remainingSlots <= 0 ? 'reached full capacity' : `only ${capacityAlertData.remainingSlots} slots remaining`}`;
+        const alertHtml = renderEmailLayout({
+          pageTitle: 'Event Capacity Alert',
+          badgeText: 'Capacity Threshold Alert',
+          isAlert: true,
+          children: `
+            <h2 style="color: #991B1B; font-family: 'Cinzel', Georgia, serif; font-size: 18px; margin: 0 0 12px;">
+              Event Capacity Warning
+            </h2>
+            <p style="color: #2D231E; font-size: 14px; margin: 0 0 16px;">
+              The event <strong>${capacityAlertData.title}</strong> is approaching or has reached its capacity limit.
+            </p>
+            <div style="background: #FFF8F0; border: 1.5px solid #FDBA74; border-radius: 12px; padding: 16px; margin-bottom: 20px;">
+              <table style="width: 100%; font-size: 13px; border-collapse: collapse;">
+                <tr><td style="padding: 6px 0; color: #6B5E55;">Configured Capacity:</td><td style="font-weight: 700; color: #2D231E;">${capacityAlertData.capacity}</td></tr>
+                <tr><td style="padding: 6px 0; color: #6B5E55;">Total Registered:</td><td style="font-weight: 700; color: #C2410C;">${capacityAlertData.newTotalRsvps}</td></tr>
+                <tr><td style="padding: 6px 0; color: #6B5E55;">Remaining Slots:</td><td style="font-weight: 700; color: #DC2626;">${Math.max(0, capacityAlertData.remainingSlots)}</td></tr>
+                <tr><td style="padding: 6px 0; color: #6B5E55;">Capacity Limit Enforced:</td><td style="font-weight: 700;">${capacityAlertData.enforceCapacityLimit ? 'YES (Further registrations will be blocked)' : 'NO (Registrations will continue)'}</td></tr>
+              </table>
+            </div>
+          `,
+        });
+
+        sendEmail(notifyRecipient, alertSubject, alertHtml).catch((e) =>
+          console.error('[CAPACITY ALERT EMAIL ERROR]:', e)
+        );
+      }
+    }
+
+    // ── 2.5 Send Registration & Payment Confirmation Email ──────────────────
+    sendEventRegistrationConfirmationEmail({
+      recipientEmail: normalEmail,
+      recipientName: safeName,
+      eventName: activeEvent.title,
+      eventDate: activeEvent.date,
+      eventTime: activeEvent.time,
+      eventVenue: activeEvent.venue,
+      eventAddress: activeEvent.address || '',
+      totalAmount: parsedAmount,
+      supportAmount: Number(supportAmount) || 0,
+      ticketsCount: totalTickets,
+      adultsCount: adults,
+      childrenCount: children,
+      selectedDates: datesArray,
+      paymentIntentId: paymentIntentId ? String(paymentIntentId) : undefined,
+      rsvpId: rsvp.id,
+    }).catch((emailErr) => {
+      console.error('[RSVP CONFIRMATION EMAIL ERROR]:', emailErr);
+    });
+
+    // ── 3. Automatic Guest Login & Member Account Creation ──────────────────
     let member = await prisma.member.findUnique({
       where: { email: normalEmail },
     }).catch(() => null);
@@ -287,7 +278,6 @@ export async function POST(request: Request) {
     let isNewUser = false;
 
     if (!member) {
-      // Generate temporary password and create account
       const tempPassword = generateTempPassword();
       const passwordHash = await hashPassword(tempPassword);
       const today = new Date().toISOString().split('T')[0];
@@ -310,7 +300,6 @@ export async function POST(request: Request) {
         });
         isNewUser = true;
 
-        // Send email with temp password asynchronously
         sendGuestWelcomeEmail(normalEmail, member.fullName, tempPassword).catch((err) =>
           console.error('[RSVP-GUEST] Email send failed:', err)
         );
@@ -351,7 +340,7 @@ export async function POST(request: Request) {
       user: userPayload,
       data: {
         rsvpId: rsvp.id,
-        eventId,
+        eventId: activeEvent.id,
         attendeeName: rsvp.attendeeName,
         attendeeEmail: rsvp.attendeeEmail,
         attendeePhone: rsvp.attendeePhone,
@@ -378,6 +367,15 @@ export async function POST(request: Request) {
   } catch (err: unknown) {
     const errorMessage = err instanceof Error ? err.message : 'RSVP processing failed';
     console.error('[RSVP ERROR]:', err);
-    return NextResponse.json({ success: false, error: errorMessage }, { status: 500 });
+    const isCapacityOrValidationError =
+      errorMessage.includes('capacity') ||
+      errorMessage.includes('disabled') ||
+      errorMessage.includes('not found') ||
+      errorMessage.includes('limit reached');
+
+    return NextResponse.json(
+      { success: false, error: errorMessage },
+      { status: isCapacityOrValidationError ? 400 : 500 }
+    );
   }
 }
