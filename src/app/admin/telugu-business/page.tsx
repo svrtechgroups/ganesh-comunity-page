@@ -25,7 +25,10 @@ import {
   ExternalLink,
   Tag,
   AlertCircle,
-  Sparkles
+  Sparkles,
+  Upload,
+  Image as ImageIcon,
+  Loader2
 } from 'lucide-react';
 import { TeluguBusiness } from '@/lib/types';
 
@@ -85,6 +88,47 @@ export default function AdminTeluguBusinessPage() {
     specialOffer: '',
     adminNotes: '',
   });
+
+  // Logo Upload State
+  const [uploadingLogo, setUploadingLogo] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+
+  const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setUploadingLogo(true);
+    setUploadError(null);
+
+    try {
+      const uploadData = new FormData();
+      uploadData.append('file', file);
+      uploadData.append('useCase', 'general');
+      const safeId = (formData.businessName || 'biz')
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/^-+|-+$/g, '');
+      uploadData.append('identifier', `telugu-biz-${safeId || 'logo'}`);
+
+      const res = await fetch('/api/upload', {
+        method: 'POST',
+        body: uploadData,
+      });
+
+      const data = await res.json();
+      if (data.success && data.url) {
+        setFormData((prev) => ({ ...prev, logoUrl: data.url }));
+      } else {
+        setUploadError(data.error || 'Failed to upload image. Please try again.');
+      }
+    } catch (err) {
+      console.error('Logo upload error:', err);
+      setUploadError('Network error uploading logo image.');
+    } finally {
+      setUploadingLogo(false);
+      e.target.value = '';
+    }
+  };
 
   const fetchAdminBusinesses = async () => {
     setLoading(true);
@@ -191,6 +235,8 @@ export default function AdminTeluguBusinessPage() {
 
   // Open Edit Modal
   const openEditModal = (b: TeluguBusiness) => {
+    setUploadError(null);
+    setUploadingLogo(false);
     setEditModalBusiness(b);
     setFormData({
       businessName: b.businessName,
@@ -343,6 +389,8 @@ export default function AdminTeluguBusinessPage() {
 
           <button
             onClick={() => {
+              setUploadError(null);
+              setUploadingLogo(false);
               setFormData({
                 businessName: '',
                 ownerName: '',
@@ -735,22 +783,12 @@ export default function AdminTeluguBusinessPage() {
 
       {/* ── MODAL: ADD / EDIT BUSINESS ── */}
       {(addModalOpen || editModalBusiness) && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm overflow-y-auto">
-          <div className="bg-slate-900 border border-slate-700 rounded-3xl w-full max-w-2xl p-6 sm:p-8 relative shadow-2xl my-8 text-white">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-black/75 backdrop-blur-sm overflow-hidden">
+          <div className="bg-slate-900 border border-slate-700 rounded-3xl w-full max-w-2xl max-h-[90vh] flex flex-col shadow-2xl overflow-hidden text-white relative">
             
-            <button
-              onClick={() => {
-                setAddModalOpen(false);
-                setEditModalBusiness(null);
-              }}
-              className="absolute top-5 right-5 w-8 h-8 rounded-full bg-slate-800 text-slate-400 hover:text-white flex items-center justify-center transition-colors"
-            >
-              <X className="w-4 h-4" />
-            </button>
-
-            <form onSubmit={editModalBusiness ? handleSaveEdit : handleCreateBusiness} className="space-y-5">
-              
-              <div className="space-y-1">
+            {/* Modal Pinned Header */}
+            <div className="shrink-0 px-6 py-4 sm:px-8 sm:py-5 border-b border-slate-800 flex items-center justify-between  backdrop-blur-sm">
+              <div className="space-y-0.5">
                 <span className="text-[10px] font-black uppercase text-mitra-gold tracking-widest">
                   {editModalBusiness ? 'Update Business Record' : 'Admin Creation'}
                 </span>
@@ -758,246 +796,341 @@ export default function AdminTeluguBusinessPage() {
                   {editModalBusiness ? `Edit ${editModalBusiness.businessName}` : 'Add New Telugu Business'}
                 </h3>
               </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setAddModalOpen(false);
+                  setEditModalBusiness(null);
+                }}
+                className="w-8 h-8 rounded-full bg-slate-800 text-slate-400 hover:text-white flex items-center justify-center transition-colors shrink-0"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs font-semibold">
-                
-                <div className="space-y-1 sm:col-span-2">
-                  <label className="text-[11px] font-bold text-slate-300">
-                    Business Name <span className="text-rose-500">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    value={formData.businessName}
-                    onChange={(e) => setFormData({ ...formData, businessName: e.target.value })}
-                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2 text-xs text-white focus:outline-none focus:border-mitra-gold"
-                  />
-                </div>
-
-                <div className="space-y-1">
-                  <label className="text-[11px] font-bold text-slate-300">
-                    Founder / Owner Name <span className="text-rose-500">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    value={formData.ownerName}
-                    onChange={(e) => setFormData({ ...formData, ownerName: e.target.value })}
-                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2 text-xs text-white focus:outline-none focus:border-mitra-gold"
-                  />
-                </div>
-
-                <div className="space-y-1">
-                  <label className="text-[11px] font-bold text-slate-300">
-                    Category <span className="text-rose-500">*</span>
-                  </label>
-                  <select
-                    value={formData.category}
-                    onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2 text-xs text-white focus:outline-none focus:border-mitra-gold"
-                  >
-                    {CATEGORIES.filter(c => c !== 'All').map((cat) => (
-                      <option key={cat} value={cat}>{cat}</option>
-                    ))}
-                  </select>
-                </div>
-
-                <div className="space-y-1 sm:col-span-2">
-                  <label className="text-[11px] font-bold text-slate-300">
-                    Tagline
-                  </label>
-                  <input
-                    type="text"
-                    value={formData.tagline}
-                    onChange={(e) => setFormData({ ...formData, tagline: e.target.value })}
-                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2 text-xs text-white focus:outline-none focus:border-mitra-gold"
-                  />
-                </div>
-
-                <div className="space-y-1 sm:col-span-2">
-                  <label className="text-[11px] font-bold text-slate-300">
-                    Description <span className="text-rose-500">*</span>
-                  </label>
-                  <textarea
-                    required
-                    rows={3}
-                    value={formData.description}
-                    onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2 text-xs text-white focus:outline-none focus:border-mitra-gold"
-                  />
-                </div>
-
-                <div className="space-y-1">
-                  <label className="text-[11px] font-bold text-slate-300">
-                    Email <span className="text-rose-500">*</span>
-                  </label>
-                  <input
-                    type="email"
-                    required
-                    value={formData.email}
-                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2 text-xs text-white focus:outline-none focus:border-mitra-gold"
-                  />
-                </div>
-
-                <div className="space-y-1">
-                  <label className="text-[11px] font-bold text-slate-300">
-                    Phone <span className="text-rose-500">*</span>
-                  </label>
-                  <input
-                    type="tel"
-                    required
-                    value={formData.phone}
-                    onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2 text-xs text-white focus:outline-none focus:border-mitra-gold"
-                  />
-                </div>
-
-                <div className="space-y-1">
-                  <label className="text-[11px] font-bold text-slate-300">
-                    WhatsApp (Digits only)
-                  </label>
-                  <input
-                    type="tel"
-                    value={formData.whatsapp}
-                    onChange={(e) => setFormData({ ...formData, whatsapp: e.target.value })}
-                    placeholder="447700900123"
-                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2 text-xs text-white focus:outline-none focus:border-mitra-gold"
-                  />
-                </div>
-
-                <div className="space-y-1">
-                  <label className="text-[11px] font-bold text-slate-300">
-                    Website URL
-                  </label>
-                  <input
-                    type="url"
-                    value={formData.website}
-                    onChange={(e) => setFormData({ ...formData, website: e.target.value })}
-                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2 text-xs text-white focus:outline-none focus:border-mitra-gold"
-                  />
-                </div>
-
-                <div className="space-y-1">
-                  <label className="text-[11px] font-bold text-slate-300">
-                    City <span className="text-rose-500">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    value={formData.city}
-                    onChange={(e) => setFormData({ ...formData, city: e.target.value })}
-                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2 text-xs text-white focus:outline-none focus:border-mitra-gold"
-                  />
-                </div>
-
-                <div className="space-y-1">
-                  <label className="text-[11px] font-bold text-slate-300">
-                    Postcode
-                  </label>
-                  <input
-                    type="text"
-                    value={formData.postcode}
-                    onChange={(e) => setFormData({ ...formData, postcode: e.target.value })}
-                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2 text-xs text-white focus:outline-none focus:border-mitra-gold"
-                  />
-                </div>
-
-                <div className="space-y-1 sm:col-span-2">
-                  <label className="text-[11px] font-bold text-slate-300">
-                    Address
-                  </label>
-                  <input
-                    type="text"
-                    value={formData.address}
-                    onChange={(e) => setFormData({ ...formData, address: e.target.value })}
-                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2 text-xs text-white focus:outline-none focus:border-mitra-gold"
-                  />
-                </div>
-
-                <div className="space-y-1 sm:col-span-2">
-                  <label className="text-[11px] font-bold text-slate-300">
-                    Special Offer / Discount
-                  </label>
-                  <input
-                    type="text"
-                    value={formData.specialOffer}
-                    onChange={(e) => setFormData({ ...formData, specialOffer: e.target.value })}
-                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2 text-xs text-white focus:outline-none focus:border-mitra-gold"
-                  />
-                </div>
-
-                <div className="space-y-1 sm:col-span-2">
-                  <label className="text-[11px] font-bold text-slate-300">
-                    Logo Image URL
-                  </label>
-                  <input
-                    type="url"
-                    value={formData.logoUrl}
-                    onChange={(e) => setFormData({ ...formData, logoUrl: e.target.value })}
-                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2 text-xs text-white focus:outline-none focus:border-mitra-gold"
-                  />
-                </div>
-
-                {/* Status & Featured Controls */}
-                <div className="space-y-1">
-                  <label className="text-[11px] font-bold text-slate-300">
-                    Listing Status
-                  </label>
-                  <select
-                    value={formData.status}
-                    onChange={(e) => setFormData({ ...formData, status: e.target.value })}
-                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2 text-xs text-white focus:outline-none focus:border-mitra-gold"
-                  >
-                    <option value="Approved">Approved (Live)</option>
-                    <option value="Pending">Pending Review</option>
-                    <option value="Rejected">Rejected</option>
-                  </select>
-                </div>
-
-                <div className="space-y-1 flex flex-col justify-end">
-                  <label className="flex items-center gap-2 cursor-pointer pb-2">
+            {/* Form wrapping scrollable content and pinned footer */}
+            <form
+              onSubmit={editModalBusiness ? handleSaveEdit : handleCreateBusiness}
+              className="flex flex-col flex-1 min-h-0 overflow-hidden"
+            >
+              
+              {/* Scrollable Form Body */}
+              <div className="flex-1 overflow-y-auto px-6 py-5 sm:px-8 sm:py-6 space-y-5">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs font-semibold">
+                  
+                  <div className="space-y-1 sm:col-span-2">
+                    <label className="text-[11px] font-bold text-slate-300">
+                      Business Name <span className="text-rose-500">*</span>
+                    </label>
                     <input
-                      type="checkbox"
-                      checked={formData.isFeatured}
-                      onChange={(e) => setFormData({ ...formData, isFeatured: e.target.checked })}
-                      className="w-4 h-4 rounded text-[#E65C00] focus:ring-0 cursor-pointer"
+                      type="text"
+                      required
+                      value={formData.businessName}
+                      onChange={(e) => setFormData({ ...formData, businessName: e.target.value })}
+                      className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2 text-xs text-white focus:outline-none focus:border-mitra-gold"
                     />
-                    <span className="text-xs font-bold text-mitra-gold">Feature on Directory Header</span>
-                  </label>
-                </div>
+                  </div>
 
-                <div className="space-y-1 sm:col-span-2">
-                  <label className="text-[11px] font-bold text-slate-300">
-                    Internal Admin Notes
-                  </label>
-                  <input
-                    type="text"
-                    value={formData.adminNotes}
-                    onChange={(e) => setFormData({ ...formData, adminNotes: e.target.value })}
-                    placeholder="e.g. SRA verified, Mahotsav sponsor partner"
-                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2 text-xs text-white focus:outline-none focus:border-mitra-gold"
-                  />
-                </div>
+                  <div className="space-y-1">
+                    <label className="text-[11px] font-bold text-slate-300">
+                      Founder / Owner Name <span className="text-rose-500">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      value={formData.ownerName}
+                      onChange={(e) => setFormData({ ...formData, ownerName: e.target.value })}
+                      className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2 text-xs text-white focus:outline-none focus:border-mitra-gold"
+                    />
+                  </div>
 
+                  <div className="space-y-1">
+                    <label className="text-[11px] font-bold text-slate-300">
+                      Category <span className="text-rose-500">*</span>
+                    </label>
+                    <select
+                      value={formData.category}
+                      onChange={(e) => setFormData({ ...formData, category: e.target.value })}
+                      className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2 text-xs text-white focus:outline-none focus:border-mitra-gold"
+                    >
+                      {CATEGORIES.filter(c => c !== 'All').map((cat) => (
+                        <option key={cat} value={cat}>{cat}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="space-y-1 sm:col-span-2">
+                    <label className="text-[11px] font-bold text-slate-300">
+                      Tagline
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.tagline}
+                      onChange={(e) => setFormData({ ...formData, tagline: e.target.value })}
+                      className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2 text-xs text-white focus:outline-none focus:border-mitra-gold"
+                    />
+                  </div>
+
+                  <div className="space-y-1 sm:col-span-2">
+                    <label className="text-[11px] font-bold text-slate-300">
+                      Description <span className="text-rose-500">*</span>
+                    </label>
+                    <textarea
+                      required
+                      rows={3}
+                      value={formData.description}
+                      onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                      className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2 text-xs text-white focus:outline-none focus:border-mitra-gold"
+                    />
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="text-[11px] font-bold text-slate-300">
+                      Email <span className="text-rose-500">*</span>
+                    </label>
+                    <input
+                      type="email"
+                      required
+                      value={formData.email}
+                      onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                      className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2 text-xs text-white focus:outline-none focus:border-mitra-gold"
+                    />
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="text-[11px] font-bold text-slate-300">
+                      Phone <span className="text-rose-500">*</span>
+                    </label>
+                    <input
+                      type="tel"
+                      required
+                      value={formData.phone}
+                      onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                      className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2 text-xs text-white focus:outline-none focus:border-mitra-gold"
+                    />
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="text-[11px] font-bold text-slate-300">
+                      WhatsApp (Digits only)
+                    </label>
+                    <input
+                      type="tel"
+                      value={formData.whatsapp}
+                      onChange={(e) => setFormData({ ...formData, whatsapp: e.target.value })}
+                      placeholder="447700900123"
+                      className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2 text-xs text-white focus:outline-none focus:border-mitra-gold"
+                    />
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="text-[11px] font-bold text-slate-300">
+                      Website URL
+                    </label>
+                    <input
+                      type="url"
+                      value={formData.website}
+                      onChange={(e) => setFormData({ ...formData, website: e.target.value })}
+                      className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2 text-xs text-white focus:outline-none focus:border-mitra-gold"
+                    />
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="text-[11px] font-bold text-slate-300">
+                      City <span className="text-rose-500">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      value={formData.city}
+                      onChange={(e) => setFormData({ ...formData, city: e.target.value })}
+                      className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2 text-xs text-white focus:outline-none focus:border-mitra-gold"
+                    />
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="text-[11px] font-bold text-slate-300">
+                      Postcode
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.postcode}
+                      onChange={(e) => setFormData({ ...formData, postcode: e.target.value })}
+                      className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2 text-xs text-white focus:outline-none focus:border-mitra-gold"
+                    />
+                  </div>
+
+                  <div className="space-y-1 sm:col-span-2">
+                    <label className="text-[11px] font-bold text-slate-300">
+                      Address
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.address}
+                      onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+                      className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2 text-xs text-white focus:outline-none focus:border-mitra-gold"
+                    />
+                  </div>
+
+                  <div className="space-y-1 sm:col-span-2">
+                    <label className="text-[11px] font-bold text-slate-300">
+                      Special Offer / Discount
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.specialOffer}
+                      onChange={(e) => setFormData({ ...formData, specialOffer: e.target.value })}
+                      className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2 text-xs text-white focus:outline-none focus:border-mitra-gold"
+                    />
+                  </div>
+
+                  {/* Logo Image URL & Upload Option */}
+                  <div className="space-y-2 sm:col-span-2">
+                    <div className="flex items-center justify-between">
+                      <label className="text-[11px] font-bold text-slate-300">
+                        Logo Image (Upload file or paste URL)
+                      </label>
+                      {formData.logoUrl && (
+                        <button
+                          type="button"
+                          onClick={() => setFormData({ ...formData, logoUrl: '' })}
+                          className="text-[10px] text-rose-400 hover:text-rose-300 transition-colors"
+                        >
+                          Remove Logo
+                        </button>
+                      )}
+                    </div>
+
+                    <div className="flex flex-col sm:flex-row gap-2.5 items-start sm:items-center">
+                      {/* Logo Preview Thumbnail */}
+                      <div className="relative w-10 h-10 rounded-xl bg-slate-950 border border-slate-800 flex items-center justify-center shrink-0 overflow-hidden">
+                        {formData.logoUrl ? (
+                          <img
+                            src={formData.logoUrl}
+                            alt="Logo Preview"
+                            className="w-full h-full object-cover"
+                            onError={(e) => {
+                              (e.target as HTMLElement).style.display = 'none';
+                            }}
+                          />
+                        ) : (
+                          <ImageIcon className="w-4 h-4 text-slate-600" />
+                        )}
+                      </div>
+
+                      {/* Logo URL Input */}
+                      <input
+                        type="url"
+                        value={formData.logoUrl}
+                        onChange={(e) => {
+                          setFormData({ ...formData, logoUrl: e.target.value });
+                          if (uploadError) setUploadError(null);
+                        }}
+                        placeholder="https://... or upload image"
+                        className="flex-1 w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2 text-xs text-white placeholder-slate-600 focus:outline-none focus:border-mitra-gold"
+                      />
+
+                      {/* Upload Button */}
+                      <label
+                        htmlFor="telugu-biz-logo-upload"
+                        className={`shrink-0 inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer border ${
+                          uploadingLogo
+                            ? 'bg-slate-800 text-slate-500 border-slate-700 cursor-not-allowed'
+                            : 'bg-gradient-to-r from-mitra-gold/20 to-[#E65C00]/20 hover:from-mitra-gold/30 hover:to-[#E65C00]/30 text-mitra-gold border-mitra-gold/40 hover:border-mitra-gold shadow-sm'
+                        }`}
+                      >
+                        {uploadingLogo ? (
+                          <>
+                            <Loader2 className="w-3.5 h-3.5 animate-spin text-mitra-gold" />
+                            <span>Uploading...</span>
+                          </>
+                        ) : (
+                          <>
+                            <Upload className="w-3.5 h-3.5 text-mitra-gold" />
+                            <span>Upload Image</span>
+                          </>
+                        )}
+                        <input
+                          id="telugu-biz-logo-upload"
+                          type="file"
+                          accept="image/*"
+                          onChange={handleLogoUpload}
+                          disabled={uploadingLogo}
+                          className="hidden"
+                        />
+                      </label>
+                    </div>
+
+                    {uploadError && (
+                      <div className="flex items-center gap-1.5 text-[11px] text-rose-400 font-medium bg-rose-950/30 border border-rose-900/50 rounded-lg px-3 py-1.5">
+                        <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                        <span>{uploadError}</span>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Status & Featured Controls */}
+                  <div className="space-y-1">
+                    <label className="text-[11px] font-bold text-slate-300">
+                      Listing Status
+                    </label>
+                    <select
+                      value={formData.status}
+                      onChange={(e) => setFormData({ ...formData, status: e.target.value })}
+                      className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2 text-xs text-white focus:outline-none focus:border-mitra-gold"
+                    >
+                      <option value="Approved">Approved (Live)</option>
+                      <option value="Pending">Pending Review</option>
+                      <option value="Rejected">Rejected</option>
+                    </select>
+                  </div>
+
+                  <div className="space-y-1 flex flex-col justify-end">
+                    <label className="flex items-center gap-2 cursor-pointer pb-2">
+                      <input
+                        type="checkbox"
+                        checked={formData.isFeatured}
+                        onChange={(e) => setFormData({ ...formData, isFeatured: e.target.checked })}
+                        className="w-4 h-4 rounded text-[#E65C00] focus:ring-0 cursor-pointer"
+                      />
+                      <span className="text-xs font-bold text-mitra-gold">Feature on Directory Header</span>
+                    </label>
+                  </div>
+
+                  <div className="space-y-1 sm:col-span-2">
+                    <label className="text-[11px] font-bold text-slate-300">
+                      Internal Admin Notes
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.adminNotes}
+                      onChange={(e) => setFormData({ ...formData, adminNotes: e.target.value })}
+                      placeholder="e.g. SRA verified, Mahotsav sponsor partner"
+                      className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2 text-xs text-white focus:outline-none focus:border-mitra-gold"
+                    />
+                  </div>
+
+                </div>
               </div>
 
-              <div className="pt-3 flex items-center justify-end gap-3 border-t border-slate-800">
+              {/* Modal Pinned Footer */}
+              <div className="shrink-0 px-6 py-4 sm:px-8 border-t border-slate-800 flex items-center justify-end gap-3  backdrop-blur-sm">
                 <button
                   type="button"
                   onClick={() => {
                     setAddModalOpen(false);
                     setEditModalBusiness(null);
                   }}
-                  className="px-4 py-2 rounded-xl text-xs font-bold text-slate-400 hover:text-white"
+                  className="px-4 py-2 rounded-xl text-xs font-bold text-slate-400 hover:text-white transition-colors"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  disabled={loading}
-                  className="px-6 py-2.5 rounded-xl bg-gradient-to-r from-[#E65C00] to-[#FF7A00] text-white text-xs font-black uppercase tracking-wider disabled:opacity-60 shadow-lg"
+                  disabled={loading || uploadingLogo}
+                  className="px-6 py-2.5 rounded-xl bg-gradient-to-r from-[#E65C00] to-[#FF7A00] text-white text-xs font-black uppercase tracking-wider disabled:opacity-60 shadow-lg hover:brightness-110 transition-all flex items-center gap-2"
                 >
+                  {loading && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
                   {editModalBusiness ? 'Save Changes' : 'Publish Business'}
                 </button>
               </div>
