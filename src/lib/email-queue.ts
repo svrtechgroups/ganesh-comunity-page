@@ -33,7 +33,7 @@ declare global {
 }
 
 const WORKER_INTERVAL_MS = 20 * 1000; // Run every 20 seconds
-const BATCH_SIZE = 10; // Top 10 oldest pending emails per tick
+const BATCH_SIZE = parseInt(process.env.EMAIL_QUEUE_BATCH_SIZE || '25', 10); // 25 emails per tick for higher throughput
 const CHUNK_SIZE = 500; // Max 500 items per bulk insert chunk to protect memory
 const MAX_RETRIES = 5; // Max retry attempts before marking as failed
 
@@ -105,19 +105,17 @@ export async function enqueueEmails(
 
 /**
  * Background worker tick executed every 20 seconds.
- * 1. Fetches top 10 oldest pending emails (ordered by createdAt: 'asc').
- * 2. Concurrently sends them using Nodemailer via Promise.all.
- * 3. Individual try/catch lifecycle:
- *    - On success: deletes record from EmailQueue ONLY when DELETE_SENT_EMAILS === 'true' in .env.
- *      Otherwise updates status to 'sent'.
- *    - On failure: increments tryCount without crashing the worker or blocking other emails.
+ * 1. Reclaims any stale 'processing' emails older than 5 minutes.
+ * 2. Fetches pending emails and atomically transitions them to 'processing' to prevent multi-instance duplicates.
+ * 3. Concurrently sends claimed emails using Nodemailer via Promise.all.
+ * 4. Deletes or marks as 'sent' / 'failed' upon completion.
  */
 export async function processEmailQueueTick(): Promise<{
   processed: number;
   succeeded: number;
   failed: number;
 }> {
-  // Prevent concurrent execution of multiple ticks
+  // Prevent concurrent execution of multiple ticks within same process
   if (globalThis.__emailQueueWorkerTickActive) {
     return { processed: 0, succeeded: 0, failed: 0 };
   }
@@ -128,13 +126,24 @@ export async function processEmailQueueTick(): Promise<{
   let failed = 0;
 
   try {
+    // 0. Reclaim any stale 'processing' items older than 5 minutes (in case worker crashed)
+    await prisma.emailQueue.updateMany({
+      where: {
+        status: 'processing',
+        createdAt: { lte: new Date(Date.now() - 5 * 60 * 1000) },
+      },
+      data: {
+        status: 'pending',
+      },
+    }).catch(() => {});
+
     // Check .env flag: emails should only be deleted when this flag is explicitly "true"
     const shouldDeleteOnSend =
       process.env.DELETE_SENT_EMAILS === 'true' ||
       process.env.EMAIL_QUEUE_DELETE_ON_SEND === 'true';
 
-    // Fetch top 10 oldest pending emails
-    const pendingBatch = await prisma.emailQueue.findMany({
+    // 1. Fetch candidates
+    const candidateBatch = await prisma.emailQueue.findMany({
       where: {
         status: 'pending',
         tryCount: { lt: MAX_RETRIES },
@@ -145,16 +154,42 @@ export async function processEmailQueueTick(): Promise<{
       take: BATCH_SIZE,
     });
 
+    if (!candidateBatch || candidateBatch.length === 0) {
+      return { processed: 0, succeeded: 0, failed: 0 };
+    }
+
+    const candidateIds = candidateBatch.map((q) => q.id);
+
+    // 2. Atomic distributed claim: transition status to 'processing'
+    // This guarantees other server instances will NOT send these same emails concurrently
+    await prisma.emailQueue.updateMany({
+      where: {
+        id: { in: candidateIds },
+        status: 'pending',
+      },
+      data: {
+        status: 'processing',
+      },
+    });
+
+    // Re-verify which records this worker successfully claimed
+    const pendingBatch = await prisma.emailQueue.findMany({
+      where: {
+        id: { in: candidateIds },
+        status: 'processing',
+      },
+    });
+
     if (!pendingBatch || pendingBatch.length === 0) {
       return { processed: 0, succeeded: 0, failed: 0 };
     }
 
     processed = pendingBatch.length;
     console.log(
-      `[EMAIL QUEUE WORKER] Processing tick: sending batch of ${processed} pending email(s)...`
+      `[EMAIL QUEUE WORKER] Processing tick: sending batch of ${processed} claimed email(s)...`
     );
 
-    // Send concurrently using Promise.all
+    // 3. Send concurrently using Promise.all
     await Promise.all(
       pendingBatch.map(async (queueItem) => {
         try {

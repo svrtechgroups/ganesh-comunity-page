@@ -26,6 +26,7 @@ export interface EventHeroProps {
   config?: Partial<EventHeroConfig>;
   eventSlug?: string;
   mode?: 'home' | 'event';
+  isDefaultHome?: boolean;
   onBookPoojaClick?: () => void;
   onDonateClick?: () => void;
   onRsvpClick?: () => void;
@@ -59,6 +60,7 @@ export default function EventHero({
   config: userConfig,
   eventSlug,
   mode = 'event',
+  isDefaultHome = false,
   onBookPoojaClick,
   onDonateClick,
   onRsvpClick,
@@ -440,8 +442,9 @@ export default function EventHero({
 
   // CTA Click Helper
   const handleCtaClick = (cta?: HeroCTA | null) => {
-    const action = cta?.action;
-    const label = (cta?.label || '').toLowerCase();
+    if (!cta) return;
+    const action = cta.action;
+    const label = (cta.label || '').toLowerCase();
     const isRsvp = action === 'rsvp' || label.includes('register') || label.includes('rsvp');
 
     if (action === 'pooja' && onBookPoojaClick) {
@@ -452,8 +455,12 @@ export default function EventHero({
       onRsvpClick();
     } else if (action === 'whatsapp' && cfg.whatsAppUrl) {
       window.open(cfg.whatsAppUrl, '_blank');
-    } else if (cta?.linkUrl) {
-      window.location.href = cta.linkUrl;
+    } else if (cta.linkUrl) {
+      if (cta.openNewTab || cta.linkUrl.startsWith('http')) {
+        window.open(cta.linkUrl, '_blank');
+      } else {
+        window.location.href = cta.linkUrl;
+      }
     } else if (onRsvpClick) {
       onRsvpClick();
     }
@@ -462,58 +469,137 @@ export default function EventHero({
   // CTA Render Helper
   const renderCtas = (align: 'center' | 'start' = 'center') => {
     const justifyClass = align === 'start' ? 'justify-start' : 'justify-center';
-    return (
-      <div className={`flex flex-wrap items-center ${justifyClass} gap-4 pt-2`}>
-        {isHomeMode ? (
-          <>
+
+    const isPrimaryEnabled = Boolean(
+      cfg.primaryCta &&
+      cfg.primaryCta.action !== 'none' &&
+      cfg.primaryCta.label &&
+      cfg.primaryCta.label.trim().length > 0
+    );
+
+    const isSecondaryEnabled = Boolean(
+      cfg.secondaryCta &&
+      cfg.secondaryCta.action !== 'none' &&
+      cfg.secondaryCta.label &&
+      cfg.secondaryCta.label.trim().length > 0 &&
+      cfg.secondaryCta.label.trim().toLowerCase() !== 'learn more'
+    );
+
+    const hasWhatsApp = Boolean(cfg.whatsAppUrl && cfg.whatsAppUrl.trim().length > 0);
+
+    if (!isPrimaryEnabled && !isSecondaryEnabled && !hasWhatsApp) {
+      return null;
+    }
+
+    // Featured event on Home: Show View Event button + secondary CTA + WhatsApp
+    if (isHomeMode && !isDefaultHome) {
+      return (
+        <div className={`flex flex-wrap items-center ${justifyClass} gap-4 pt-2`}>
+          {isPrimaryEnabled && (
             <Link
               href={resolvedEventHref}
               className="maroon-button px-8 py-3.5 rounded-full text-sm font-black uppercase tracking-wider flex items-center gap-2.5 shadow-xl hover:scale-105 transition-all border border-[#E65C00]/30"
             >
               <ExternalLink className="w-5 h-5 text-[#FF9A3C]" />
-              <span>View Event</span>
+              <span>{cfg.primaryCta?.label || 'View Event'}</span>
             </Link>
+          )}
 
-            {cfg.whatsAppUrl && (
-              <a
-                href={cfg.whatsAppUrl}
-                target="_blank"
-                rel="noopener noreferrer"
+          {isSecondaryEnabled && (
+            cfg.secondaryCta!.linkUrl ? (
+              <Link
+                href={cfg.secondaryCta!.linkUrl}
+                target={cfg.secondaryCta!.openNewTab ? '_blank' : undefined}
                 className="gold-button px-8 py-3.5 rounded-full text-sm font-black uppercase tracking-wider flex items-center gap-2.5 hover:scale-105 transition-all shadow-md"
               >
+                <span>{cfg.secondaryCta!.label}</span>
+              </Link>
+            ) : (
+              <button
+                onClick={() => handleCtaClick(cfg.secondaryCta)}
+                className="gold-button px-8 py-3.5 rounded-full text-sm font-black uppercase tracking-wider flex items-center gap-2.5 hover:scale-105 transition-all shadow-md"
+              >
+                <span>{cfg.secondaryCta!.label}</span>
+              </button>
+            )
+          )}
+
+          {hasWhatsApp && (
+            <a
+              href={cfg.whatsAppUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="bg-white hover:bg-[#FFF0E0] text-[#3D1A00] border-2 border-[#E65C00]/40 px-6 py-3.5 rounded-full text-sm font-black uppercase tracking-wider flex items-center gap-2 transition-all shadow-md"
+            >
+              <img src="/assets/whatsapp.png" alt="WhatsApp" className="w-5 h-5 object-contain" />
+              <span>Join WhatsApp Group</span>
+            </a>
+          )}
+        </div>
+      );
+    }
+
+    // Default Home OR Event Screen: render customizable primary and secondary CTAs
+    return (
+      <div className={`flex flex-wrap items-center ${justifyClass} gap-4 pt-2`}>
+        {isPrimaryEnabled && (
+          cfg.primaryCta!.action === 'link' && cfg.primaryCta!.linkUrl ? (
+            <Link
+              href={cfg.primaryCta!.linkUrl}
+              target={cfg.primaryCta!.openNewTab ? '_blank' : undefined}
+              className="gold-button px-8 py-3.5 rounded-full text-sm font-black uppercase tracking-wider flex items-center gap-2.5 hover:scale-105 transition-all shadow-md"
+            >
+              <Sparkles className="w-5 h-5 text-white" />
+              <span>{cfg.primaryCta!.label}</span>
+            </Link>
+          ) : (
+            <button
+              onClick={() => handleCtaClick(cfg.primaryCta)}
+              className="gold-button px-8 py-3.5 rounded-full text-sm font-black uppercase tracking-wider flex items-center gap-2.5 hover:scale-105 transition-all shadow-md"
+            >
+              {cfg.primaryCta!.action === 'pooja' && <Flame className="w-5 h-5 fill-current text-white" />}
+              {cfg.primaryCta!.action === 'rsvp' && <Calendar className="w-5 h-5 text-white" />}
+              {cfg.primaryCta!.action === 'donation' && <Heart className="w-5 h-5 text-white" />}
+              <span>{cfg.primaryCta!.label}</span>
+            </button>
+          )
+        )}
+
+        {isSecondaryEnabled && (
+          cfg.secondaryCta!.action === 'link' && cfg.secondaryCta!.linkUrl ? (
+            <Link
+              href={cfg.secondaryCta!.linkUrl}
+              target={cfg.secondaryCta!.openNewTab ? '_blank' : undefined}
+              className="maroon-button px-8 py-3.5 rounded-full text-sm font-black uppercase tracking-wider flex items-center gap-2.5 shadow-xl hover:scale-105 transition-all border border-[#E65C00]/30"
+            >
+              <Calendar className="w-5 h-5 text-[#FF9A3C]" />
+              <span>{cfg.secondaryCta!.label}</span>
+            </Link>
+          ) : (
+            <button
+              onClick={() => handleCtaClick(cfg.secondaryCta!)}
+              className="maroon-button px-8 py-3.5 rounded-full text-sm font-black uppercase tracking-wider flex items-center gap-2.5 shadow-xl hover:scale-105 transition-all border border-[#E65C00]/30"
+            >
+              {cfg.secondaryCta!.action === 'donation' && <Heart className="w-5 h-5 text-[#FF9A3C] fill-current" />}
+              {cfg.secondaryCta!.action === 'pooja' && <Flame className="w-5 h-5 text-[#FF9A3C] fill-current" />}
+              {cfg.secondaryCta!.action === 'whatsapp' && (
                 <img src="/assets/whatsapp.png" alt="WhatsApp" className="w-5 h-5 object-contain" />
-                <span>Join WhatsApp Group</span>
-              </a>
-            )}
-          </>
-        ) : (
-          <>
-            {cfg.primaryCta && (
-              <button
-                onClick={() => handleCtaClick(cfg.primaryCta)}
-                className="gold-button px-8 py-3.5 rounded-full text-sm font-black uppercase tracking-wider flex items-center gap-2.5 hover:scale-105 transition-all shadow-md"
-              >
-                {cfg.primaryCta.action === 'pooja' && <Flame className="w-5 h-5 fill-current text-white" />}
-                {cfg.primaryCta.action === 'rsvp' && <Calendar className="w-5 h-5 text-white" />}
-                {cfg.primaryCta.action === 'donation' && <Heart className="w-5 h-5 text-white" />}
-                <span>{cfg.primaryCta.label}</span>
-              </button>
-            )}
+              )}
+              <span>{cfg.secondaryCta!.label}</span>
+            </button>
+          )
+        )}
 
-            {cfg.secondaryCta?.label && cfg.secondaryCta.label.trim().toLowerCase() !== 'learn more' && (
-              <button
-                onClick={() => handleCtaClick(cfg.secondaryCta!)}
-                className="maroon-button px-8 py-3.5 rounded-full text-sm font-black uppercase tracking-wider flex items-center gap-2.5 shadow-xl hover:scale-105 transition-all border border-[#E65C00]/30"
-              >
-                {cfg.secondaryCta.action === 'donation' && <Heart className="w-5 h-5 text-[#FF9A3C] fill-current" />}
-                {cfg.secondaryCta.action === 'pooja' && <Flame className="w-5 h-5 text-[#FF9A3C] fill-current" />}
-                {cfg.secondaryCta.action === 'whatsapp' && (
-                  <img src="/assets/whatsapp.png" alt="WhatsApp" className="w-5 h-5 object-contain" />
-                )}
-                <span>{cfg.secondaryCta.label}</span>
-              </button>
-            )}
-          </>
+        {hasWhatsApp && (
+          <a
+            href={cfg.whatsAppUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="bg-white hover:bg-[#FFF0E0] text-[#3D1A00] border-2 border-[#E65C00]/40 px-6 py-3.5 rounded-full text-sm font-black uppercase tracking-wider flex items-center gap-2 transition-all shadow-md"
+          >
+            <img src="/assets/whatsapp.png" alt="WhatsApp" className="w-5 h-5 object-contain" />
+            <span>Join WhatsApp</span>
+          </a>
         )}
       </div>
     );

@@ -194,6 +194,7 @@ export default function EventHeroAdminPage() {
   // Helper to ensure hero CTAs and fields always have safe defaults
   const ensureSafeConfig = (cfg: EventTemplateConfig | null): EventTemplateConfig | null => {
     if (!cfg) return null;
+    const isDefaultHome = cfg.id === 'default-home';
     return {
       ...cfg,
       hero: {
@@ -201,8 +202,8 @@ export default function EventHeroAdminPage() {
         presenterBadge: cfg.hero?.presenterBadge ?? '',
         title: cfg.hero?.title ?? '',
         subtitle: cfg.hero?.subtitle ?? '',
-        primaryCta: cfg.hero?.primaryCta || { label: 'Register / RSVP', action: 'rsvp' },
-        secondaryCta: cfg.hero?.secondaryCta || { label: 'Join Community WhatsApp', action: 'whatsapp' },
+        primaryCta: cfg.hero?.primaryCta ?? (isDefaultHome ? { label: '', action: 'none' } : { label: 'Register / RSVP', action: 'rsvp' }),
+        secondaryCta: cfg.hero?.secondaryCta ?? (isDefaultHome ? { label: '', action: 'none' } : { label: 'Join Community WhatsApp', action: 'whatsapp' }),
       },
     };
   };
@@ -218,10 +219,10 @@ export default function EventHeroAdminPage() {
 
       if (dataConfig.success && dataConfig.data) {
         setStorageData(dataConfig.data);
-        const activeId = dataConfig.data.activeHomeEventId || 'evt-ganesh-chaturthi';
-        const initialId = dataConfig.data.events[activeId] ? activeId : Object.keys(dataConfig.data.events)[0] || 'evt-ganesh-chaturthi';
+        const activeId = dataConfig.data.activeHomeEventId || 'default-home';
+        const initialId = dataConfig.data.events[activeId] ? activeId : 'default-home';
         setSelectedEventId(initialId);
-        setCurrentConfig(ensureSafeConfig(dataConfig.data.events[initialId] || null));
+        setCurrentConfig(ensureSafeConfig(dataConfig.data.events[initialId] || dataConfig.data.events['default-home'] || null));
       }
 
       // 2. Load DB events for picker options
@@ -247,6 +248,45 @@ export default function EventHeroAdminPage() {
     setSelectedEventId(id);
     if (storageData?.events[id]) {
       setCurrentConfig(ensureSafeConfig(storageData.events[id]));
+    } else if (id === 'default-home') {
+      const newConfig: EventTemplateConfig = {
+        id: 'default-home',
+        title: 'Standard MITRA Website',
+        eventSlug: '',
+        hero: {
+          heroType: 'image',
+          heroVariant: 'image-split',
+          bannerImageUrl: '/assets/poster.jpg',
+          presenterBadge: 'Mana Indian Telugu Roots Abroad (MITRA UK)',
+          title: 'PRESERVING TELUGU HERITAGE',
+          subtitle: 'UNITING COMMUNITIES ACROSS THE UNITED KINGDOM',
+          tagline: 'Serving over 25,000 Telugu-speaking families across Britain through culture, language, and community seva.',
+          loadingText: 'LOADING...',
+          scrollCueText: 'Explore MITRA Community',
+          primaryColor: '#E65C00',
+          accentColor: '#CC4000',
+          backgroundColor: '#FFF8F0',
+          primaryCta: { label: 'Become a Member', action: 'link', linkUrl: '/membership' },
+          secondaryCta: { label: 'Upcoming Festivals', action: 'link', linkUrl: '/events' },
+          whatsAppUrl: 'https://chat.whatsapp.com/IVqirWWzM96IBNRfhSWGEd',
+        },
+        sections: {
+          showCountdown: true,
+          showEventDetails: true,
+          showStory: false,
+          showSpecs: false,
+          showMediaGallery: true,
+          showOfferings: true,
+          showSponsors: true,
+        },
+        mediaTeaser: {
+          videoUrl: '/assets/teaser-reel.mp4',
+          sectionTitle: 'COMMUNITY MEDIA & CULTURAL HIGHLIGHTS',
+          subtitle: 'Experience cultural festival highlights, community gatherings, and media assets.',
+          posterUrl: '/assets/poster.jpg',
+        },
+      };
+      setCurrentConfig(ensureSafeConfig(newConfig));
     } else {
       // Create new draft config based on template
       const baseEvent = availableEvents.find((e) => e.id === id);
@@ -397,22 +437,27 @@ export default function EventHeroAdminPage() {
     });
   };
 
-  // Set current event as featured on Home
-  const handleSetAsHomeHero = async () => {
-    if (!currentConfig || !storageData) return;
+  // Set current event or default-home as featured on Home
+  const handleSetAsHomeHero = async (targetId?: string) => {
+    const idToSet = targetId || currentConfig?.id;
+    if (!idToSet || !storageData) return;
     setSaving(true);
     try {
       const res = await fetch('/api/admin/event-hero-config', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          activeHomeEventId: currentConfig.id,
-          event: currentConfig,
+          activeHomeEventId: idToSet,
+          event: idToSet === currentConfig?.id ? currentConfig : undefined,
         }),
       });
       const resData = await res.json();
       if (resData.success) {
         setStorageData(resData.data);
+        if (targetId && targetId !== selectedEventId && resData.data.events[targetId]) {
+          setSelectedEventId(targetId);
+          setCurrentConfig(ensureSafeConfig(resData.data.events[targetId]));
+        }
         setSaveSuccess(true);
         setTimeout(() => setSaveSuccess(false), 3000);
       } else {
@@ -492,7 +537,10 @@ export default function EventHeroAdminPage() {
     });
   };
 
-  const isCurrentHomeHero = storageData?.activeHomeEventId === currentConfig?.id;
+  const isCurrentHomeHero =
+    storageData?.activeHomeEventId === currentConfig?.id ||
+    (currentConfig?.id === 'default-home' &&
+      (!storageData?.activeHomeEventId || storageData?.activeHomeEventId === 'default-home'));
 
   if (loading) {
     return (
@@ -555,42 +603,94 @@ export default function EventHeroAdminPage() {
 
       {/* Event Selection Tabs */}
       <div className="bg-white p-4 rounded-2xl border border-[#E65C00]/20 space-y-3 shadow-sm">
-        <div className="flex justify-between items-center text-xs font-bold text-[#6B3A2A] px-1">
-          <span>Select Event:</span>
-          <span className="text-[11px] text-amber-700">
-            Current Home Event: <strong>{storageData?.events[storageData.activeHomeEventId]?.title || storageData?.activeHomeEventId}</strong>
-          </span>
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 text-xs font-bold text-[#6B3A2A] px-1">
+          <span>Select Screen to Customize:</span>
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="text-[11px] text-[#6B3A2A]">Public Home Displays:</span>
+            {(!storageData?.activeHomeEventId || storageData.activeHomeEventId === 'default-home') ? (
+              <span className="inline-flex items-center gap-1.5 bg-emerald-50 text-emerald-800 border border-emerald-300 px-3 py-1 rounded-full text-[11px] font-black shadow-sm">
+                <Check className="w-3.5 h-3.5 text-emerald-600" />
+                <span>Standard MITRA Website (No Event)</span>
+              </span>
+            ) : (
+              <div className="inline-flex items-center gap-2">
+                <span className="inline-flex items-center gap-1.5 bg-amber-50 text-amber-900 border border-amber-300 px-3 py-1 rounded-full text-[11px] font-black shadow-sm">
+                  <Sparkles className="w-3.5 h-3.5 text-amber-600" />
+                  <span>Event: {storageData?.events[storageData.activeHomeEventId]?.title || storageData?.activeHomeEventId}</span>
+                </span>
+                <button
+                  type="button"
+                  onClick={() => handleSetAsHomeHero('default-home')}
+                  disabled={saving}
+                  className="px-2.5 py-1 rounded-full text-[10px] font-black bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-300 transition-colors shadow-sm"
+                  title="Remove event from homepage and show the standard MITRA website"
+                >
+                  Clear Event from Home
+                </button>
+              </div>
+            )}
+          </div>
         </div>
 
         <div className="flex flex-wrap gap-2">
-          {Object.values(storageData?.events || {}).map((evt) => {
-            const isSelected = selectedEventId === evt.id;
-            const isHome = storageData?.activeHomeEventId === evt.id;
+          {/* SPECIAL FIRST TAB: Standard MITRA Website */}
+          {(() => {
+            const isSelected = selectedEventId === 'default-home';
+            const isHome = !storageData?.activeHomeEventId || storageData.activeHomeEventId === 'default-home';
             return (
               <button
-                key={evt.id}
-                onClick={() => handleSelectEvent(evt.id)}
-                className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 border ${
+                type="button"
+                onClick={() => handleSelectEvent('default-home')}
+                className={`px-4 py-2.5 rounded-xl text-xs font-black transition-all flex items-center gap-2 border shadow-sm ${
                   isSelected
-                    ? 'bg-[#E65C00] border-[#E65C00] text-white shadow-sm'
-                    : 'bg-white border-[#E65C00]/20 text-[#6B3A2A] hover:text-[#E65C00] hover:bg-[#FFF0E0]'
+                    ? 'bg-gradient-to-r from-[#FF7A00] to-[#E65C00] border-[#E65C00] text-white shadow-md'
+                    : 'bg-[#FFF8F0] border-[#E65C00]/40 text-[#3D1A00] hover:bg-[#FFF0E0] hover:border-[#E65C00]'
                 }`}
               >
-                <span>{evt.title}</span>
-                {isHome && (
-                  <span className={`text-[9px] font-black px-1.5 py-0.5 rounded-full uppercase ${
-                    isSelected ? 'bg-white text-[#E65C00]' : 'bg-[#E65C00] text-white'
-                  }`}>
-                    Home Hero
-                  </span>
-                )}
+                <Home className="w-4 h-4 text-inherit" />
+                <span>Standard MITRA Website</span>
+                <span className={`text-[9px] font-black px-2 py-0.5 rounded-full uppercase tracking-wider ${
+                  isHome
+                    ? (isSelected ? 'bg-white text-emerald-700 font-extrabold' : 'bg-emerald-600 text-white font-extrabold')
+                    : (isSelected ? 'bg-white/20 text-white' : 'bg-[#E65C00]/15 text-[#E65C00]')
+                }`}>
+                  {isHome ? 'Active on Home' : 'Default Home'}
+                </span>
               </button>
             );
-          })}
+          })()}
+
+          {/* Event Tabs */}
+          {Object.values(storageData?.events || {})
+            .filter((evt) => evt.id !== 'default-home')
+            .map((evt) => {
+              const isSelected = selectedEventId === evt.id;
+              const isHome = storageData?.activeHomeEventId === evt.id;
+              return (
+                <button
+                  key={evt.id}
+                  onClick={() => handleSelectEvent(evt.id)}
+                  className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 border ${
+                    isSelected
+                      ? 'bg-[#E65C00] border-[#E65C00] text-white shadow-sm'
+                      : 'bg-white border-[#E65C00]/20 text-[#6B3A2A] hover:text-[#E65C00] hover:bg-[#FFF0E0]'
+                  }`}
+                >
+                  <span>{evt.title}</span>
+                  {isHome && (
+                    <span className={`text-[9px] font-black px-1.5 py-0.5 rounded-full uppercase ${
+                      isSelected ? 'bg-white text-[#E65C00]' : 'bg-[#E65C00] text-white'
+                    }`}>
+                      Home Hero
+                    </span>
+                  )}
+                </button>
+              );
+            })}
 
           {/* Quick Add from Available Events if not yet in storage */}
           {availableEvents
-            .filter((e) => !storageData?.events[e.id])
+            .filter((e) => e.id !== 'default-home' && !storageData?.events[e.id])
             .map((e) => (
               <button
                 key={e.id}
@@ -816,43 +916,71 @@ export default function EventHeroAdminPage() {
           {/* RIGHT: CONFIGURATION FORM (Independent Scroll) */}
           <div className="w-full lg:w-[460px] xl:w-[500px] shrink-0 space-y-5 lg:max-h-[calc(100vh-5rem)] lg:overflow-y-auto lg:pr-2 pb-12">
             {/* Home Feature Ribbon */}
-            <div className="bg-slate-950 p-4 rounded-2xl border border-slate-800 flex justify-between items-center gap-3">
-              <div className="flex items-center gap-2.5">
-                <div className={`p-2 rounded-xl ${isCurrentHomeHero ? 'bg-amber-500/20 text-amber-400' : 'bg-slate-900 text-slate-500'}`}>
-                  <Home className="w-4 h-4" />
+            <div className="bg-slate-950 p-4 rounded-2xl border border-slate-800 space-y-3">
+              <div className="flex justify-between items-center gap-3">
+                <div className="flex items-center gap-2.5">
+                  <div className={`p-2 rounded-xl ${isCurrentHomeHero ? 'bg-emerald-500/20 text-emerald-400' : 'bg-slate-900 text-slate-500'}`}>
+                    <Home className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <h3 className="text-xs font-bold text-white">
+                      {selectedEventId === 'default-home'
+                        ? 'Standard MITRA Homepage'
+                        : 'Feature on Public Home'}
+                    </h3>
+                    <p className="text-[10px] text-slate-400">
+                      {selectedEventId === 'default-home'
+                        ? (isCurrentHomeHero
+                            ? 'Currently active on public website root (no event banner).'
+                            : 'Set the public website root to show this standard MITRA home.')
+                        : (isCurrentHomeHero
+                            ? 'Currently featured on the public homepage root.'
+                            : 'Display this event hero on the MITRA UK homepage.')}
+                    </p>
+                  </div>
                 </div>
-                <div>
-                  <h3 className="text-xs font-bold text-white">Feature on Public Home</h3>
-                  <p className="text-[10px] text-slate-400">
-                    {isCurrentHomeHero
-                      ? 'Currently featured on the website root page.'
-                      : 'Display this hero on the MITRA UK homepage.'}
-                  </p>
-                </div>
+
+                <button
+                  type="button"
+                  onClick={() => handleSetAsHomeHero(currentConfig.id)}
+                  disabled={isCurrentHomeHero || saving}
+                  className={`px-3 py-1.5 rounded-xl text-[11px] font-black uppercase tracking-wider transition-all flex items-center gap-1.5 shrink-0 ${
+                    isCurrentHomeHero
+                      ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 cursor-default'
+                      : 'bg-gradient-to-r from-[#FF7A00] to-[#E65C00] hover:from-[#FF8C1A] hover:to-[#FF6600] text-white shadow-md'
+                  }`}
+                >
+                  {isCurrentHomeHero ? (
+                    <>
+                      <Check className="w-3.5 h-3.5" />
+                      <span>Active on Home</span>
+                    </>
+                  ) : (
+                    <>
+                      <Sparkles className="w-3.5 h-3.5" />
+                      <span>{selectedEventId === 'default-home' ? 'Set as Default Home' : 'Feature on Home'}</span>
+                    </>
+                  )}
+                </button>
               </div>
 
-              <button
-                type="button"
-                onClick={handleSetAsHomeHero}
-                disabled={isCurrentHomeHero || saving}
-                className={`px-3 py-1.5 rounded-xl text-[11px] font-black uppercase tracking-wider transition-all flex items-center gap-1.5 ${
-                  isCurrentHomeHero
-                    ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 cursor-default'
-                    : 'bg-amber-500 hover:bg-amber-600 text-slate-950 shadow-md'
-                }`}
-              >
-                {isCurrentHomeHero ? (
-                  <>
-                    <Check className="w-3.5 h-3.5" />
-                    <span>Active</span>
-                  </>
-                ) : (
-                  <>
-                    <Sparkles className="w-3.5 h-3.5" />
-                    <span>Set Active</span>
-                  </>
-                )}
-              </button>
+              {/* Quick remove button if an event is currently active on home */}
+              {selectedEventId !== 'default-home' && isCurrentHomeHero && (
+                <div className="pt-2 border-t border-slate-800/80 flex items-center justify-between gap-3">
+                  <span className="text-[10px] text-amber-300/90 font-medium">
+                    Event completed? Switch to standard website:
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => handleSetAsHomeHero('default-home')}
+                    disabled={saving}
+                    className="px-2.5 py-1 rounded-lg text-[10px] font-bold bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 flex items-center gap-1.5 transition-colors"
+                  >
+                    <Home className="w-3 h-3 text-emerald-400" />
+                    <span>Remove Event from Home</span>
+                  </button>
+                </div>
+              )}
             </div>
 
             {/* 1. Hero Type & Layout Variant Selector */}
@@ -1195,80 +1323,180 @@ export default function EventHeroAdminPage() {
               <div className="space-y-3">
                 {/* Primary CTA */}
                 <div className="p-3 bg-slate-900/60 rounded-xl border border-slate-800 space-y-2">
-                  <span className="text-[11px] font-bold text-amber-400 uppercase">Primary Button</span>
-                  <div className="grid grid-cols-2 gap-2">
-                    <div>
-                      <label className="text-[10px] text-slate-400 block mb-0.5">Label</label>
+                  <div className="flex items-center justify-between">
+                    <span className="text-[11px] font-bold text-amber-400 uppercase">Primary Button</span>
+                    <label className="flex items-center gap-1.5 cursor-pointer text-[10px] text-slate-300">
                       <input
-                        type="text"
-                        value={currentConfig.hero.primaryCta?.label ?? ''}
-                        onChange={(e) =>
-                          updateHero('primaryCta', {
-                            ...(currentConfig.hero.primaryCta || { action: 'rsvp' }),
-                            label: e.target.value,
-                          })
-                        }
-                        className="w-full bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1 text-xs text-white"
+                        type="checkbox"
+                        checked={currentConfig.hero.primaryCta?.action !== 'none' && (currentConfig.hero.primaryCta?.label?.trim().length ?? 0) > 0}
+                        onChange={(e) => {
+                          if (e.target.checked) {
+                            updateHero('primaryCta', {
+                              label: currentConfig.hero.primaryCta?.label || 'Become a Member',
+                              action: 'link',
+                              linkUrl: currentConfig.hero.primaryCta?.linkUrl || '/membership',
+                            });
+                          } else {
+                            updateHero('primaryCta', {
+                              action: 'none',
+                              label: '',
+                            });
+                          }
+                        }}
+                        className="w-3.5 h-3.5 rounded text-amber-500 accent-amber-500 cursor-pointer"
                       />
-                    </div>
-                    <div>
-                      <label className="text-[10px] text-slate-400 block mb-0.5">Action</label>
-                      <select
-                        value={currentConfig.hero.primaryCta?.action ?? 'rsvp'}
-                        onChange={(e) =>
-                          updateHero('primaryCta', {
-                            ...(currentConfig.hero.primaryCta || { label: 'Register / RSVP' }),
-                            action: e.target.value,
-                          })
-                        }
-                        className="w-full bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1 text-xs text-white"
-                      >
-                        <option value="pooja">Book Pooja / Seva</option>
-                        <option value="rsvp">Register / RSVP</option>
-                        <option value="donation">Make Donation</option>
-                        <option value="link">Custom URL</option>
-                      </select>
-                    </div>
+                      <span>Enable Button</span>
+                    </label>
                   </div>
+
+                  {currentConfig.hero.primaryCta?.action === 'none' || !(currentConfig.hero.primaryCta?.label?.trim()) ? (
+                    <p className="text-[10px] text-slate-500 italic py-1">
+                      Button is disabled and will not appear on the website.
+                    </p>
+                  ) : (
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <label className="text-[10px] text-slate-400 block mb-0.5">Label</label>
+                        <input
+                          type="text"
+                          value={currentConfig.hero.primaryCta?.label ?? ''}
+                          placeholder="e.g. Become a Member"
+                          onChange={(e) =>
+                            updateHero('primaryCta', {
+                              ...(currentConfig.hero.primaryCta || { action: 'link' }),
+                              label: e.target.value,
+                            })
+                          }
+                          className="w-full bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1 text-xs text-white"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-[10px] text-slate-400 block mb-0.5">Action</label>
+                        <select
+                          value={currentConfig.hero.primaryCta?.action ?? 'link'}
+                          onChange={(e) =>
+                            updateHero('primaryCta', {
+                              ...(currentConfig.hero.primaryCta || { label: 'Explore' }),
+                              action: e.target.value,
+                            })
+                          }
+                          className="w-full bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1 text-xs text-white"
+                        >
+                          <option value="none">Disabled (No Button)</option>
+                          <option value="link">Custom URL / Page Link</option>
+                          <option value="pooja">Book Pooja / Seva</option>
+                          <option value="rsvp">Register / RSVP</option>
+                          <option value="donation">Make Donation</option>
+                        </select>
+                      </div>
+                      {currentConfig.hero.primaryCta?.action === 'link' && (
+                        <div className="col-span-2 pt-1">
+                          <label className="text-[10px] text-slate-400 block mb-0.5">Target Route / URL (e.g. /membership or https://...)</label>
+                          <input
+                            type="text"
+                            value={currentConfig.hero.primaryCta?.linkUrl ?? ''}
+                            placeholder="/membership"
+                            onChange={(e) =>
+                              updateHero('primaryCta', {
+                                ...(currentConfig.hero.primaryCta || { action: 'link' }),
+                                linkUrl: e.target.value,
+                              })
+                            }
+                            className="w-full bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1 text-xs text-white"
+                          />
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
 
                 {/* Secondary CTA */}
                 <div className="p-3 bg-slate-900/60 rounded-xl border border-slate-800 space-y-2">
-                  <span className="text-[11px] font-bold text-slate-400 uppercase">Secondary Button</span>
-                  <div className="grid grid-cols-2 gap-2">
-                    <div>
-                      <label className="text-[10px] text-slate-400 block mb-0.5">Label</label>
+                  <div className="flex items-center justify-between">
+                    <span className="text-[11px] font-bold text-slate-400 uppercase">Secondary Button</span>
+                    <label className="flex items-center gap-1.5 cursor-pointer text-[10px] text-slate-300">
                       <input
-                        type="text"
-                        value={currentConfig.hero.secondaryCta?.label ?? ''}
-                        onChange={(e) =>
-                          updateHero('secondaryCta', {
-                            ...(currentConfig.hero.secondaryCta || { action: 'whatsapp' }),
-                            label: e.target.value,
-                          })
-                        }
-                        className="w-full bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1 text-xs text-white"
+                        type="checkbox"
+                        checked={currentConfig.hero.secondaryCta?.action !== 'none' && (currentConfig.hero.secondaryCta?.label?.trim().length ?? 0) > 0}
+                        onChange={(e) => {
+                          if (e.target.checked) {
+                            updateHero('secondaryCta', {
+                              label: currentConfig.hero.secondaryCta?.label || 'Upcoming Festivals',
+                              action: 'link',
+                              linkUrl: currentConfig.hero.secondaryCta?.linkUrl || '/events',
+                            });
+                          } else {
+                            updateHero('secondaryCta', {
+                              action: 'none',
+                              label: '',
+                            });
+                          }
+                        }}
+                        className="w-3.5 h-3.5 rounded text-amber-500 accent-amber-500 cursor-pointer"
                       />
-                    </div>
-                    <div>
-                      <label className="text-[10px] text-slate-400 block mb-0.5">Action</label>
-                      <select
-                        value={currentConfig.hero.secondaryCta?.action ?? 'whatsapp'}
-                        onChange={(e) =>
-                          updateHero('secondaryCta', {
-                            ...(currentConfig.hero.secondaryCta || { label: 'Join Community WhatsApp' }),
-                            action: e.target.value,
-                          })
-                        }
-                        className="w-full bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1 text-xs text-white"
-                      >
-                        <option value="whatsapp">Join WhatsApp</option>
-                        <option value="donation">Make Donation</option>
-                        <option value="pooja">Book Pooja</option>
-                        <option value="link">Custom URL</option>
-                      </select>
-                    </div>
+                      <span>Enable Button</span>
+                    </label>
                   </div>
+
+                  {currentConfig.hero.secondaryCta?.action === 'none' || !(currentConfig.hero.secondaryCta?.label?.trim()) ? (
+                    <p className="text-[10px] text-slate-500 italic py-1">
+                      Button is disabled and will not appear on the website.
+                    </p>
+                  ) : (
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <label className="text-[10px] text-slate-400 block mb-0.5">Label</label>
+                        <input
+                          type="text"
+                          value={currentConfig.hero.secondaryCta?.label ?? ''}
+                          placeholder="e.g. Upcoming Festivals"
+                          onChange={(e) =>
+                            updateHero('secondaryCta', {
+                              ...(currentConfig.hero.secondaryCta || { action: 'link' }),
+                              label: e.target.value,
+                            })
+                          }
+                          className="w-full bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1 text-xs text-white"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-[10px] text-slate-400 block mb-0.5">Action</label>
+                        <select
+                          value={currentConfig.hero.secondaryCta?.action ?? 'link'}
+                          onChange={(e) =>
+                            updateHero('secondaryCta', {
+                              ...(currentConfig.hero.secondaryCta || { label: 'Upcoming Festivals' }),
+                              action: e.target.value,
+                            })
+                          }
+                          className="w-full bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1 text-xs text-white"
+                        >
+                          <option value="none">Disabled (No Button)</option>
+                          <option value="link">Custom URL / Page Link</option>
+                          <option value="whatsapp">Join WhatsApp</option>
+                          <option value="donation">Make Donation</option>
+                          <option value="pooja">Book Pooja</option>
+                        </select>
+                      </div>
+                      {currentConfig.hero.secondaryCta?.action === 'link' && (
+                        <div className="col-span-2 pt-1">
+                          <label className="text-[10px] text-slate-400 block mb-0.5">Target Route / URL (e.g. /events or https://...)</label>
+                          <input
+                            type="text"
+                            value={currentConfig.hero.secondaryCta?.linkUrl ?? ''}
+                            placeholder="/events"
+                            onChange={(e) =>
+                              updateHero('secondaryCta', {
+                                ...(currentConfig.hero.secondaryCta || { action: 'link' }),
+                                linkUrl: e.target.value,
+                              })
+                            }
+                            className="w-full bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1 text-xs text-white"
+                          />
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
 
                 <div>
@@ -1379,15 +1607,21 @@ export default function EventHeroAdminPage() {
               </p>
 
               <div className="space-y-2 pt-1">
-                {[
-                  { key: 'showCountdown', label: 'Countdown Timer', isHardcodedGanesh: false },
-                  { key: 'showEventDetails', label: 'Event Schedule & Timings', isHardcodedGanesh: false },
-                  { key: 'showStory', label: 'Devotional / About Story (Ganesh)', isHardcodedGanesh: true },
-                  { key: 'showSpecs', label: 'Idol Specifications / Specs (Ganesh)', isHardcodedGanesh: true },
-                  { key: 'showMediaGallery', label: 'Media Teaser Gallery', isHardcodedGanesh: false },
-                  { key: 'showOfferings', label: 'Community Seva & Offerings', isHardcodedGanesh: true },
-                  { key: 'showSponsors', label: 'Sponsor Ribbon Band', isHardcodedGanesh: true },
-                ].map(({ key, label, isHardcodedGanesh }) => {
+                {(selectedEventId === 'default-home' ? [
+                  { key: 'showCountdown', label: 'Year-Round Festival Calendar', isHardcodedGanesh: false, desc: 'Ugadi, Bathukamma, Diwali & Sankranti cultural festival calendar' },
+                  { key: 'showEventDetails', label: 'About MITRA UK & 4 Core Pillars', isHardcodedGanesh: false, desc: 'Heritage, Student Welfare, Family Care & Business Network' },
+                  { key: 'showMediaGallery', label: 'Community Media Gallery & Teaser', isHardcodedGanesh: false, desc: 'Video highlights and community media assets' },
+                  { key: 'showOfferings', label: 'Community Seva Offering Plaques', isHardcodedGanesh: false, desc: 'Pooja, education, student welfare offering plaques' },
+                  { key: 'showSponsors', label: 'Sponsor Ribbon Band', isHardcodedGanesh: false, desc: 'Corporate and community sponsor logos' },
+                ] : [
+                  { key: 'showCountdown', label: 'Countdown Timer', isHardcodedGanesh: false, desc: '' },
+                  { key: 'showEventDetails', label: 'Event Schedule & Timings', isHardcodedGanesh: false, desc: '' },
+                  { key: 'showStory', label: 'Devotional / About Story (Ganesh)', isHardcodedGanesh: true, desc: 'Contains Ganesh Mahotsav devotional content. Leave disabled for generic events unless intended.' },
+                  { key: 'showSpecs', label: 'Idol Specifications / Specs (Ganesh)', isHardcodedGanesh: true, desc: 'Contains Ganesh Mahotsav devotional content. Leave disabled for generic events unless intended.' },
+                  { key: 'showMediaGallery', label: 'Media Teaser Gallery', isHardcodedGanesh: false, desc: '' },
+                  { key: 'showOfferings', label: 'Community Seva & Offerings', isHardcodedGanesh: true, desc: 'Contains Ganesh Mahotsav devotional content. Leave disabled for generic events unless intended.' },
+                  { key: 'showSponsors', label: 'Sponsor Ribbon Band', isHardcodedGanesh: true, desc: 'Contains Ganesh Mahotsav devotional content. Leave disabled for generic events unless intended.' },
+                ]).map(({ key, label, isHardcodedGanesh, desc }) => {
                   const isChecked = !!currentConfig.sections[key as keyof typeof currentConfig.sections];
                   return (
                     <div
@@ -1412,9 +1646,9 @@ export default function EventHeroAdminPage() {
                           className="w-4 h-4 rounded text-amber-500 accent-amber-500 cursor-pointer shrink-0"
                         />
                       </label>
-                      {isHardcodedGanesh && (
+                      {desc && (
                         <p className="text-[10px] text-slate-500">
-                          Contains Ganesh Mahotsav devotional content. Leave disabled for new generic events unless intended.
+                          {desc}
                         </p>
                       )}
                     </div>

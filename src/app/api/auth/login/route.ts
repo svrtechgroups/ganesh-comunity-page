@@ -54,7 +54,7 @@ export async function POST(request: Request) {
         role: 'Admin',
       });
 
-      const response = NextResponse.json({ success: true, role: 'Admin', user: userPayload });
+      const response = NextResponse.json({ success: true, role: 'Admin', token, user: userPayload });
 
       response.cookies.set('mitra_token', token, {
         httpOnly: true,
@@ -114,7 +114,7 @@ export async function POST(request: Request) {
       tier: member.tier,
     });
 
-    const response = NextResponse.json({ success: true, role: 'Member', user: userPayload });
+    const response = NextResponse.json({ success: true, role: 'Member', token, user: userPayload });
 
     response.cookies.set('mitra_token', token, {
       httpOnly: true,

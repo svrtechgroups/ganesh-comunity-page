@@ -81,33 +81,200 @@ export async function GET(
     return NextResponse.json({ success: false, error: 'Ticket token is required.' }, { status: 400 });
   }
 
-  const paymentId = resolveTicketId(tokenOrId);
-  if (!paymentId) {
+  const entityId = resolveTicketId(tokenOrId);
+  if (!entityId) {
     return NextResponse.json({ success: false, error: 'Invalid or forged ticket token.' }, { status: 404 });
   }
 
   try {
-    // Try DB first
-    const payment = await prisma.payment.findUnique({ where: { id: paymentId } });
-    if (payment) {
+    // 1. Try EventRSVP first (for Event Entry Passes)
+    const rsvp = await prisma.eventRSVP.findUnique({
+      where: { id: entityId },
+      include: {
+        event: {
+          select: {
+            id: true,
+            title: true,
+            category: true,
+            date: true,
+            time: true,
+            venue: true,
+            address: true,
+            bannerUrl: true,
+          },
+        },
+      },
+    });
+
+    if (rsvp) {
+      const tickets = Number(rsvp.ticketsCount) || 1;
+      const scanned = Number(rsvp.scannedCount) || 0;
+      const remainingTickets = Math.max(0, tickets - scanned);
+      const scanStatus =
+        scanned >= tickets
+          ? 'FULL_SCANNED'
+          : scanned > 0
+          ? 'HALF_SCANNED'
+          : 'NOT_SCANNED';
+
+      // Find linked Payment record if available
+      let paymentRecord = null;
+      if (rsvp.paymentIntentId) {
+        paymentRecord = await prisma.payment.findFirst({
+          where: { stripePaymentIntentId: rsvp.paymentIntentId },
+        });
+      }
+      if (!paymentRecord && rsvp.attendeeEmail) {
+        paymentRecord = await prisma.payment.findFirst({
+          where: {
+            customerEmail: { equals: rsvp.attendeeEmail, mode: 'insensitive' },
+            eventId: rsvp.eventId,
+          },
+          orderBy: { createdAt: 'desc' },
+        });
+      }
+
+      const rsvpData = {
+        id: rsvp.id,
+        eventId: rsvp.eventId,
+        event: rsvp.event,
+        attendeeName: rsvp.attendeeName,
+        attendeeEmail: rsvp.attendeeEmail,
+        attendeePhone: rsvp.attendeePhone,
+        travellingFrom: rsvp.travellingFrom,
+        ticketsCount: tickets,
+        adultsCount: rsvp.adultsCount,
+        childrenCount: rsvp.childrenCount,
+        selectedDates: rsvp.selectedDates,
+        totalAmount: rsvp.totalAmount,
+        supportAmount: rsvp.supportAmount,
+        paymentStatus: rsvp.paymentStatus,
+        paymentIntentId: rsvp.paymentIntentId,
+        memberId: rsvp.memberId,
+        customResponses: rsvp.customResponses,
+        isScanned: rsvp.isScanned,
+        scannedAt: rsvp.scannedAt,
+        scannedBy: rsvp.scannedBy,
+        scannedCount: scanned,
+        remainingTickets,
+        scanStatus,
+        ticketToken: generateTicketToken(rsvp.id),
+        createdAt: typeof rsvp.createdAt === 'string' ? rsvp.createdAt : rsvp.createdAt.toISOString(),
+      };
+
       return NextResponse.json({
         success: true,
+        type: 'event-pass',
         source: 'prisma',
+        ticketId: rsvp.id,
+        ticketToken: generateTicketToken(rsvp.id),
+        rsvp: rsvpData,
+        payment: paymentRecord
+          ? {
+              id: paymentRecord.id,
+              amount: paymentRecord.amount,
+              currency: paymentRecord.currency,
+              status: paymentRecord.status,
+              customerName: paymentRecord.customerName,
+              customerEmail: paymentRecord.customerEmail,
+              customerPhone: paymentRecord.customerPhone,
+              description: paymentRecord.description,
+              paymentMethod: paymentRecord.paymentMethod,
+              stripePaymentIntentId: paymentRecord.stripePaymentIntentId,
+              memberId: paymentRecord.memberId,
+              eventId: paymentRecord.eventId,
+              eventName: paymentRecord.eventName,
+              donationType: paymentRecord.donationType,
+              createdAt:
+                typeof paymentRecord.createdAt === 'string'
+                  ? paymentRecord.createdAt
+                  : paymentRecord.createdAt.toISOString(),
+            }
+          : null,
         data: {
-          ...payment,
-          ticketToken: generateTicketToken(payment.id),
+          ...rsvpData,
+          payment: paymentRecord || undefined,
         },
       });
     }
-  } catch {
+
+    // 2. Try Payment next (for Booking receipts & contributions)
+    const payment = await prisma.payment.findUnique({ where: { id: entityId } });
+    if (payment) {
+      // Find linked RSVP record if available
+      let linkedRsvp = null;
+      if (payment.stripePaymentIntentId) {
+        linkedRsvp = await prisma.eventRSVP.findFirst({
+          where: { paymentIntentId: payment.stripePaymentIntentId },
+          include: {
+            event: {
+              select: {
+                id: true,
+                title: true,
+                category: true,
+                date: true,
+                time: true,
+                venue: true,
+                address: true,
+                bannerUrl: true,
+              },
+            },
+          },
+        });
+      }
+      if (!linkedRsvp && payment.customerEmail && payment.eventId) {
+        linkedRsvp = await prisma.eventRSVP.findFirst({
+          where: {
+            attendeeEmail: { equals: payment.customerEmail, mode: 'insensitive' },
+            eventId: payment.eventId,
+          },
+          include: {
+            event: {
+              select: {
+                id: true,
+                title: true,
+                category: true,
+                date: true,
+                time: true,
+                venue: true,
+                address: true,
+                bannerUrl: true,
+              },
+            },
+          },
+          orderBy: { createdAt: 'desc' },
+        });
+      }
+
+      return NextResponse.json({
+        success: true,
+        type: 'payment',
+        source: 'prisma',
+        ticketId: payment.id,
+        ticketToken: generateTicketToken(payment.id),
+        rsvp: linkedRsvp || null,
+        payment: {
+          ...payment,
+          ticketToken: generateTicketToken(payment.id),
+        },
+        data: {
+          ...payment,
+          ticketToken: generateTicketToken(payment.id),
+          rsvp: linkedRsvp || undefined,
+        },
+      });
+    }
+  } catch (err) {
+    console.error('Error fetching ticket/rsvp in API:', err);
     // DB unavailable — fall through to demo
   }
 
-  // Check demo registry
-  if (DEMO_PAYMENTS[paymentId]) {
-    const demo = DEMO_PAYMENTS[paymentId];
+  // 3. Check demo registry
+  if (DEMO_PAYMENTS[entityId]) {
+    const demo = DEMO_PAYMENTS[entityId];
     return NextResponse.json({
       success: true,
+      type: 'demo-payment',
       source: 'demo',
       data: {
         ...demo,

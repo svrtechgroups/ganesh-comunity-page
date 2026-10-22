@@ -21,8 +21,8 @@ export async function GET(request: Request) {
     // Base condition for the event (used for analytics calculation)
     const isSingleEventSelected = Boolean(eventId && eventId !== 'all');
     const eventWhere: Prisma.EventRSVPWhereInput = isSingleEventSelected
-      ? { eventId, paymentStatus: { in: ['Completed', 'Free'] } }
-      : { paymentStatus: { in: ['Completed', 'Free'] } };
+      ? { eventId }
+      : {};
 
     // 1. Fetch Event details and Stats
     const targetEvent = isSingleEventSelected
@@ -90,7 +90,7 @@ export async function GET(request: Request) {
     } else {
       // No single event selected: use pure DB aggregate (fixes 1.7 double-query loading all records into memory)
       const agg = await prisma.eventRSVP.aggregate({
-        where: { paymentStatus: { in: ['Completed', 'Free'] } },
+        where: {},
         _count: { id: true },
         _sum: { ticketsCount: true, adultsCount: true, childrenCount: true },
       });
@@ -109,9 +109,7 @@ export async function GET(request: Request) {
 
 
     // 2. Build Prisma Filter Where Clause for Attendee Table Query
-    const whereConditions: Prisma.EventRSVPWhereInput[] = [
-      { paymentStatus: { in: ['Completed', 'Free'] } }
-    ];
+    const whereConditions: Prisma.EventRSVPWhereInput[] = [];
 
     if (eventId && eventId !== 'all') {
       whereConditions.push({ eventId });

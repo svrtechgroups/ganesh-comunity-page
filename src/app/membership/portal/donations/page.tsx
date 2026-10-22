@@ -6,7 +6,8 @@ import { useAuth } from '@/lib/auth-context';
 import AuthGuard from '@/components/AuthGuard';
 import {
   ArrowLeft, Heart, CheckCircle, CreditCard, Calendar, RefreshCw, Inbox,
-  ExternalLink, Download, Copy, XCircle, Clock,
+  ExternalLink, Download, Copy, XCircle, Clock, Ticket, MapPin, Users,
+  CheckCircle2, AlertCircle, ShieldCheck
 } from 'lucide-react';
 
 interface DonationItem {
@@ -18,6 +19,41 @@ interface DonationItem {
   description: string;
   paymentMethod: string;
   createdAt: string;
+}
+
+interface UserRsvpItem {
+  id: string;
+  eventId: string;
+  attendeeName: string;
+  attendeeEmail: string;
+  attendeePhone?: string;
+  travellingFrom?: string | null;
+  ticketsCount: number;
+  adultsCount: number;
+  childrenCount: number;
+  selectedDates: string[];
+  totalAmount?: number;
+  supportAmount?: number;
+  paymentStatus?: string;
+  memberId?: string | null;
+  isScanned: boolean;
+  scannedAt?: string | null;
+  scannedBy?: string | null;
+  scannedCount: number;
+  remainingTickets: number;
+  scanStatus: 'NOT_SCANNED' | 'HALF_SCANNED' | 'FULL_SCANNED';
+  createdAt: string;
+  ticketToken?: string;
+  event?: {
+    id: string;
+    title: string;
+    date: string;
+    time?: string;
+    venue?: string;
+    address?: string;
+    bannerUrl?: string;
+    slug?: string;
+  };
 }
 
 function CopyButton({ text }: { text: string }) {
@@ -41,34 +77,63 @@ function CopyButton({ text }: { text: string }) {
   );
 }
 
-function MyDonationsContent() {
+function MyBookingsAndPassesContent() {
   const { user } = useAuth();
+  const [activeTab, setActiveTab] = useState<'rsvps' | 'donations'>('rsvps');
+
+  // RSVPs State
+  const [rsvps, setRsvps] = useState<UserRsvpItem[]>([]);
+  const [loadingRsvps, setLoadingRsvps] = useState(true);
+  const [rsvpError, setRsvpError] = useState('');
+
+  // Donations State
   const [donations, setDonations] = useState<DonationItem[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
+  const [loadingDonations, setLoadingDonations] = useState(true);
+  const [donationsError, setDonationsError] = useState('');
+
+  const fetchRsvps = async () => {
+    setLoadingRsvps(true);
+    setRsvpError('');
+    try {
+      const res = await fetch('/api/user/rsvps', { cache: 'no-store' });
+      const data = await res.json();
+      if (data.success) {
+        setRsvps(data.data || []);
+      } else {
+        setRsvpError(data.error || 'Failed to load event passes.');
+      }
+    } catch {
+      setRsvpError('Connection error loading event passes.');
+    } finally {
+      setLoadingRsvps(false);
+    }
+  };
+
+  const fetchDonations = async () => {
+    setLoadingDonations(true);
+    setDonationsError('');
+    try {
+      const res = await fetch('/api/user/donations', { cache: 'no-store' });
+      const data = await res.json();
+      if (data.success) {
+        setDonations(data.data || []);
+      } else {
+        setDonationsError(data.error || 'Failed to load donations.');
+      }
+    } catch {
+      setDonationsError('Connection error loading donations.');
+    } finally {
+      setLoadingDonations(false);
+    }
+  };
 
   useEffect(() => {
-    async function fetchDonations() {
-      setLoading(true);
-      setError('');
-      try {
-        const res = await fetch('/api/user/donations', { cache: 'no-store' });
-        const data = await res.json();
-        if (data.success) {
-          setDonations(data.data);
-        } else {
-          setError(data.error || 'Failed to load donations.');
-        }
-      } catch {
-        setError('Connection error. Please try again.');
-      } finally {
-        setLoading(false);
-      }
-    }
+    fetchRsvps();
     fetchDonations();
   }, []);
 
   const totalGiven = donations.reduce((acc, d) => acc + d.amount, 0);
+  const totalTickets = rsvps.reduce((acc, r) => acc + (r.ticketsCount || 1), 0);
   const baseUrl = typeof window !== 'undefined' ? window.location.origin : '';
 
   return (
@@ -86,179 +151,360 @@ function MyDonationsContent() {
 
         <div className="text-center space-y-3">
           <span className="bg-[#FFF0E0] text-[#E65C00] border border-[#E65C00]/30 text-xs font-black px-4 py-1.5 rounded-full uppercase inline-block shadow-sm">
-            MY BOOKING &amp; SEVA HISTORY
+            MY PASSES &amp; SEVA HISTORY
           </span>
           <h1 className="text-3xl sm:text-4xl font-black font-cinzel gold-foil-text">
-            MY CONTRIBUTIONS
+            MY BOOKINGS &amp; TICKETS
           </h1>
           <p className="text-xs text-[#6B3A2A] max-w-xl mx-auto">
-            All bookings and payments made by{' '}
+            All event RSVPs, gate entry passes, and contributions linked to{' '}
             <strong className="text-[#E65C00]">{user?.fullName || user?.email}</strong>.
           </p>
         </div>
       </div>
 
       {/* Summary Cards */}
-      <div className="max-w-4xl mx-auto grid grid-cols-1 sm:grid-cols-2 gap-6">
-        <div className="temple-card p-6 rounded-3xl border border-[#E65C00]/25 space-y-2">
+      <div className="max-w-4xl mx-auto grid grid-cols-1 sm:grid-cols-3 gap-5">
+        <div className="temple-card p-5 rounded-3xl border border-[#E65C00]/25 space-y-2">
+          <div className="flex justify-between items-center text-[#6B3A2A]">
+            <span className="text-xs uppercase font-bold tracking-wider">Event Passes</span>
+            <Ticket className="w-5 h-5 text-[#E65C00]" />
+          </div>
+          <span className="text-3xl font-black font-cinzel text-[#E65C00]">
+            {totalTickets}
+          </span>
+          <span className="text-[10px] text-[#6B3A2A] block">
+            Across {rsvps.length} event registration{rsvps.length === 1 ? '' : 's'}
+          </span>
+        </div>
+
+        <div className="temple-card p-5 rounded-3xl border border-[#E65C00]/25 space-y-2">
           <div className="flex justify-between items-center text-[#6B3A2A]">
             <span className="text-xs uppercase font-bold tracking-wider">Total Contributed</span>
             <Heart className="w-5 h-5 text-[#E65C00]" />
           </div>
-          <span className="text-3xl font-black font-cinzel text-[#E65C00]">
+          <span className="text-3xl font-black font-cinzel text-[#3D1A00]">
             £{totalGiven.toFixed(2)}
           </span>
-          <span className="text-[10px] text-[#6B3A2A] block">Your generous contributions to the community</span>
+          <span className="text-[10px] text-[#6B3A2A] block">Generous support to community</span>
         </div>
 
-        <div className="temple-card p-6 rounded-3xl border border-[#E65C00]/25 space-y-2">
+        <div className="temple-card p-5 rounded-3xl border border-[#E65C00]/25 space-y-2">
           <div className="flex justify-between items-center text-[#6B3A2A]">
-            <span className="text-xs uppercase font-bold tracking-wider">Total Transactions</span>
-            <CreditCard className="w-5 h-5 text-[#E65C00]" />
+            <span className="text-xs uppercase font-bold tracking-wider">Gate Scans</span>
+            <ShieldCheck className="w-5 h-5 text-[#E65C00]" />
           </div>
-          <span className="text-3xl font-black font-cinzel text-[#3D1A00]">
-            {donations.length}
+          <span className="text-3xl font-black font-cinzel text-emerald-700">
+            {rsvps.reduce((acc, r) => acc + (r.scannedCount || 0), 0)} / {totalTickets}
           </span>
           <span className="text-[10px] text-emerald-600 block">
-            {donations.filter(d => d.status === 'Completed').length} completed
+            Tickets verified at entrance
           </span>
         </div>
       </div>
 
-      {/* Donations List */}
-      <div className="max-w-4xl mx-auto temple-card rounded-3xl border border-[#E65C00]/25 overflow-hidden p-6 space-y-4">
-        <div className="flex justify-between items-center border-b border-[#E65C00]/20 pb-4">
-          <div>
-            <h3 className="text-lg font-black font-cinzel text-[#3D1A00]">BOOKING RECEIPTS</h3>
-            <p className="text-xs text-[#6B3A2A]">Click "View Ticket" to open or share your official receipt.</p>
-          </div>
-          <button
-            onClick={() => window.location.reload()}
-            className="flex items-center gap-1.5 text-xs text-[#6B3A2A] hover:text-[#E65C00] transition-colors"
-          >
-            <RefreshCw className="w-4 h-4" />
-            <span>Refresh</span>
-          </button>
-        </div>
+      {/* Tab Selector */}
+      <div className="max-w-4xl mx-auto flex items-center justify-center gap-3 border-b border-[#E65C00]/20 pb-4">
+        <button
+          onClick={() => setActiveTab('rsvps')}
+          className={`flex items-center gap-2 px-5 py-2.5 rounded-full text-xs font-bold transition-all ${
+            activeTab === 'rsvps'
+              ? 'bg-[#E65C00] text-white shadow-md'
+              : 'bg-[#FFF0E0] text-[#6B3A2A] hover:bg-[#FFE4CC]'
+          }`}
+        >
+          <Ticket className="w-4 h-4" />
+          <span>Event Passes &amp; RSVPs ({rsvps.length})</span>
+        </button>
 
-        {loading ? (
-          <div className="text-center py-16 space-y-3">
-            <div className="w-8 h-8 border-4 border-[#E65C00] border-t-transparent rounded-full animate-spin mx-auto" />
-            <p className="text-xs text-[#6B3A2A]">Loading your bookings…</p>
-          </div>
-        ) : error ? (
-          <div className="text-center py-12 text-rose-600 text-xs">{error}</div>
-        ) : donations.length === 0 ? (
-          <div className="text-center py-16 space-y-4">
-            <div className="w-16 h-16 bg-[#FFF0E0] rounded-full flex items-center justify-center mx-auto border border-[#E65C00]/25">
-              <Inbox className="w-8 h-8 text-[#6B3A2A]" />
+        <button
+          onClick={() => setActiveTab('donations')}
+          className={`flex items-center gap-2 px-5 py-2.5 rounded-full text-xs font-bold transition-all ${
+            activeTab === 'donations'
+              ? 'bg-[#E65C00] text-white shadow-md'
+              : 'bg-[#FFF0E0] text-[#6B3A2A] hover:bg-[#FFE4CC]'
+          }`}
+        >
+          <CreditCard className="w-4 h-4" />
+          <span>Seva Contributions &amp; Receipts ({donations.length})</span>
+        </button>
+      </div>
+
+      {/* Tab 1: Event Passes & RSVPs */}
+      {activeTab === 'rsvps' && (
+        <div className="max-w-4xl mx-auto temple-card rounded-3xl border border-[#E65C00]/25 overflow-hidden p-6 space-y-4">
+          <div className="flex justify-between items-center border-b border-[#E65C00]/20 pb-4">
+            <div>
+              <h3 className="text-lg font-black font-cinzel text-[#3D1A00]">CONFIRMED EVENT PASSES</h3>
+              <p className="text-xs text-[#6B3A2A]">
+                Present this QR pass at the entrance gate for quick volunteer verification.
+              </p>
             </div>
-            <p className="text-sm text-[#6B3A2A] font-bold">No bookings yet</p>
-            <p className="text-xs text-[#6B3A2A]/70">Make your first booking or seva contribution to the MITRA community.</p>
-            <Link
-              href="/donate"
-              className="gold-button inline-flex items-center gap-2 px-6 py-3 rounded-full font-black text-xs uppercase tracking-wider shadow-lg"
+            <button
+              onClick={fetchRsvps}
+              className="flex items-center gap-1.5 text-xs text-[#6B3A2A] hover:text-[#E65C00] transition-colors"
             >
-              <Heart className="w-4 h-4 text-white" />
-              <span>Make a Booking</span>
-            </Link>
+              <RefreshCw className={`w-4 h-4 ${loadingRsvps ? 'animate-spin' : ''}`} />
+              <span>Refresh</span>
+            </button>
           </div>
-        ) : (
-          <div className="space-y-3">
-            {donations.map((d) => {
-              const ticketToken = d.ticketToken || d.id;
-              const ticketUrl = `${baseUrl}/ticket/${ticketToken}`;
-              return (
-                <div
-                  key={d.id}
-                  className="bg-[#FFF0E0] border border-[#E65C00]/15 hover:border-[#E65C00]/40 rounded-2xl p-4 transition-colors"
-                >
-                  <div className="flex flex-col sm:flex-row sm:items-center gap-3">
 
-                    {/* Left — description + meta */}
-                    <div className="flex-1 min-w-0">
-                      <p className="text-[#3D1A00] font-bold text-sm truncate">{d.description}</p>
-                      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1.5">
-                        <span className="font-mono font-black text-[#E65C00] text-sm">
-                          £{d.amount.toFixed(2)}
-                        </span>
-                        <span className="text-[10px] text-[#6B3A2A] font-mono bg-[#FFF8F0] px-2 py-0.5 rounded-full border border-[#E65C00]/15">
-                          {d.id}
-                        </span>
-                        {/* Status badge — colour-coded */}
+          {loadingRsvps ? (
+            <div className="text-center py-16 space-y-3">
+              <div className="w-8 h-8 border-4 border-[#E65C00] border-t-transparent rounded-full animate-spin mx-auto" />
+              <p className="text-xs text-[#6B3A2A]">Loading your event passes…</p>
+            </div>
+          ) : rsvpError ? (
+            <div className="text-center py-12 text-rose-600 text-xs">{rsvpError}</div>
+          ) : rsvps.length === 0 ? (
+            <div className="text-center py-16 space-y-4">
+              <div className="w-16 h-16 bg-[#FFF0E0] rounded-full flex items-center justify-center mx-auto border border-[#E65C00]/25">
+                <Ticket className="w-8 h-8 text-[#6B3A2A]" />
+              </div>
+              <p className="text-sm text-[#6B3A2A] font-bold">No event passes booked yet</p>
+              <p className="text-xs text-[#6B3A2A]/70">Reserve your spots for upcoming community celebrations and festivals.</p>
+              <Link
+                href="/events"
+                className="gold-button inline-flex items-center gap-2 px-6 py-3 rounded-full font-black text-xs uppercase tracking-wider shadow-lg"
+              >
+                <Ticket className="w-4 h-4 text-white" />
+                <span>Explore Events</span>
+              </Link>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {rsvps.map((rsvp) => {
+                const ticketToken = rsvp.ticketToken || rsvp.id;
+                const ticketUrl = `${baseUrl}/ticket/${ticketToken}`;
+
+                return (
+                  <div
+                    key={rsvp.id}
+                    className="bg-[#FFF0E0] border border-[#E65C00]/20 hover:border-[#E65C00]/50 rounded-2xl p-5 transition-all shadow-sm"
+                  >
+                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                      
+                      {/* Left: Event Details */}
+                      <div className="space-y-2 flex-1">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="font-mono text-[10px] text-[#E65C00] font-bold bg-[#FFF8F0] px-2.5 py-0.5 rounded-full border border-[#E65C00]/20">
+                            PASS ID: {rsvp.id}
+                          </span>
+                          
+                          {/* Live Gate Entry Scan Status Badge */}
+                          {rsvp.scanStatus === 'FULL_SCANNED' ? (
+                            <span className="bg-emerald-100 text-emerald-800 font-bold px-2.5 py-0.5 rounded-full text-[10px] border border-emerald-400 flex items-center gap-1 shadow-sm">
+                              <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+                              <span>Attended &amp; Verified ({rsvp.scannedCount}/{rsvp.ticketsCount})</span>
+                            </span>
+                          ) : rsvp.scanStatus === 'HALF_SCANNED' ? (
+                            <span className="bg-amber-100 text-amber-800 font-bold px-2.5 py-0.5 rounded-full text-[10px] border border-amber-400 flex items-center gap-1 shadow-sm">
+                              <AlertCircle className="w-3 h-3 text-amber-600" />
+                              <span>Partially Scanned ({rsvp.scannedCount}/{rsvp.ticketsCount} In · {rsvp.remainingTickets} Pending)</span>
+                            </span>
+                          ) : (
+                            <span className="bg-sky-100 text-sky-800 font-bold px-2.5 py-0.5 rounded-full text-[10px] border border-sky-300 flex items-center gap-1 shadow-sm">
+                              <Clock className="w-3 h-3 text-sky-600" />
+                              <span>Ready for Entry (0/{rsvp.ticketsCount} Scanned)</span>
+                            </span>
+                          )}
+                        </div>
+
+                        <h4 className="text-lg font-black font-cinzel text-[#3D1A00]">
+                          {rsvp.event?.title || 'Community Event'}
+                        </h4>
+
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs text-[#6B3A2A]">
+                          <div className="flex items-center gap-1.5">
+                            <Calendar className="w-3.5 h-3.5 text-[#E65C00] shrink-0" />
+                            <span>
+                              {rsvp.event?.date || 'Date TBD'}
+                              {rsvp.event?.time ? ` · ${rsvp.event.time}` : ''}
+                            </span>
+                          </div>
+
+                          <div className="flex items-center gap-1.5">
+                            <Users className="w-3.5 h-3.5 text-[#E65C00] shrink-0" />
+                            <span>
+                              <strong>{rsvp.ticketsCount} Pass(es)</strong>
+                              {rsvp.adultsCount ? ` (${rsvp.adultsCount} Adult${rsvp.adultsCount > 1 ? 's' : ''}` : ''}
+                              {rsvp.childrenCount ? `, ${rsvp.childrenCount} Child${rsvp.childrenCount > 1 ? 'ren' : ''})` : ')'}
+                            </span>
+                          </div>
+
+                          {rsvp.event?.venue && (
+                            <div className="flex items-center gap-1.5 sm:col-span-2">
+                              <MapPin className="w-3.5 h-3.5 text-[#E65C00] shrink-0" />
+                              <span className="truncate">
+                                {rsvp.event.venue}{rsvp.event.address ? `, ${rsvp.event.address}` : ''}
+                              </span>
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Scan Metadata if scanned */}
+                        {rsvp.scannedAt && (
+                          <div className="text-[10px] text-[#6B3A2A]/80 font-mono pt-1">
+                            Last entrance scan: {new Date(rsvp.scannedAt).toLocaleString('en-GB')}
+                            {rsvp.scannedBy ? ` by ${rsvp.scannedBy}` : ''}
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Right: Actions */}
+                      <div className="flex items-center gap-2 self-start md:self-center shrink-0">
+                        <CopyButton text={ticketUrl} />
+
+                        <Link
+                          href={`/ticket/${ticketToken}`}
+                          target="_blank"
+                          className="flex items-center gap-1.5 text-xs font-bold text-white bg-[#E65C00] hover:bg-[#FF7A00] px-4 py-2 rounded-full transition-all shadow-md hover:scale-105"
+                        >
+                          <Ticket className="w-3.5 h-3.5" />
+                          <span>View Entry Pass</span>
+                        </Link>
+                      </div>
+
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Tab 2: Seva Contributions & Receipts */}
+      {activeTab === 'donations' && (
+        <div className="max-w-4xl mx-auto temple-card rounded-3xl border border-[#E65C00]/25 overflow-hidden p-6 space-y-4">
+          <div className="flex justify-between items-center border-b border-[#E65C00]/20 pb-4">
+            <div>
+              <h3 className="text-lg font-black font-cinzel text-[#3D1A00]">BOOKING RECEIPTS</h3>
+              <p className="text-xs text-[#6B3A2A]">Click "View Ticket" to open or share your official receipt.</p>
+            </div>
+            <button
+              onClick={fetchDonations}
+              className="flex items-center gap-1.5 text-xs text-[#6B3A2A] hover:text-[#E65C00] transition-colors"
+            >
+              <RefreshCw className={`w-4 h-4 ${loadingDonations ? 'animate-spin' : ''}`} />
+              <span>Refresh</span>
+            </button>
+          </div>
+
+          {loadingDonations ? (
+            <div className="text-center py-16 space-y-3">
+              <div className="w-8 h-8 border-4 border-[#E65C00] border-t-transparent rounded-full animate-spin mx-auto" />
+              <p className="text-xs text-[#6B3A2A]">Loading your bookings…</p>
+            </div>
+          ) : donationsError ? (
+            <div className="text-center py-12 text-rose-600 text-xs">{donationsError}</div>
+          ) : donations.length === 0 ? (
+            <div className="text-center py-16 space-y-4">
+              <div className="w-16 h-16 bg-[#FFF0E0] rounded-full flex items-center justify-center mx-auto border border-[#E65C00]/25">
+                <Inbox className="w-8 h-8 text-[#6B3A2A]" />
+              </div>
+              <p className="text-sm text-[#6B3A2A] font-bold">No bookings yet</p>
+              <p className="text-xs text-[#6B3A2A]/70">Make your first booking or seva contribution to the MITRA community.</p>
+              <Link
+                href="/donate"
+                className="gold-button inline-flex items-center gap-2 px-6 py-3 rounded-full font-black text-xs uppercase tracking-wider shadow-lg"
+              >
+                <Heart className="w-4 h-4 text-white" />
+                <span>Make a Booking</span>
+              </Link>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {donations.map((d) => {
+                const ticketToken = d.ticketToken || d.id;
+                const ticketUrl = `${baseUrl}/ticket/${ticketToken}`;
+                return (
+                  <div
+                    key={d.id}
+                    className="bg-[#FFF0E0] border border-[#E65C00]/15 hover:border-[#E65C00]/40 rounded-2xl p-4 transition-colors"
+                  >
+                    <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+
+                      {/* Left — description + meta */}
+                      <div className="flex-1 min-w-0">
+                        <p className="text-[#3D1A00] font-bold text-sm truncate">{d.description}</p>
+                        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1.5">
+                          <span className="font-mono font-black text-[#E65C00] text-sm">
+                            £{d.amount.toFixed(2)}
+                          </span>
+                          <span className="text-[10px] text-[#6B3A2A] font-mono bg-[#FFF8F0] px-2 py-0.5 rounded-full border border-[#E65C00]/15">
+                            {d.id}
+                          </span>
+                          {/* Status badge — colour-coded */}
+                          {d.status === 'Completed' ? (
+                            <span className="bg-emerald-50 text-emerald-700 font-bold px-2 py-0.5 rounded-full text-[10px] border border-emerald-500/30 flex items-center gap-1">
+                              <CheckCircle className="w-3 h-3" />
+                              Completed
+                            </span>
+                          ) : d.status === 'Failed' ? (
+                            <span className="bg-rose-50 text-rose-700 font-bold px-2 py-0.5 rounded-full text-[10px] border border-rose-500/30 flex items-center gap-1">
+                              <XCircle className="w-3 h-3" />
+                              Failed
+                            </span>
+                          ) : (
+                            <span className="bg-amber-50 text-amber-700 font-bold px-2 py-0.5 rounded-full text-[10px] border border-amber-500/30 flex items-center gap-1">
+                              <Clock className="w-3 h-3" />
+                              {d.status}
+                            </span>
+                          )}
+                          <span className="flex items-center gap-1 text-[10px] text-[#6B3A2A]">
+                            <Calendar className="w-3 h-3 text-[#E65C00]" />
+                            {new Date(d.createdAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Right — ticket actions */}
+                      <div className="flex items-center gap-2 shrink-0">
                         {d.status === 'Completed' ? (
-                          <span className="bg-emerald-50 text-emerald-700 font-bold px-2 py-0.5 rounded-full text-[10px] border border-emerald-500/30 flex items-center gap-1">
-                            <CheckCircle className="w-3 h-3" />
-                            Completed
-                          </span>
-                        ) : d.status === 'Failed' ? (
-                          <span className="bg-rose-50 text-rose-700 font-bold px-2 py-0.5 rounded-full text-[10px] border border-rose-500/30 flex items-center gap-1">
-                            <XCircle className="w-3 h-3" />
-                            Failed
-                          </span>
+                          <>
+                            <CopyButton text={ticketUrl} />
+                            <Link
+                              href={`/ticket/${ticketToken}`}
+                              target="_blank"
+                              className="flex items-center gap-1.5 text-[11px] font-bold text-[#E65C00] border border-[#E65C00]/30 hover:bg-[#FFF0E0] px-3 py-1.5 rounded-full transition-colors"
+                            >
+                              <ExternalLink className="w-3.5 h-3.5" />
+                              <span>View Ticket</span>
+                            </Link>
+                            <Link
+                              href={`/ticket/${ticketToken}`}
+                              target="_blank"
+                              className="flex items-center gap-1.5 text-[11px] font-bold text-white bg-[#E65C00] hover:bg-[#FF7A00] px-3 py-1.5 rounded-full transition-colors"
+                            >
+                              <Download className="w-3.5 h-3.5" />
+                              <span>Download</span>
+                            </Link>
+                          </>
                         ) : (
-                          <span className="bg-amber-50 text-amber-700 font-bold px-2 py-0.5 rounded-full text-[10px] border border-amber-500/30 flex items-center gap-1">
-                            <Clock className="w-3 h-3" />
+                          <span className="inline-flex items-center gap-1.5 text-[11px] font-bold text-amber-700 bg-amber-50 border border-amber-300 px-3 py-1.5 rounded-full">
+                            <Clock className="w-3.5 h-3.5" />
                             {d.status}
                           </span>
                         )}
-                        <span className="flex items-center gap-1 text-[10px] text-[#6B3A2A]">
-                          <Calendar className="w-3 h-3 text-[#E65C00]" />
-                          {new Date(d.createdAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
-                        </span>
                       </div>
                     </div>
-
-                    {/* Right — ticket actions (only for Completed) */}
-                    <div className="flex items-center gap-2 shrink-0">
-                      {d.status === 'Completed' ? (
-                        <>
-                          <CopyButton text={ticketUrl} />
-                          <Link
-                            href={`/ticket/${ticketToken}`}
-                            target="_blank"
-                            className="flex items-center gap-1.5 text-[11px] font-bold text-[#E65C00] border border-[#E65C00]/30 hover:bg-[#FFF0E0] px-3 py-1.5 rounded-full transition-colors"
-                          >
-                            <ExternalLink className="w-3.5 h-3.5" />
-                            <span>View Ticket</span>
-                          </Link>
-                          <Link
-                            href={`/ticket/${ticketToken}`}
-                            target="_blank"
-                            className="flex items-center gap-1.5 text-[11px] font-bold text-white bg-[#E65C00] hover:bg-[#FF7A00] px-3 py-1.5 rounded-full transition-colors"
-                          >
-                            <Download className="w-3.5 h-3.5" />
-                            <span>Download</span>
-                          </Link>
-                        </>
-                      ) : d.status === 'Failed' ? (
-                        <span className="inline-flex items-center gap-1.5 text-[11px] font-bold text-rose-700 bg-rose-50 border border-rose-300 px-3 py-1.5 rounded-full">
-                          <XCircle className="w-3.5 h-3.5" />
-                          Payment Failed
-                        </span>
-                      ) : (
-                        <span className="inline-flex items-center gap-1.5 text-[11px] font-bold text-amber-700 bg-amber-50 border border-amber-300 px-3 py-1.5 rounded-full">
-                          <Clock className="w-3.5 h-3.5" />
-                          Pending
-                        </span>
-                      )}
-                    </div>
                   </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
-      </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* CTA */}
       <div className="max-w-4xl mx-auto text-center">
         <Link
-          href="/donate"
+          href="/events"
           className="gold-button inline-flex items-center gap-2 px-8 py-4 rounded-full font-black text-sm uppercase tracking-wider shadow-xl hover:scale-105 transition-transform"
         >
-          <Heart className="w-5 h-5 text-white" />
-          <span>Make Another Booking</span>
+          <Ticket className="w-5 h-5 text-white" />
+          <span>Browse More Events</span>
         </Link>
       </div>
 
@@ -269,7 +515,7 @@ function MyDonationsContent() {
 export default function MyDonationsPage() {
   return (
     <AuthGuard requiredRole="Member">
-      <MyDonationsContent />
+      <MyBookingsAndPassesContent />
     </AuthGuard>
   );
 }

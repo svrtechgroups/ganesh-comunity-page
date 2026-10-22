@@ -49,6 +49,7 @@ model Event {
 }
 
 model EventRSVP {
+  // EventId:ticketsCount:ticketsCount:supportAmount:memberId
   id             String   @id @default(cuid())
   eventId        String
   event          Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
@@ -66,6 +67,15 @@ model EventRSVP {
   supportAmount   Float   @default(0)
   paymentStatus   String  @default("Free") // "Free" | "Pending" | "Completed"
   paymentIntentId String?
+
+  // Linked Member account (optional):
+  memberId        String?
+
+  // for event entry management 
+  isScanned   Boolean @default(false)
+  scannedAt   DateTime?
+  scannedBy   String?
+  scannedCount Int     @default(0)
 
   // Dynamic Custom Field Responses:
   customResponses Json? @default("{}")

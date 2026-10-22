@@ -26,6 +26,7 @@ import {
   UserCheck,
   Flame,
   CheckCircle2,
+  Clock,
   ArrowRight,
   KeyRound,
   ShieldCheck,
@@ -65,6 +66,10 @@ interface RSVPRecord {
   memberId?: string | null;
   paymentId?: string | null;
   paymentMemberId?: string | null;
+  isScanned?: boolean;
+  scannedAt?: string | null;
+  scannedBy?: string | null;
+  scannedCount?: number;
   event?: Pick<EventItem, 'id' | 'title' | 'date' | 'venue' | 'customFields'>;
 }
 
@@ -1185,6 +1190,7 @@ export default function AdminEventsPage() {
                   <th className="p-4">Member Status</th>
                   <th className="p-4">Selected Dates</th>
                   <th className="p-4">Pass Breakdown</th>
+                  <th className="p-4">Gate Check-in</th>
                   <th className="p-4">Option Fields</th>
                   <th className="p-4">Registered At</th>
                   <th className="p-4 text-right">Actions</th>
@@ -1193,7 +1199,7 @@ export default function AdminEventsPage() {
               <tbody className="divide-y divide-slate-800">
                 {loadingRsvps ? (
                   <tr>
-                    <td colSpan={8} className="p-8 text-center text-slate-400">
+                    <td colSpan={9} className="p-8 text-center text-slate-400">
                       <div className="flex items-center justify-center gap-2">
                         <RefreshCw className="w-4 h-4 animate-spin text-mitra-gold" />
                         <span>Loading registrations...</span>
@@ -1202,7 +1208,7 @@ export default function AdminEventsPage() {
                   </tr>
                 ) : rsvps.length === 0 ? (
                   <tr>
-                    <td colSpan={8} className="p-8 text-center text-slate-500 font-sans">
+                    <td colSpan={9} className="p-8 text-center text-slate-500 font-sans">
                       No RSVP registrations found.
                     </td>
                   </tr>
@@ -1299,6 +1305,33 @@ export default function AdminEventsPage() {
                         )}
                       </td>
 
+                      {/* Gate Entry Check-in & Scanning Status */}
+                      <td className="p-4 space-y-1">
+                        {rsvp.isScanned || (rsvp.scannedCount !== undefined && rsvp.scannedCount >= (rsvp.ticketsCount || 1)) ? (
+                          <span className="bg-emerald-950/80 text-emerald-300 border border-emerald-500/40 font-bold px-2 py-0.5 rounded-full text-[10px] inline-flex items-center gap-1 shadow-sm">
+                            <CheckCircle2 className="w-3 h-3 text-emerald-400" />
+                            <span>Attended ({rsvp.scannedCount || rsvp.ticketsCount}/{rsvp.ticketsCount || 1})</span>
+                          </span>
+                        ) : rsvp.scannedCount && rsvp.scannedCount > 0 ? (
+                          <span className="bg-amber-950/80 text-amber-300 border border-amber-500/40 font-bold px-2 py-0.5 rounded-full text-[10px] inline-flex items-center gap-1 shadow-sm">
+                            <Clock className="w-3 h-3 text-amber-400" />
+                            <span>Partial ({rsvp.scannedCount}/{rsvp.ticketsCount || 1})</span>
+                          </span>
+                        ) : (
+                          <span className="bg-slate-900 text-slate-400 border border-slate-700/60 font-semibold px-2 py-0.5 rounded-full text-[10px] inline-flex items-center gap-1">
+                            <Ticket className="w-3 h-3 text-slate-400" />
+                            <span>Not Scanned (0/{rsvp.ticketsCount || 1})</span>
+                          </span>
+                        )}
+
+                        {rsvp.scannedAt && (
+                          <div className="text-[10px] text-slate-400 font-mono">
+                            {new Date(rsvp.scannedAt).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}
+                            {rsvp.scannedBy ? ` · ${rsvp.scannedBy}` : ''}
+                          </div>
+                        )}
+                      </td>
+
                       {/* Option Fields Data */}
                       <td className="p-4">
                         {rsvp.customResponses && Object.keys(rsvp.customResponses).length > 0 ? (
@@ -1334,6 +1367,34 @@ export default function AdminEventsPage() {
 
                       {/* Actions: Send Login / Convert & Delete */}
                       <td className="p-4 text-right space-x-1.5 whitespace-nowrap">
+                        {/* Quick Check-in Button */}
+                        {(!rsvp.isScanned && (rsvp.scannedCount || 0) < (rsvp.ticketsCount || 1)) && (
+                          <button
+                            onClick={async () => {
+                              try {
+                                const res = await fetch('/api/admin/events/entry/scan', {
+                                  method: 'POST',
+                                  headers: { 'Content-Type': 'application/json' },
+                                  body: JSON.stringify({ rsvpId: rsvp.id, count: 1 }),
+                                });
+                                const data = await res.json();
+                                if (data.success) {
+                                  fetchRsvps();
+                                } else {
+                                  alert(data.error || 'Check-in failed');
+                                }
+                              } catch (e: any) {
+                                alert(e?.message || 'Check-in failed');
+                              }
+                            }}
+                            className="bg-emerald-50 hover:bg-emerald-100 text-emerald-900 border border-emerald-300 px-2.5 py-1.5 rounded-lg text-[11px] font-bold inline-flex items-center gap-1 transition-all shadow-sm"
+                            title="Check-in 1 attendee"
+                          >
+                            <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+                            <span className="hidden sm:inline">Check In</span>
+                          </button>
+                        )}
+
                         {/* Map Payment to Member Button */}
                         {rsvp.isMember && rsvp.paymentId && !rsvp.paymentMemberId && (
                           <button

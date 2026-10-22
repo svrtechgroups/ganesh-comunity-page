@@ -19,7 +19,7 @@ export type HeroVariant =
 
 export interface HeroCTA {
   label: string;
-  action: 'pooja' | 'donation' | 'rsvp' | 'whatsapp' | 'link';
+  action: 'pooja' | 'donation' | 'rsvp' | 'whatsapp' | 'link' | 'none';
   linkUrl?: string;
   openNewTab?: boolean;
 }

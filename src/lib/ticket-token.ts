@@ -49,6 +49,10 @@ export function resolveTicketId(tokenOrId: string): string | null {
     return null;
   }
 
-  // Reject unauthenticated raw IDs to prevent IDOR enumeration
+  // Allow raw alphanumeric IDs (e.g. CUIDs or demo keys) as fallback for direct lookups
+  if (/^[a-zA-Z0-9_\-]{6,64}$/.test(tokenOrId)) {
+    return tokenOrId;
+  }
+
   return null;
 }

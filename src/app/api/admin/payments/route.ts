@@ -84,15 +84,18 @@ export async function GET(request: Request) {
     const where: Prisma.PaymentWhereInput = whereConditions.length > 0 ? { AND: whereConditions } : {};
     const statsWhere: Prisma.PaymentWhereInput = eventCondition ? { AND: [eventCondition] } : {};
 
-    // 1. Calculate Stats (scoped to event if eventId is filtered)
-    const [allPayments, totalFiltered] = await Promise.all([
-      prisma.payment.findMany({
+    // 1. Calculate Stats via Database Aggregation (Zero in-memory row scans)
+    const [statusGroups, totalAgg, totalFiltered] = await Promise.all([
+      prisma.payment.groupBy({
+        by: ['status'],
         where: statsWhere,
-        select: {
-          id: true,
-          amount: true,
-          status: true,
-        },
+        _sum: { amount: true },
+        _count: { id: true },
+      }),
+      prisma.payment.aggregate({
+        where: statsWhere,
+        _sum: { amount: true },
+        _count: { id: true },
       }),
       prisma.payment.count({ where }),
     ]);
@@ -103,23 +106,23 @@ export async function GET(request: Request) {
     let pendingCount = 0;
     let failedTotal = 0;
     let failedCount = 0;
-    let totalRevenue = 0;
-    const totalCount = allPayments.length;
+    const totalRevenue = totalAgg._sum.amount || 0;
+    const totalCount = totalAgg._count.id || 0;
 
-    for (const p of allPayments) {
-      const amt = p.amount || 0;
-      const st = (p.status || '').toLowerCase();
-      totalRevenue += amt;
+    for (const group of statusGroups) {
+      const st = (group.status || '').toLowerCase();
+      const amt = group._sum.amount || 0;
+      const cnt = group._count.id || 0;
 
       if (st === 'completed') {
         completedTotal += amt;
-        completedCount++;
+        completedCount += cnt;
       } else if (st === 'pending') {
         pendingTotal += amt;
-        pendingCount++;
+        pendingCount += cnt;
       } else if (st === 'failed') {
         failedTotal += amt;
-        failedCount++;
+        failedCount += cnt;
       }
     }
 

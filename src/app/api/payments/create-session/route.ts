@@ -6,6 +6,48 @@ import { logger } from '@/lib/logger';
 import { sendPaymentFailureAlert } from '@/lib/email';
 import Stripe from 'stripe';
 
+let cachedStripeInstance: Stripe | null = null;
+let cachedStripeKey = '';
+let lastKeyFetchTime = 0;
+const KEY_TTL_MS = 60 * 1000; // 60s TTL for settings lookup
+
+async function getOrCreateStripeClient(): Promise<Stripe | null> {
+  const now = Date.now();
+  if (cachedStripeInstance && now - lastKeyFetchTime < KEY_TTL_MS) {
+    return cachedStripeInstance;
+  }
+
+  let stripeSecretKey = process.env.STRIPE_SECRET_KEY || '';
+  try {
+    const settings = await prisma.paymentSettings.findUnique({
+      where: { id: 'default' },
+    });
+    if (
+      settings?.stripeSecretKey &&
+      !settings.stripeSecretKey.includes('default_key') &&
+      !settings.stripeSecretKey.includes('REPLACE_WITH')
+    ) {
+      stripeSecretKey = settings.stripeSecretKey;
+    }
+  } catch (e) {
+    console.warn(`[CONFIG NOTICE] DB PaymentSettings unavailable:`, e);
+  }
+
+  if (!stripeSecretKey || stripeSecretKey.includes('REPLACE_WITH')) {
+    return null;
+  }
+
+  if (!cachedStripeInstance || cachedStripeKey !== stripeSecretKey) {
+    cachedStripeKey = stripeSecretKey;
+    cachedStripeInstance = new Stripe(stripeSecretKey, {
+      apiVersion: '2026-07-29.dahlia',
+    });
+  }
+
+  lastKeyFetchTime = now;
+  return cachedStripeInstance;
+}
+
 /**
  * POST /api/payments/create-session
  *
@@ -119,24 +161,10 @@ export async function POST(request: Request) {
     // ── Member ID (standalone string identifier, no foreign key constraint) ──
     const finalMemberId: string | null = (body.memberId as string) || userId || null;
 
-    // ── Resolve active Stripe Secret Key (DB overrides env) ──────────────────
-    let stripeSecretKey = process.env.STRIPE_SECRET_KEY || '';
-    try {
-      const settings = await prisma.paymentSettings.findUnique({
-        where: { id: 'default' },
-      });
-      if (
-        settings?.stripeSecretKey &&
-        !settings.stripeSecretKey.includes('default_key') &&
-        !settings.stripeSecretKey.includes('REPLACE_WITH')
-      ) {
-        stripeSecretKey = settings.stripeSecretKey;
-      }
-    } catch (e) {
-      console.warn(`[CONFIG NOTICE] DB PaymentSettings unavailable:`, e);
-    }
+    // ── Resolve and Cache active Stripe Secret Key (DB overrides env) ────────
+    const stripe = await getOrCreateStripeClient();
 
-    if (!stripeSecretKey || stripeSecretKey.includes('REPLACE_WITH')) {
+    if (!stripe) {
       await logger.error('payments/create-session', `Stripe is not configured for checkout by <${normalEmail}>`);
       return NextResponse.json(
         {
@@ -147,11 +175,6 @@ export async function POST(request: Request) {
         { status: 503 }
       );
     }
-
-    // ── Initialise Stripe with the active secret key ──────────────────────────
-    const stripe = new Stripe(stripeSecretKey, {
-      apiVersion: '2026-07-29.dahlia',
-    });
 
     // ── Sanitize description for Stripe / Payment Processor ─────────────────
     // Remove "donation" references to comply with merchant rules and keep as event payments
@@ -272,21 +295,20 @@ export async function POST(request: Request) {
       cause: safeEvent,
     });
 
-    try {
-      await sendPaymentFailureAlert({
-        customerName: safeCustomer,
-        customerEmail: normalEmail,
-        customerPhone: customerPhone ? String(customerPhone) : undefined,
-        amount: numAmount,
-        currency: 'GBP',
-        cause: safeEvent,
-        failureReason: errorMessage,
-        source: 'Checkout Session Creation (/api/payments/create-session)',
-        metadata: body,
-      });
-    } catch (alertErr) {
+    // Dispatch payment failure alert asynchronously in background
+    sendPaymentFailureAlert({
+      customerName: safeCustomer,
+      customerEmail: normalEmail,
+      customerPhone: customerPhone ? String(customerPhone) : undefined,
+      amount: numAmount,
+      currency: 'GBP',
+      cause: safeEvent,
+      failureReason: errorMessage,
+      source: 'Checkout Session Creation (/api/payments/create-session)',
+      metadata: body,
+    }).catch((alertErr) => {
       console.error('Failed to dispatch failure email alert during create-session:', alertErr);
-    }
+    });
 
     return NextResponse.json({ success: false, error: errorMessage }, { status: 500 });
   }

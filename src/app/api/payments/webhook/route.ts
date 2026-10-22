@@ -160,6 +160,7 @@ export async function POST(req: NextRequest) {
         // Fulfill RSVP if applicable
         if (meta.donationType === 'event_rsvp' || meta.rsvpId) {
           try {
+            console.log(`Checking for RSVP for payment ${pi.id}`);
             const rsvp = await prisma.eventRSVP.findFirst({
               where: {
                 OR: [

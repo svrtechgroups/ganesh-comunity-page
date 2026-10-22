@@ -53,10 +53,10 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
 
     // 1. Set active home event ID
-    if (body.action === 'setActiveHomeEvent' || body.activeHomeEventId) {
-      const targetEventId = body.activeHomeEventId || body.eventId;
-      if (!targetEventId) {
-        return NextResponse.json({ success: false, error: 'Missing activeHomeEventId' }, { status: 400 });
+    if (body.action === 'setActiveHomeEvent' || body.activeHomeEventId !== undefined) {
+      let targetEventId = body.activeHomeEventId || body.eventId;
+      if (!targetEventId || targetEventId === 'none') {
+        targetEventId = 'default-home';
       }
       await setActiveHomeEventId(targetEventId);
       return NextResponse.json({ success: true, activeHomeEventId: targetEventId });

@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { useAuth } from '@/lib/auth-context';
 import AuthGuard from '@/components/AuthGuard';
 import {
-  Award, ArrowLeft, LogOut, User, Mail, Phone, Heart, ShieldCheck, Camera, Loader2, CheckCircle
+  Award, ArrowLeft, LogOut, User, Mail, Phone, Heart, ShieldCheck, Camera, Loader2, CheckCircle, Ticket
 } from 'lucide-react';
 import { useState, useRef } from 'react';
 
@@ -207,9 +207,9 @@ function MemberPortalContent() {
           <p className="text-[10px] text-[#6B3A2A]">Submit a help request</p>
         </Link>
         <Link href="/membership/portal/donations" className="temple-card p-5 rounded-2xl border border-[#E65C00]/20 hover:border-[#E65C00] transition-colors text-center space-y-2 group">
-          <Heart className="w-8 h-8 text-[#E65C00] mx-auto group-hover:scale-110 transition-transform" />
-          <p className="text-xs font-black text-[#E65C00] uppercase tracking-wider">My Bookings &amp; Sevas</p>
-          <p className="text-[10px] text-[#6B3A2A]">View your booking and seva history</p>
+          <Ticket className="w-8 h-8 text-[#E65C00] mx-auto group-hover:scale-110 transition-transform" />
+          <p className="text-xs font-black text-[#E65C00] uppercase tracking-wider">My Passes &amp; Bookings</p>
+          <p className="text-[10px] text-[#6B3A2A]">Event entry passes &amp; contribution history</p>
         </Link>
       </div>
 

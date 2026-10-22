@@ -35,13 +35,22 @@ export async function GET(req: Request) {
     const featured = await getFeaturedEventPreferences();
     const eventMap: Record<string, EventTemplateConfig> = {};
 
+    // 1. Always include Default MITRA Home screen
+    const defaultHomeData = await getPreferencesForEvent('default-home');
+    eventMap['default-home'] = {
+      ...defaultHomeData.templateConfig,
+      id: 'default-home',
+      title: 'Standard MITRA Website',
+    };
+
+    // 2. Include all specific events
     for (const ev of events) {
       const prefData = await getPreferencesForEvent(ev.id);
       eventMap[ev.id] = prefData.templateConfig;
     }
 
     const storageData: EventHeroStorageConfig = {
-      activeHomeEventId: featured.activeHomeEventId || '',
+      activeHomeEventId: featured.activeHomeEventId || 'default-home',
       events: eventMap,
     };
 
@@ -68,8 +77,11 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
 
     // 1. Update activeHomeEventId in DB
-    if (body.activeHomeEventId) {
-      await setActiveHomeEventId(body.activeHomeEventId);
+    if (body.activeHomeEventId !== undefined) {
+      const targetId = !body.activeHomeEventId || body.activeHomeEventId === 'none'
+        ? 'default-home'
+        : body.activeHomeEventId;
+      await setActiveHomeEventId(targetId);
     }
 
     // 2. Update specific event config in DB
@@ -93,13 +105,22 @@ export async function POST(req: NextRequest) {
     const featured = await getFeaturedEventPreferences();
     const eventMap: Record<string, EventTemplateConfig> = {};
 
+    // 1. Always load 'default-home'
+    const defaultHomeData = await getPreferencesForEvent('default-home');
+    eventMap['default-home'] = {
+      ...defaultHomeData.templateConfig,
+      id: 'default-home',
+      title: 'Standard MITRA Website',
+    };
+
+    // 2. Load all events
     for (const ev of events) {
       const prefData = await getPreferencesForEvent(ev.id);
       eventMap[ev.id] = prefData.templateConfig;
     }
 
     const updatedData: EventHeroStorageConfig = {
-      activeHomeEventId: featured.activeHomeEventId || '',
+      activeHomeEventId: featured.activeHomeEventId || 'default-home',
       events: eventMap,
     };
 

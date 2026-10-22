@@ -73,6 +73,12 @@ export async function POST(request: Request) {
         });
       }
 
+      // Link memberId back to RSVP record
+      await prisma.eventRSVP.update({
+        where: { id: rsvp.id },
+        data: { memberId: member.id },
+      }).catch((e) => console.warn('[CONVERT-TO-MEMBER] RSVP memberId update failed:', e));
+
       // Send credentials email
       await sendGuestWelcomeEmail(normalEmail, member.fullName, tempPassword);
 
@@ -123,8 +129,9 @@ export async function POST(request: Request) {
             where: { email: normalEmail },
           });
 
+          let targetMemberId = '';
           if (!existingMember) {
-            await prisma.member.create({
+            const newMember = await prisma.member.create({
               data: {
                 fullName: rsvp.attendeeName.trim(),
                 email: normalEmail,
@@ -137,13 +144,22 @@ export async function POST(request: Request) {
                 role: 'Member',
               },
             });
+            targetMemberId = newMember.id;
             createdCount++;
           } else {
             await prisma.member.update({
               where: { id: existingMember.id },
               data: { passwordHash, status: 'Active' },
             });
+            targetMemberId = existingMember.id;
             updatedCount++;
+          }
+
+          if (targetMemberId) {
+            await prisma.eventRSVP.updateMany({
+              where: { attendeeEmail: { equals: normalEmail, mode: 'insensitive' } },
+              data: { memberId: targetMemberId },
+            }).catch(() => {});
           }
 
           // Send email with credentials (non-blocking for speed)

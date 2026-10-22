@@ -28,45 +28,43 @@ export async function cleanupPendingPayments(hours = 24): Promise<CleanupResult>
   const cutoffDate = new Date(Date.now() - hours * 60 * 60 * 1000);
 
   try {
-    // 1. Find all pending payments older than the cutoff
-    const expiredPayments = await prisma.payment.findMany({
+    // 1. Fetch sample IDs (capped at 50) for audit logging without pulling full table
+    const sampleExpiredPayments = await prisma.payment.findMany({
       where: {
         status: { equals: 'Pending', mode: 'insensitive' },
         createdAt: { lte: cutoffDate },
       },
-      select: {
-        id: true,
-        amount: true,
-        currency: true,
-        customerName: true,
-        customerEmail: true,
-        description: true,
-        eventName: true,
-        eventId: true,
-        stripePaymentIntentId: true,
-        createdAt: true,
-      },
-      orderBy: { createdAt: 'asc' },
+      select: { id: true },
+      take: 50,
     });
+    const samplePaymentIds = sampleExpiredPayments.map((p) => p.id);
 
-    // 2. Find any pending EventRSVPs older than the cutoff
-    const expiredRsvps = await prisma.eventRSVP.findMany({
-      where: {
-        paymentStatus: { equals: 'Pending', mode: 'insensitive' },
-        createdAt: { lte: cutoffDate },
-      },
-      select: {
-        id: true,
-        eventId: true,
-        attendeeName: true,
-        attendeeEmail: true,
-        totalAmount: true,
-        paymentStatus: true,
-        createdAt: true,
-      },
-    });
+    // 2. Perform atomic batch updates with updateMany in parallel
+    const [paymentsUpdateResult, rsvpsUpdateResult] = await Promise.all([
+      prisma.payment.updateMany({
+        where: {
+          status: { equals: 'Pending', mode: 'insensitive' },
+          createdAt: { lte: cutoffDate },
+        },
+        data: {
+          status: 'Failed',
+        },
+      }),
+      prisma.eventRSVP.updateMany({
+        where: {
+          paymentStatus: { equals: 'Pending', mode: 'insensitive' },
+          createdAt: { lte: cutoffDate },
+        },
+        data: {
+          paymentStatus: 'Failed',
+        },
+      }),
+    ]);
 
-    if (expiredPayments.length === 0 && expiredRsvps.length === 0) {
+    const updatedPaymentsCount = paymentsUpdateResult.count;
+    const updatedRsvpsCount = rsvpsUpdateResult.count;
+
+    if (updatedPaymentsCount === 0 && updatedRsvpsCount === 0) {
       return {
         success: true,
         message: `No pending payments or RSVPs older than ${hours} hours found.`,
@@ -78,57 +76,19 @@ export async function cleanupPendingPayments(hours = 24): Promise<CleanupResult>
       };
     }
 
-    const updatedPaymentIds: string[] = [];
-    let updatedPaymentsCount = 0;
-
-    // 3. Update each pending payment to 'Failed' with descriptive note
-    for (const p of expiredPayments) {
-      const tag = `[Failed: Unfinished/unprocessed payment after ${hours}h]`;
-      const updatedDescription = p.description?.includes('Unfinished/unprocessed')
-        ? p.description
-        : `${p.description || 'Devotee Checkout'} ${tag}`;
-
-      await prisma.payment.update({
-        where: { id: p.id },
-        data: {
-          status: 'Failed',
-          description: updatedDescription,
-        },
-      });
-
-      updatedPaymentIds.push(p.id);
-      updatedPaymentsCount++;
-    }
-
-    // 4. Update pending RSVPs to 'Failed'
-    let updatedRsvpsCount = 0;
-    if (expiredRsvps.length > 0) {
-      const rsvpUpdateResult = await prisma.eventRSVP.updateMany({
-        where: {
-          id: { in: expiredRsvps.map((r) => r.id) },
-        },
-        data: {
-          paymentStatus: 'Failed',
-        },
-      });
-      updatedRsvpsCount = rsvpUpdateResult.count;
-    }
-
-    // 5. Audit Log to SystemLog
-    if (updatedPaymentsCount > 0 || updatedRsvpsCount > 0) {
-      await logger.warn(
-        'cron/cleanup-pending-payments',
-        `Pending Payments Worker: Marked ${updatedPaymentsCount} pending payment(s) and ${updatedRsvpsCount} pending RSVP(s) older than ${hours}h as Failed (Unfinished/unprocessed).`,
-        {
-          thresholdHours: hours,
-          cutoffDate: cutoffDate.toISOString(),
-          updatedPaymentsCount,
-          updatedRsvpsCount,
-          paymentIds: updatedPaymentIds,
-          timestamp,
-        }
-      );
-    }
+    // 3. Audit Log to SystemLog
+    await logger.warn(
+      'cron/cleanup-pending-payments',
+      `Pending Payments Worker: Marked ${updatedPaymentsCount} pending payment(s) and ${updatedRsvpsCount} pending RSVP(s) older than ${hours}h as Failed (Unfinished/unprocessed).`,
+      {
+        thresholdHours: hours,
+        cutoffDate: cutoffDate.toISOString(),
+        updatedPaymentsCount,
+        updatedRsvpsCount,
+        samplePaymentIds,
+        timestamp,
+      }
+    );
 
     return {
       success: true,
@@ -138,7 +98,7 @@ export async function cleanupPendingPayments(hours = 24): Promise<CleanupResult>
       thresholdHours: hours,
       updatedPaymentsCount,
       updatedRsvpsCount,
-      affectedPaymentIds: updatedPaymentIds,
+      affectedPaymentIds: samplePaymentIds,
     };
   } catch (error: any) {
     console.error('[PENDING PAYMENTS CLEANUP ERROR]:', error);
